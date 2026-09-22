@@ -85,7 +85,11 @@ function findViolation(path) {
 function releaseBytes(path, rel) {
   const buffer = readFileSync(path)
   if (buffer.includes(0)) return buffer
-  const text = buffer.toString('utf8').replaceAll('接口角色', '接口角色').replaceAll('interface-role', 'interface-role')
+  let text = buffer.toString('utf8').replaceAll('接口角色', '接口角色').replaceAll('interface-role', 'interface-role')
+  // 「发布边界」是维护者视角的纪律说明（本仓库自己怎么同步、怎么发布），属于
+  // 研发端文档。放进随包 README 会让读者困惑——例如「仓库默认无远程」在已经
+  // 发布出去的仓库里就是自相矛盾。发行端整节移除，研发端原文保持不动。
+  if (rel === 'README.md') text = text.replace(/\n*## 发布边界\n[\s\S]*$/, '\n')
   if (rel === 'alpha-dog.setting.json' || rel === 'engine/alpha-dog.setting.json') {
     const setting = JSON.parse(text)
     setting.enabled = false

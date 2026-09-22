@@ -85,7 +85,3 @@ npm pack --dry-run --json
 - [dsh-memory](https://github.com/FuRongJun-1999/dsh-memory) —— 感谢其公开的工程思路
 
 完整的依赖披露见 [engine/README.md](engine/README.md) 的「鸣谢」一节。
-
-## 发布边界
-
-真实记忆、凭据、运行时、索引缓存、备份和本机路径不进入 Git 或 npm 包。仓库默认无远程；任何公开发布动作单独执行。
