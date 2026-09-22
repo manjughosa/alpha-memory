@@ -74,10 +74,21 @@ function files(root, rules = excludes) {
   return out.sort()
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 function findViolation(path) {
   const buffer = readFileSync(path)
   const text = buffer.includes(0) ? '' : buffer.toString('utf8')
-  const forbidden = [/mdcg1\.[a-z]+\.tk_[0-9a-f]+\.[A-Za-z0-9_-]+/, /sk-[A-Za-z0-9]{16,}/, /E:\\New Documents\\资料\\活动\\一般\\Deeptalk/i]
+  // 本机绝对路径由运行时的 source 推出，而不是硬编码进源码：硬编码本身就是把
+  // 那条机器路径写进发行物（这条规则原先正是那个样子，自己成了唯一的泄漏源）。
+  // 闸门行为不变——它检查的始终是「当前构建机自己的路径」。
+  const forbidden = [
+    /mdcg1\.[a-z]+\.tk_[0-9a-f]+\.[A-Za-z0-9_-]+/,
+    /sk-[A-Za-z0-9]{16,}/,
+    new RegExp(escapeRegExp(source), 'i'),
+  ]
   for (const rule of forbidden) if (rule.test(text)) return String(rule)
   return null
 }
@@ -86,6 +97,13 @@ function releaseBytes(path, rel) {
   const buffer = readFileSync(path)
   if (buffer.includes(0)) return buffer
   let text = buffer.toString('utf8').replaceAll('接口角色', '接口角色').replaceAll('interface-role', 'interface-role')
+  // 具体宿主的配置文件名不进发行物。它们原本是「禁止引入宿主插件」这条纪律的
+  // 举例，但举例本身会把平台字样写进公开仓库——纪律照旧，举例换成通用表述。
+  // 这里按「路径字面量」替换而不是按整行措辞替换：以后那句注释怎么改写都不会
+  // 让清洗静默失效。
+  text = text
+    .replaceAll('宿主设置文件', '宿主设置文件')
+    .replaceAll('宿主 hooks 文件', '宿主 hooks 文件')
   // 「发布边界」是维护者视角的纪律说明（本仓库自己怎么同步、怎么发布），属于
   // 研发端文档。放进随包 README 会让读者困惑——例如「仓库默认无远程」在已经
   // 发布出去的仓库里就是自相矛盾。发行端整节移除，研发端原文保持不动。

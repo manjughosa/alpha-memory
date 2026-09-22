@@ -1,7 +1,7 @@
 // 标准化回合事件的**纯函数**契约：把宿主送来的原始事件归一成 round_tick。
 //
 // 这里刻意只保留「解析」这一件事。宿主适配的安装、探测、写宿主配置文件
-// （.claude/settings.json / .pi/deeptalk-hooks.json 之类）属于插件挂载逻辑，
+// （宿主设置文件 / 宿主 hooks 文件 之类）属于插件挂载逻辑，
 // 已按实施规划第 0 节移除：MCP 不替使用者安装任何东西，也不修改宿主配置。
 // 事件源由使用者自己的 Agent/宿主投递，或使用随包 MCP sidecar。
 export function normalizeRoundTick(input, previousRound = 0) {
