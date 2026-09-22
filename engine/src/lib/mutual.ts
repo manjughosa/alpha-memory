@@ -1,0 +1,451 @@
+/**
+ * alpha-memory · 互维维护（Mutual Sustain Loop v1.1）——沙箱 B 侧
+ *
+ * 职责（与 A 侧守护脚本对称）：
+ *   1. 心跳写戳：10min 写 ~/.alpha-memory-net/heartbeat.web.stamp（{ts,pid,task_running}）
+ *   2. 守护 A：检测对端守护进程 → 不存在则 detached 拉起
+ *      （模块名由 `MDCG_GUARDIAN_MODULE` 注入；幂等：拉起前确认不存在 + 60s 冷却）
+ *   3. 任务验证：轮询 ~/.alpha-memory-net/tasks/task-*.json → 双通道验证
+ *      （白箱 base_verify + 模型复核）→ 写回 result-<id>.json
+ *
+ * 协议：CommonTrustProtocol/docs/mutual-sustain-loop.md v1.1
+ * 失联分级：25min 告警 / 35min 重启 / task_running 豁免 ×2=70min
+ *
+ * 平台边界：**对端守护进程的模块名不写死在代码里**——由调用方在配置时经
+ * `MDCG_GUARDIAN_MODULE` 注入。未配置即关闭守护拉起点，内核不猜任何外部
+ * 实现的模块名。
+ */
+import { exec, spawn } from 'node:child_process'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import * as os from 'node:os'
+import { pythonPathValue, runRoot } from './datapath.js'
+// issue #19：解释器默认值按平台解析（Windows: python / 其它: python3；
+// env MDCG_PYTHON 可覆盖）。此前写死 'python'，Linux/macOS 上 mutual 一开就撞 ENOENT。
+import { defaultPython } from './python_path.js'
+
+/** 对端守护进程的 Python 模块名（由调用方注入，无默认值）。 */
+export const GUARDIAN_MODULE_ENV = 'MDCG_GUARDIAN_MODULE'
+
+/**
+ * 读取对端守护模块名：空串表示**守护功能未启用**。
+ * 内核不预置任何外部实现的模块名——未配置就不去猜，也不去拉起。
+ */
+export function guardianModule(): string {
+  return (process.env[GUARDIAN_MODULE_ENV] ?? '').trim()
+}
+
+export interface MutualOptions {
+  /** 心跳间隔（毫秒），默认 10min */
+  heartbeatMs: number
+  /** 失联告警阈值（毫秒），默认 25min */
+  warnMs: number
+  /** 失联重启阈值（毫秒），默认 35min */
+  deadMs: number
+  /** 任务中豁免倍数，默认 ×2 */
+  workingFactor: number
+  /** 拉起冷却（毫秒），默认 60s */
+  restartCooldownMs: number
+  /** 互维网络目录，默认 ~/.alpha-memory-net */
+  netDir: string
+}
+
+const DEFAULTS: MutualOptions = {
+  heartbeatMs: 10 * 60 * 1000,
+  warnMs: 25 * 60 * 1000,
+  deadMs: 35 * 60 * 1000,
+  workingFactor: 2,
+  restartCooldownMs: 60 * 1000,
+  netDir: path.join(os.homedir(), '.alpha-memory-net'),
+}
+
+/** 互维网络目录定位 */
+export function netDir(opts: MutualOptions = DEFAULTS): string {
+  return opts.netDir
+}
+
+// ---------------------------------------------------------------------------
+// 心跳（B 侧写戳）
+// ---------------------------------------------------------------------------
+
+export function writeHeartbeat(opts: MutualOptions = DEFAULTS, taskRunning = false): void {
+  const dir = netDir(opts)
+  fs.mkdirSync(dir, { recursive: true })
+  const stamp = {
+    ts: Date.now() / 1000,
+    pid: process.pid,
+    task_running: taskRunning,
+  }
+  fs.writeFileSync(path.join(dir, 'heartbeat.web.stamp'),
+    JSON.stringify(stamp), 'utf-8')
+}
+
+export function readHeartbeat(which: 'a' | 'web', opts: MutualOptions = DEFAULTS): {
+  ts: number; pid: number; task_running: boolean; ageMs: number
+} | null {
+  try {
+    const raw = fs.readFileSync(path.join(netDir(opts), `heartbeat.${which}.stamp`), 'utf-8')
+    const s = JSON.parse(raw)
+    const ageMs = Date.now() - (s.ts as number) * 1000
+    return { ts: s.ts, pid: s.pid, task_running: !!s.task_running, ageMs }
+  } catch {
+    return null
+  }
+}
+
+/** 失联分级判定（纯函数，A 侧 judge_stamp 的 B 侧镜像） */
+export function judgeStamp(stamp: { ageMs: number; task_running: boolean } | null,
+                           opts: MutualOptions = DEFAULTS): 'alive' | 'alive_working' | 'warning' | 'dead' | 'no_stamp' {
+  if (!stamp) return 'no_stamp'
+  const threshold = stamp.task_running ? opts.deadMs * opts.workingFactor : opts.deadMs
+  if (stamp.ageMs < opts.warnMs) return 'alive'
+  if (stamp.task_running && stamp.ageMs < threshold) return 'alive_working'
+  if (stamp.ageMs < threshold) return 'warning'
+  return 'dead'
+}
+
+// ---------------------------------------------------------------------------
+// 守护 A（检测对端守护进程 + 拉起）
+// ---------------------------------------------------------------------------
+
+// 进程探测特征 = 命令行含 `guardianModule()` 返回的模块名。
+// issue #19 已知边界（未纳入本轮修复面）：Windows 分支按 name='python.exe' 过滤，
+// 用其它可执行名（conda 的 python3.exe 等）启动的守护进程可能漏检；该路径由
+// config.mutual.enabled 控制（默认关）。
+
+function execP(cmd: string): Promise<string> {
+  return new Promise((resolve) => {
+    exec(cmd, { windowsHide: true, timeout: 15_000 }, (err, stdout) => {
+      resolve(err ? '' : String(stdout))
+    })
+  })
+}
+
+/** 检测对端守护进程是否存在
+ * P1 完善（GPT 审查·wmic 兼容）：wmic 在 Win11+ 已被移除——失败时
+ * fallback PowerShell Get-CimInstance（Win）；非 Windows 用 ps 查询。
+ * 未配置 `MDCG_GUARDIAN_MODULE` 时恒返回 false（功能未启用，不做任何探测）。 */
+export async function guardianRunning(): Promise<boolean> {
+  const mod = guardianModule()
+  if (!mod) return false
+  if (process.platform === 'win32') {
+    // ① wmic（旧 Win10 可用）
+    const out = await execP(
+      `wmic process where "name='python.exe'" get commandline 2>nul`)
+    if (out.includes(mod)) return true
+    // ② wmic 不可用（Win11 移除）→ PowerShell
+    const psOut = await execP(
+      `powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \\"name='python.exe'\\" | Select-Object -ExpandProperty CommandLine"`)
+    return psOut.includes(mod)
+  }
+  // 非 Windows（Linux/macOS）：ps 查询
+  const esc = mod.replace(/\./g, '\\.')
+  const psOut = await execP(`ps -eo command | grep -E '${esc}' | grep -v grep`)
+  return !!psOut
+}
+
+/** detached 拉起对端守护进程（幂等：先确认不存在；未配置模块名则 skipped） */
+export async function ensureGuardian(python = defaultPython(),
+                                     opts: MutualOptions = DEFAULTS): Promise<'started' | 'already' | 'failed' | 'skipped'> {
+  const mod = guardianModule()
+  if (!mod) {
+    // 内核不预置外部实现的模块名：未配置即不点火，如实返回 skipped。
+    log(opts, `守护跳过：未配置 ${GUARDIAN_MODULE_ENV}（内核不猜外部实现的模块名）`)
+    return 'skipped'
+  }
+  const running = await guardianRunning()
+  if (running) return 'already'
+  // P1 修复（GPT 审查）：spawn 找不到可执行文件是异步 error 事件，无监听
+  // 会直接崩 Node（Unhandled 'error' event）。加监听 + 超时判定拉起失败。
+  return new Promise((resolve) => {
+    let child: ReturnType<typeof spawn> | null = null
+    let failTimer: NodeJS.Timeout | null = null
+    let okTimer: NodeJS.Timeout | null = null
+    let settled = false
+    const finish = (r: 'started' | 'failed'): void => {
+      if (settled) return
+      settled = true
+      if (failTimer) clearTimeout(failTimer)
+      if (okTimer) clearTimeout(okTimer)
+      resolve(r)
+    }
+    try {
+      child = spawn(python, ['-m', mod], {
+        windowsHide: true,
+        detached: true,
+        stdio: 'ignore',
+        // 同 mdcg_client：cwd 必须在包外（否则 pnpm 更新时 rmdir 包目录被 Windows
+        // 拒绝 → ERR_PNPM_EBUSY）；模块解析由 PYTHONPATH 保证，见 datapath.runRoot()。
+        cwd: runRoot(),
+        // 两条编码注入与 mdcg_client.mdcgChildEnv() 同口径（2026-09-20 v15-9）：
+        // 本站点此前只给 PYTHONPATH，是「唯一构造点」主张下**未表态**的 Python 站点
+        // （v15b 结构扫描：Python 目标 3 站点、走构造点 0 个、两条编码变量全缺 2 个）。
+        // 此处**不引** mdcgChildEnv()：它构造的是 md_cg 子进程环境（带 MDCG_ROOT /
+        // MDCG_MCP_SURFACE / MDCG_MCP_* 等，对守护进程无意义）；只对齐编码口径。
+        // 站点表态由 test/python-utf8-mode.test.ts ④（站点扫描）机械守护。
+        env: {
+          ...process.env,
+          PYTHONPATH: pythonPathValue(),
+          PYTHONUTF8: '1',
+          PYTHONIOENCODING: 'utf-8',
+        },
+      })
+    } catch (e) {
+      log(opts, `守护失败：${String(e)}`)
+      finish('failed')
+      return
+    }
+    // 拉起失败（python 不存在等）→ 记录 + failed，不崩 Node。
+    // spawn 的 error 事件是异步的：不能立即判 started——等 50ms error 窗口，
+    // 无 error 才算拉起成功（GPT 审查：此前立即返回 started，错误路径也报成功）。
+    child.on('error', (err) => {
+      log(opts, `守护拉起错误：${err.message}`)
+      finish('failed')
+    })
+    // 拉起成功但立即退出（守护模块不存在）→ failed
+    child.on('exit', (code) => {
+      if (code !== null && code !== 0) {
+        log(opts, `守护进程退出 code=${code}（守护模块可能不可用）`)
+        finish('failed')
+      }
+    })
+    okTimer = setTimeout(() => finish('started'), 50)
+    failTimer = setTimeout(() => {
+      log(opts, `守护拉起超时（10s 无健康确认）`)
+      finish('failed')
+    }, 10_000)
+    child.unref()
+    log(opts, `守护动作：拉起 ${mod}（pid=${child.pid ?? '?'}）`)
+  })
+}
+
+// ---------------------------------------------------------------------------
+// 任务验证邮箱（双通道：白箱 base_verify + DeepSeek 复核）
+// ---------------------------------------------------------------------------
+
+export interface VerifyTask {
+  id: string
+  type: 'verify' | 'knowledge_sync'
+  from: 'A' | 'B'
+  to: 'B' | 'A'
+  payload: { claim: string; evidence?: string; expected?: string; source_ref?: string }
+  status: 'pending' | 'processing' | 'done'
+  created_at: number
+}
+
+export interface VerifyResult {
+  task_id: string
+  verdict: 'pass' | 'fail' | 'needs_revision'
+  whitebox: { judgment: string; best: string; d_norm: number; record_id: string }
+  llm_review: { conclusion: string; reason: string }
+  reasons: string[]
+  evidence: string[]
+  verifier: 'B'
+  at: number
+}
+
+/** 扫描互维目录里 A→B 的 pending 任务 */
+export function scanTasks(opts: MutualOptions = DEFAULTS): VerifyTask[] {
+  const dir = path.join(netDir(opts), 'tasks')
+  if (!fs.existsSync(dir)) return []
+  const out: VerifyTask[] = []
+  for (const f of fs.readdirSync(dir)) {
+    if (!f.startsWith('task-') || !f.endsWith('.json')) continue
+    try {
+      const t = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8'))
+      if (t.to === 'B' && t.status === 'pending') out.push(t)
+    } catch { /* 跳过坏文件 */ }
+  }
+  return out
+}
+
+/** 白箱通道：智慧之书 base_verify（通过 bridge 调用，或本地注入） */
+export async function whiteboxVerify(claim: string,
+                                     verifyFn: (c: string) => Promise<{ judgment: string; best: string; d_norm: number; record_id: string }>): Promise<VerifyResult['whitebox']> {
+  try {
+    return await verifyFn(claim)
+  } catch (e) {
+    return { judgment: `whitebox_error: ${String(e)}`, best: '', d_norm: -1, record_id: '' }
+  }
+}
+
+/** 复核通道：DeepSeek 独立复核（在白箱判定之上） */
+export async function llmReview(claim: string, whitebox: VerifyResult['whitebox'],
+                                reviewFn: (c: string, w: VerifyResult['whitebox']) => Promise<{ conclusion: string; reason: string }>): Promise<VerifyResult['llm_review']> {
+  try {
+    return await reviewFn(claim, whitebox)
+  } catch (e) {
+    return { conclusion: `llm_error: ${String(e)}`, reason: '' }
+  }
+}
+
+/** 综合 verdict（白箱优先） */
+export function combineVerdict(w: VerifyResult['whitebox'],
+                               l: VerifyResult['llm_review']): VerifyResult['verdict'] {
+  const c = l.conclusion || ''
+  // P1 修复（GPT 审查）：白箱通道异常 → fail-closed（不因复核「同意」而 pass）
+  if (w.judgment.startsWith('whitebox_error') || w.judgment.startsWith('llm_error')
+      || w.d_norm < 0) {
+    return 'needs_revision'
+  }
+  if (w.judgment.startsWith('采纳')) {
+    // 白箱采纳：复核质疑/不同意→needs_revision（白箱优先，记录分歧）；否则 pass
+    return c.includes('质疑') || c.includes('不同意') || c.includes('不通过')
+      ? 'needs_revision' : 'pass'
+  }
+  if (w.judgment.includes('fail') || w.judgment.includes('不成立')) return 'fail'
+  // 证据不足/无法判断 → 白箱不确定，交给复核决定（「不同意」须排除「同意」子串）
+  if (c.includes('不同意') || c.includes('不通过')) return 'needs_revision'
+  if (c.includes('通过') || c.includes('同意')) return 'pass'
+  // P1 修复（GPT 审查）：「质疑」是分歧信号——白箱不确定 + 复核质疑 → 需要修订，
+  // 此前把「质疑」当 pass 与白箱采纳分支语义矛盾。
+  if (c.includes('质疑')) return 'needs_revision'
+  return 'needs_revision'
+}
+
+/** 任务 ID 安全校验（P1 修复：防路径穿越——task.id 可含 ../../ 写目录外） */
+const TASK_ID_RE = /^[A-Za-z0-9._-]{1,64}$/
+
+export function safeTaskId(id: string): boolean {
+  return TASK_ID_RE.test(id) && !id.includes('..')
+}
+
+/** 处理单个任务：双通道验证 → 写回 result */
+export async function processTask(task: VerifyTask,
+                                  verifyFn: (c: string) => Promise<{ judgment: string; best: string; d_norm: number; record_id: string }>,
+                                  reviewFn: (c: string, w: VerifyResult['whitebox']) => Promise<{ conclusion: string; reason: string }>,
+                                  opts: MutualOptions = DEFAULTS): Promise<VerifyResult | null> {
+  const dir = path.join(netDir(opts), 'tasks')
+  // P1 修复（GPT 审查）：task.id 路径穿越——非法 id 拒绝处理，不写任何文件
+  if (!safeTaskId(task.id)) {
+    log(opts, `任务 ${JSON.stringify(task.id)} 非法（路径穿越风险），拒绝处理`)
+    throw new Error(`非法任务 id: ${task.id}`)
+  }
+  const taskPath = path.join(dir, `task-${task.id}.json`)
+  // P1 完善（GPT 审查·任务竞态）：原子 claim——rename task→processing。
+  // 多实例同时 scanTasks 读到同一 pending 时，rename 只有一方成功；
+  // 失败（文件已被 rename/不存在）= 其他实例正在处理 → 跳过（返回 null）。
+  // 此前无锁：多实例都写 processing/result/done，结果互相覆盖。
+  const claimPath = path.join(dir, `processing-${task.id}.json`)
+  try {
+    fs.renameSync(taskPath, claimPath)
+  }
+  catch {
+    return null // 已被其他实例 claim，或文件不存在
+  }
+  try {
+    const w = await whiteboxVerify(task.payload.claim, verifyFn)
+    const l = await llmReview(task.payload.claim, w, reviewFn)
+    const verdict = combineVerdict(w, l)
+    const result: VerifyResult = {
+      task_id: task.id,
+      verdict,
+      whitebox: w,
+      llm_review: l,
+      reasons: [
+        `白箱判定：${w.judgment}（best=${w.best}，d_norm=${w.d_norm}）`,
+        `复核结论：${l.conclusion}`,
+      ],
+      evidence: [task.payload.source_ref || ''].filter(Boolean),
+      verifier: 'B',
+      at: Date.now() / 1000,
+    }
+    // 结果先写 tmp 再 rename（原子，防半写文件）
+    const resultTmp = path.join(dir, `result-${task.id}.json.tmp`)
+    fs.writeFileSync(resultTmp, JSON.stringify(result, null, 2), 'utf-8')
+    fs.renameSync(resultTmp, path.join(dir, `result-${task.id}.json`))
+    // 完成：清理 claim 文件（rename 回 done 标记供审计）
+    fs.renameSync(claimPath, path.join(dir, `done-${task.id}.json`))
+    log(opts, `任务 ${task.id} 验证完成：${verdict}`)
+    return result
+  }
+  catch (e) {
+    // 处理失败：释放 claim（rename 回 task 供重试）
+    try {
+      fs.renameSync(claimPath, taskPath)
+    }
+    catch { /* 文件可能已不在 */ }
+    throw e
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 日志 / last_contact
+// ---------------------------------------------------------------------------
+
+export function log(opts: MutualOptions, msg: string): void {
+  try {
+    const p = path.join(netDir(opts), 'mutual.log')
+    fs.appendFileSync(p, `[B ${new Date().toISOString()}] ${msg}\n`, 'utf-8')
+  } catch { /* 日志失败不阻塞 */ }
+}
+
+export function writeLastContact(opts: MutualOptions = DEFAULTS): void {
+  try {
+    fs.writeFileSync(path.join(netDir(opts), 'last_contact.json'),
+      JSON.stringify({ last_contact_b: Date.now() / 1000 }), 'utf-8')
+  } catch { /* 非阻塞 */ }
+}
+
+// ---------------------------------------------------------------------------
+// 安装（ctx.effect 作用域内，卸载时清理）
+// ---------------------------------------------------------------------------
+
+export function installMutualMaintenance(
+  ctx: { logger: { info(m: string): void }; effect(fn: () => () => void, name?: string): void },
+  config: Partial<MutualOptions> = {},
+  hooks: {
+    verify?: (c: string) => Promise<{ judgment: string; best: string; d_norm: number; record_id: string }>
+    review?: (c: string, w: VerifyResult['whitebox']) => Promise<{ conclusion: string; reason: string }>
+  } = {},
+): void {
+  const opts: MutualOptions = { ...DEFAULTS, ...config }
+
+  // 1. 心跳写戳 + 守护 A（10min 周期）
+  // P1 修复（GPT 审查）：定时器签名是 interval(callback, delay)
+  // ——此前 (ms, fn) 写反：数字被当 callback、函数被当 delay，回调永不执行，
+  // 互维心跳/任务扫描实际不工作。
+  // P2 修复：不使用宿主框架注入的定时器快捷属性（未声明依赖时访问会抛错）。
+  // 改用 Node 原生 setInterval（互维不需要宿主生命周期管理）。
+  const heartbeatTimer = setInterval(() => {
+    try {
+      writeHeartbeat(opts)
+      // 守护 A：对端守护不在 → 拉起（未配置模块名时 skipped，不点火）
+      ensureGuardian(defaultPython(), opts).then((r) => {
+        if (r === 'started') ctx.logger.info(`mutual: 已拉起对端守护进程（${r}）`)
+      })
+      // 读 A 戳分级判定
+      const a = readHeartbeat('a', opts)
+      const verdict = judgeStamp(a, opts)
+      if (verdict === 'warning') ctx.logger.info('mutual: A 侧心跳告警（>25min 未更新）')
+      if (verdict === 'dead') ctx.logger.info('mutual: A 侧失联（>35min），等待 guardian 自愈或告警')
+      writeLastContact(opts)
+    } catch (e) { /* 单次失败不中断 */ }
+  }, opts.heartbeatMs)
+  heartbeatTimer.unref?.()
+
+  // 2. 任务轮询（30s 周期，检查 A→B 任务）
+  const taskTimer = setInterval(() => {
+    try {
+      const tasks = scanTasks(opts)
+      for (const t of tasks) {
+        if (!hooks.verify || !hooks.review) continue
+        processTask(t, hooks.verify, hooks.review, opts).catch((e) => {
+          log(opts, `任务 ${t.id} 处理异常：${String(e)}`)
+        })
+      }
+    } catch (e) { /* 单次失败不中断 */ }
+  }, 30_000)
+  taskTimer.unref?.()
+
+  // 3. effect 作用域清理
+  ctx.effect(() => {
+    return () => {
+      try {
+        clearInterval(heartbeatTimer)
+        clearInterval(taskTimer)
+      } catch { /* 清理失败不阻塞 */ }
+    }
+  }, 'alpha-memory-mutual')
+}
+

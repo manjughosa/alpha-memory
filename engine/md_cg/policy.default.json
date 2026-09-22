@@ -1,0 +1,11 @@
+{
+  "_comment": "Alpha-Memory 默认合规/纪律规则库。未设置 MDCG_POLICY_FILE 时由 audit.load_rulebook 自动回落使用；部署侧可用该环境变量指向自己的规则库覆盖本文件。forbidden 为命中即拒的正则，required 为必须出现的正则（本默认库只做禁止项，不强制任何要素）。",
+  "forbidden": [
+    "(?i)(api[_-]?key|apikey|secret|password|passwd|token)\\s*[:=]\\s*[\"']?[A-Za-z0-9_\\-]{16,}",
+    "-----BEGIN [A-Z ]*PRIVATE KEY-----",
+    "(?i)sk-[A-Za-z0-9]{20,}",
+    "(?i)ghp_[A-Za-z0-9]{20,}",
+    "(?i)AKIA[0-9A-Z]{16}"
+  ],
+  "required": []
+}

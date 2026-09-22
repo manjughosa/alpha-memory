@@ -1,0 +1,90 @@
+{
+  "name": "alpha-memory",
+  "version": "0.4.11",
+  "description": "Alpha-Memory：面向 AI Agent 的本地长期记忆系统。标准 MCP stdio 接口，宿主无关；对话自动沉淀为可审阅的 Markdown 认知图。",
+  "type": "module",
+  "bin": {
+    "alpha-dog-sidecar": "runtime/alpha-dog-sidecar.cjs"
+  },
+  "exports": {
+    "./runtime": {
+      "types": "./lib/alpha-dog.d.ts",
+      "import": "./lib/alpha-dog.js"
+    },
+    "./config": {
+      "types": "./lib/alpha-dog-config.d.ts",
+      "import": "./lib/alpha-dog-config.js"
+    },
+    "./feedback": {
+      "types": "./lib/alpha-dog/feedback.d.ts",
+      "import": "./lib/alpha-dog/feedback.js"
+    }
+  },
+  "files": [
+    "lib",
+    "src",
+    "!src/**/*.bak-*",
+    "!src/**/*.orig",
+    "alpha-dog.setting.json",
+    "model.js",
+    "prompts",
+    "runtime",
+    "md_cg",
+    "!md_cg/whitebox_kb/data",
+    "!md_cg/whitebox_kb/wisdom/docs",
+    "!md_cg/**/__pycache__",
+    "!md_cg/**/*.pyc",
+    "!md_cg/**/*.db",
+    "!md_cg/**/*.db-shm",
+    "!md_cg/**/*.db-wal",
+    "!md_cg/**/*.log",
+    "!md_cg/**/*.tmp",
+    "!md_cg/**/*.bak",
+    "!md_cg/**/.DS_Store",
+    "!md_cg/whitebox_kb/seed_knowledge/guardrail-charter.md",
+    "!md_cg/whitebox_kb/seed_knowledge/智能论3.4.md",
+    "!md_cg/whitebox_kb/seed_knowledge/wisdom_cards/自我意识·知识综述.md",
+    "!md_cg/whitebox_kb/wisdom/role_solidified.json",
+    "!md_cg/whitebox_kb/wisdom/snr_report.json",
+    "README.md",
+    "AGENT-SETUP.md",
+    "md_cg/README.md",
+    "scripts/review_cli.py",
+    "scripts/doctor.mjs",
+    "scripts/mcp-config.mjs"
+  ],
+
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "memory",
+    "agent",
+    "alpha-memory",
+    "alpha-dog",
+    "long-term-memory",
+    "cognitive-graph",
+    "markdown",
+    "spatiotemporal",
+    "knowledge-graph"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test \"test/*.test.mjs\"",
+    "test:python": "python scripts/run_tests.py md_cg",
+    "release:audit": "node scripts/sync-release.mjs --audit-only",
+    "release:sync": "node scripts/sync-release.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "mcp:config": "node scripts/mcp-config.mjs",
+    "prepare": "node -e \"const fs=require('fs');const ready=fs.existsSync('node_modules/typescript/bin/tsc')&&fs.existsSync('tsconfig.json');ready?require('child_process').execFileSync(process.execPath,['scripts/build.mjs'],{stdio:'inherit'}):console.log('[prepare] 跳过构建：当前为运行包或未安装开发依赖；已保留随包 lib 产物')\"",
+    "prepublishOnly": "npm run build && npm test && npm run test:python"
+  },
+  "engines": {
+    "node": ">=22.19"
+  }
+}

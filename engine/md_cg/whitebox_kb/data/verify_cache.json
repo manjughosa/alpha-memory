@@ -1,0 +1,884 @@
+{
+ "_verifier_version": 10,
+ "0985f0423985053d5bad6dfafe1724e8": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "4 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:32",
+  "version": 10
+ },
+ "7ffd213f59befbbb0b459eaa1d44c7d9": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:32",
+  "version": 10
+ },
+ "1c193cfb5e84494765036fdaea3b3c26": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:32",
+  "version": 10
+ },
+ "83a381e1f246fb91a048afe63cd6067b": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:32",
+  "version": 10
+ },
+ "ad2fac524f568431b50550c4cedc235c": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:32",
+  "version": 10
+ },
+ "576212f85a2407ca47b1855045a2ffae": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "2 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "eed61b3a016010eb4cfec60a996a8092": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "ab7a98c387fb69771a49b844ed5688ea": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "4 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "7365e9982bbbce0e0f5a4d09c8630eb3": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "2b6f12f54b223f46811a94a4a5be6d27": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "986cc44244be4dc16f654d1ed9ad6d4e": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "85b07530bc6997a160c86eafbb5c636e": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（2 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "d67ccea338f4b50ce03f1bc27b10b23c": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "2 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "跳过（函数 2 个参数，边界形态依赖参数语义）"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "aee70a3f0a55da1184639b360063709a": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "e0ec04a572692e05af32d0b490bd20ef": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "a9f6b6d1e94c2d6c2d25aab6b959e72d": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "634e18a00be11d3fd9fcee03b374f065": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "f779abf5e49eac84ea28121cea97d119": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "a45e94a868dc35e937d4415a70ba4401": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "1902ce8993cba6a46858999edf3c32da": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:33",
+  "version": 10
+ },
+ "30f498dbe285d761e24977b91316bcec": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（6 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "注入型单元（样例均为 call 标记，由集成测试覆盖）"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:34",
+  "version": 10
+ },
+ "4a084d1338675352811d9133da5ea890": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:38",
+  "version": 10
+ },
+ "f6b3dc873aeadc24477bd7c9b85f46fc": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "4 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "跳过（函数 2 个参数，边界形态依赖参数语义）"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:38",
+  "version": 10
+ },
+ "74b3db5c3dac0426c438c304d5d85e32": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（2 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "4 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:40",
+  "version": 10
+ },
+ "ae73bea61d30edb2cfdf1f5760f2940c": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "4 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:40",
+  "version": 10
+ },
+ "18d5d854aaba91ef4daec39545a5d326": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "3 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:41",
+  "version": 10
+ },
+ "5e5a2ceeb650e34905763fff092b8409": {
+  "ok": true,
+  "checks": [
+   {
+    "level": "L1语法",
+    "ok": true,
+    "evidence": "语法通过（1 个函数定义）"
+   },
+   {
+    "level": "L2样例",
+    "ok": true,
+    "evidence": "4 组样例全部通过"
+   },
+   {
+    "level": "L3边界",
+    "ok": true,
+    "evidence": "无额外边界用例"
+   },
+   {
+    "level": "规范符合性",
+    "ok": true,
+    "ccg": {
+     "r3_total": 1,
+     "r3_missing": [],
+     "r4_missing": []
+    },
+    "evidence": "结构规范 + 语义对齐 + 条件论注释 R1/R2 通过（R3 三要素 1/1 达标）"
+   }
+  ],
+  "reason": "",
+  "verified_at": "2026-09-21 23:45:41",
+  "version": 10
+ }
+}

@@ -1,0 +1,75 @@
+{
+  "version": "2.1.0",
+  "enabled": false,
+  "interfaces": {
+    "Alpha_Dog_On": true,
+    "Alpha_Dog_Off": true,
+    "cg": false,
+    "stg": false
+  },
+  "schedule": {
+    "slots": [
+      {
+        "id": "light",
+        "label": "即时落盘",
+        "interval": 15,
+        "prompt": "watchdog-light",
+        "registryTags": ["即时落盘·15轮"],
+        "allowedModes": ["backfill", "monitor"]
+      },
+      {
+        "id": "medium",
+        "label": "中档巡检",
+        "interval": 21,
+        "prompt": "watchdog-medium",
+        "registryTags": ["系统巡检·21轮"],
+        "allowedModes": ["backfill", "monitor"]
+      },
+      {
+        "id": "heavy",
+        "label": "重档巡检",
+        "interval": 30,
+        "prompt": "watchdog-heavy",
+        "registryTags": ["记忆巡检·30轮"],
+        "allowedModes": ["interrupt", "fixed_defer", "backfill", "monitor"]
+      }
+    ],
+    "simultaneousOrder": ["medium", "light", "heavy"],
+    "sequentialWake": true
+  },
+  "registry": {
+    "memoryMappingTableMd": "@memory_mapping_table_md",
+    "memoryMappingTableJson": "@memory_mapping_table_json"
+  },
+  "initialization": {
+    "mention": "on",
+    "status": "unconfigured"
+  },
+  "model": {
+    "name": "",
+    "baseUrl": "",
+    "api": "",
+    "apiKeyRef": "",
+    "models": []
+  },
+  "state": {
+    "directory": "state",
+    "mode": "legacy"
+  },
+  "governance": {
+    "failureThreshold": 3,
+    "cooldownMs": 300000,
+    "maxPending": 100
+  },
+  "batchSize": 8,
+  "sidecar": {
+    "enabled": false,
+    "mode": "wake",
+    "network": "off",
+    "countScope": "tool_call",
+    "entry": "engine/runtime/alpha-dog-sidecar.cjs",
+    "bridge": "alpha_memory_bridge.js",
+    "node": "",
+    "serverName": "alpha-memory"
+  }
+}

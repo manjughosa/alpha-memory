@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Alpha-Memory：谁能用、记忆在哪、怎么算写进去",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "views": [
+      {
+        "id": "entry",
+        "label": "谁能用它",
+        "focus": ["mcp_host", "cli", "mcp_server"],
+        "note": "两个入口连到同一个 stdio MCP server，工具面只有 cg / stg 两个认知基元。"
+      },
+      {
+        "id": "write-gate",
+        "label": "写一条记忆要过什么",
+        "focus": ["mcp_server", "verdict", "commit", "review_queue", "storage"],
+        "note": "令牌校验 → 写入判定 → 落盘或入队；只有 committed 才是真相。"
+      },
+      {
+        "id": "truth",
+        "label": "真源与审核队列",
+        "focus": ["verdict", "commit", "review_queue", "storage"],
+        "note": "Markdown 原文即真源，索引可重建；DEFER 入 review_queue 等人工放行。"
+      }
+    ]
+  },
+  "components": [
+    { "id": "mcp_host", "type": "external", "label": "任意 MCP 宿主", "sublabel": "stdio 直连", "pos": [40, 84], "size": [160, 52] },
+    { "id": "cli", "type": "backend", "label": "命令行", "sublabel": "python -m md_cg", "pos": [40, 158], "size": [160, 52] },
+    { "id": "mcp_server", "type": "security", "label": "md_cg MCP server", "sublabel": "stdio 逐行 JSON-RPC", "pos": [400, 84], "size": [190, 52] },
+    { "id": "verdict", "type": "messagebus", "label": "写入判定", "sublabel": "ACCEPT / REJECT / DEFER / BLINDSPOT", "pos": [470, 250], "size": [190, 52] },
+    { "id": "commit", "type": "backend", "label": "落盘", "sublabel": "committed 才是真相", "pos": [900, 200], "size": [150, 52] },
+    { "id": "review_queue", "type": "messagebus", "label": "review_queue", "sublabel": "正文入 inbox.jsonl 待裁决", "pos": [470, 380], "size": [170, 52] },
+    { "id": "storage", "type": "database", "label": "用户级状态目录", "sublabel": "~/.alpha-memory/data/mdcg", "pos": [880, 520], "size": [190, 56] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "写入链 fail-closed", "wraps": ["mcp_server", "verdict"], "pad": 22 }
+  ],
+  "connections": [
+    { "from": "mcp_host", "to": "mcp_server", "label": "stdio MCP", "fromSide": "right", "toSide": "left", "via": [[290, 110]], "labelAt": [300, 96] },
+    { "from": "cli", "to": "mcp_server", "label": "MDCG_ROOT 直起", "fromSide": "right", "toSide": "bottom", "via": [[620, 184], [620, 200], [495, 200]], "labelAt": [320, 400] },
+    { "from": "mcp_server", "to": "verdict", "label": "令牌校验后写入判定", "fromSide": "bottom", "toSide": "top", "labelAt": [600, 220] },
+    { "from": "verdict", "to": "commit", "label": "ACCEPT", "fromSide": "right", "toSide": "left", "labelAt": [880, 225] },
+    { "from": "verdict", "to": "review_queue", "label": "DEFER / BLINDSPOT", "fromSide": "bottom", "toSide": "top", "labelAt": [610, 340] },
+    { "from": "review_queue", "to": "storage", "label": "人工放行后落盘", "variant": "dashed", "fromSide": "right", "toSide": "left", "via": [[800, 406], [800, 548]], "labelAt": [900, 480] },
+    { "from": "commit", "to": "storage", "label": "写入对应记忆层", "fromSide": "bottom", "toSide": "top", "via": [[975, 460]], "labelAt": [1120, 420] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "同一个 server", "items": ["各入口连到同一个 stdio MCP server", "默认工具面只有 cg / stg 两个认知基元", "无令牌即只读 guest，读 / 召回照常"] },
+    { "dot": "emerald", "title": "记忆在哪", "items": ["默认落在用户级状态目录，不在安装包内", "Markdown 原文即真源，索引可重建", "包更新不删数据，复制目录即备份"] },
+    { "dot": "rose", "title": "写入的真相", "items": ["ok: true 不等于已落盘，只看 committed", "未落盘时 moved_to 指向 review_queue", "DEFER / BLINDSPOT 入队等人工放行"] }
+  ]
+}

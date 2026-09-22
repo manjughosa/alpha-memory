@@ -1,0 +1,62 @@
+# Alpha-Memory · 公开仓库排除规则
+# 目的：运行时产物、私有记忆数据、凭据、备份与内部缓存绝不进入公开仓库。
+# 注意：已跟踪的文件不受本文件影响；需要先执行 git rm -r --cached <路径>（由仓库所有者手动执行）。
+
+# ── 私有记忆数据（真实对话 / 身份 / 锚点）─────────────────────
+/data/
+/engine/data/
+
+# ── 记忆索引缓存（含本机路径与内容分片）───────────────────────
+/engine/_md_cg_p*/
+
+# ── 凭据 ────────────────────────────────────────────────────
+/token/
+*.token
+*-token.txt
+
+# ── 运行时与解释器 ──────────────────────────────────────────
+# 根 runtime/ 是随发行物分发的嵌入式 Python（Windows 版）：解释器、DLL 与标准库
+# 必须一起进仓库——目标机器没有系统 Python 时，bridge 的第一个解释器候选就是
+# runtime/python.exe，缺了它内核起不来。仍然排除私有的 runtime/bin/、生成状态，
+# 以及字节码缓存（__pycache__ / *.py[cod]，见下方）——那些 .pyc 会嵌入构建机的
+# 绝对路径，属于本地路径泄露。
+/runtime/bin/
+/.runtime/
+/engine/state/
+!/engine/state/.gitkeep
+*.exe
+# 放行随包分发的解释器与 pip 自带启动器。否定规则必须排在 *.exe 之后才生效。
+!/runtime/*.exe
+!/runtime/**/*.exe
+
+# ── 备份与清理区 ────────────────────────────────────────────
+/backups/
+/待清理/
+*.bak
+*.bak-*
+*.corrupted-*
+*.orig
+
+# ── Python 字节码 ───────────────────────────────────────────
+__pycache__/
+# 不要写成 *.py[cod]：[cod] 会连带匹配 Windows 扩展模块 *.pyd，
+# 那会把 runtime/DLLs/*.pyd（内置解释器的 C 扩展）整批挡在仓库外，
+# 结果是内置解释器缺 _socket/_ssl/_sqlite3/_hashlib 等模块，等于废掉它。
+*.pyc
+*.pyo
+*.egg-info/
+
+# ── Node ────────────────────────────────────────────────────
+node_modules/
+# 注意：不再排除 /engine/lib/。发行物刻意携带预构建的 lib/——sidecar 运行时
+# import 的就是它，package.json 的 exports 也全部指向 ./lib/。排除它会让
+# 克隆下来的仓库无法直接运行，必须先装 dev 依赖重新构建。
+
+# ── 一致性缓存与审计产物 ─────────────────────────────────────
+.consistency-*.json
+*审计*.log
+*-debug.log
+
+# ── 私人理论文档（不入发行物）──
+/engine/md_cg/whitebox_kb/seed_knowledge/wisdom_cards/情感情绪仿真·知识综述.md
+/engine/md_cg/whitebox_kb/seed_knowledge/wisdom_cards/时空记忆图·知识综述.md
