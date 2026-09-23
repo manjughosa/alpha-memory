@@ -49,6 +49,8 @@ const excludes = [
   /^变更清单-\d+\.md$/,
   /^engine[\\/]recovery-alpha-dog(?:[\\/]|$)/,
   /^engine[\\/]md_cg[\\/]whitebox_kb[\\/]seed_knowledge[\\/]wisdom_cards[\\/](?:情感情绪仿真·知识综述|时空记忆图·知识综述)\.md$/,
+  // 知识链热度计数（audit_log）：sidecar/内核的运行产物，记录使用行为，不入发行物。
+  /^engine[\\/]md_cg[\\/]whitebox_kb[\\/]wisdom[\\/]audit_log(?:[\\/]|$)/,
 ]
 
 const purgeFromTarget = [
@@ -69,6 +71,8 @@ const purgeFromTarget = [
   /^engine[\\/]_md_cg_p\d+/,
   /^engine[\\/]adapters(?:[\\/]|$)/,
   /^engine[\\/]skills(?:[\\/]|$)/,
+  // 知识链热度计数（与 excludes 同步）：发行端历史残留也清掉。
+  /^engine[\\/]md_cg[\\/]whitebox_kb[\\/]wisdom[\\/]audit_log(?:[\\/]|$)/,
   /(?:^|[\\/])__pycache__(?:[\\/]|$)/,
   /\.py[co]$/,
   /^\d+(?:\.\d+)?\.md$/,
@@ -96,7 +100,10 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function findViolation(path) {
+function findViolation(path, rel) {
+  // 筛子定义文件（本脚本）必然含有这些模式本身——它不是泄漏源，豁免自身。
+  // （rel 在 Windows 下是反斜杠形态，统一转成正斜杠再比。）
+  if (rel.replaceAll('\\', '/') === 'engine/scripts/sync-release.mjs') return null
   const buffer = readFileSync(path)
   const text = buffer.includes(0) ? '' : buffer.toString('utf8')
   // 本机绝对路径由运行时的 source 推出，而不是硬编码进源码：硬编码本身就是把
@@ -106,6 +113,17 @@ function findViolation(path) {
     /mdcg1\.[a-z]+\.tk_[0-9a-f]+\.[A-Za-z0-9_-]+/,
     /sk-[A-Za-z0-9]{16,}/,
     new RegExp(escapeRegExp(source), 'i'),
+    // 本机宿主与用户痕迹（20260923 实证：发行版 setting 曾携带本机会话目录绝对路径
+    // 「盘符:/宿主目录/agent/sessions/编码工作区」，靠人工复核才拦下）。闸门 fail-closed：
+    // 这些模式出现在任何待同步文件里都拒绝出包，修复责任在研发端源头。
+    // 模式字面量用字符拼接组装——本脚本自身随包发行，不能在发行物里留下
+    // 可被grep的本机特征明文（盘符路径/用户目录号）。
+    // 盘符限定（[A-Z]: 前缀）避免误伤英文文档字符串（如 Python 标准库 "new documents"）。
+    new RegExp('[A-Z]:[/\\\\]+pi' + '-agent', 'i'),
+    /--[EC]--New-Documents|--E--|--C--/,
+    new RegExp('[A-Z]:[/\\\\][^\\s\\x27"]*New[ ]+Documents', 'i'),
+    new RegExp('Users[/\\\\]+' + String.fromCharCode(51, 50, 50, 48, 51), 'i'),
+    /DEEPSEEK_API_KEY\s*[:=]\s*['"]sk-/i,
   ]
   for (const rule of forbidden) if (rule.test(text)) return String(rule)
   return null
@@ -132,6 +150,10 @@ function releaseBytes(path, rel) {
     setting.initialization = { ...(setting.initialization || {}), mention: 'on', status: 'unconfigured' }
     setting.state = { ...(setting.state || {}), mode: 'legacy' }
     setting.model = { name: '', baseUrl: '', api: '', apiKeyRef: '', models: [] }
+    // conversation.dir 是部署者的本机会话目录（Agent setup 声明项）。研发端的
+    // 填写属于本机配置，绝不随包发行——发布默认置空，部署者按 AGENT-SETUP 7.2 自配。
+    // （20260923 实证：研发端填写的本机盘符路径曾随同步原样进入发行版。）
+    if (setting.conversation) setting.conversation = { ...setting.conversation, dir: '' }
     // The sidecar is a client-side deployment choice: a fresh release must stay
     // inert and let the operator opt in explicitly (matches the TS safe default).
     if (setting.sidecar) setting.sidecar = { ...setting.sidecar, enabled: false, mode: 'wake', network: 'off' }
@@ -142,7 +164,7 @@ function releaseBytes(path, rel) {
 
 const sourceFiles = files(source)
 // 发布闸门 fail-closed：一次列全所有违规文件（不因第一个就短路，否则排查要来回跑）。
-const violations = sourceFiles.map((rel) => [rel, findViolation(join(source, rel))]).filter(([, reason]) => reason)
+const violations = sourceFiles.map((rel) => [rel, findViolation(join(source, rel), rel)]).filter(([, reason]) => reason)
 if (violations.length > 0) {
   console.error('发布闸门拒绝：以下文件不得出包（含明文凭据或本机路径）')
   for (const [rel, reason] of violations) console.error(`  - ${rel} :: ${reason}`)
