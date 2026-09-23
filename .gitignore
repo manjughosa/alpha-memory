@@ -29,6 +29,21 @@
 !/runtime/*.exe
 !/runtime/**/*.exe
 
+# ── Alpha-Dog 运行时状态（兜底·20260923 苏苏补）──────────────
+# 无论 sidecar 的状态文件将来挪到仓库哪个角落（sidecar.log / runtime.json /
+# wake-history / counter / signal / lock / batch-report / sync-report），
+# 一律不入公开仓库——它们记录真实对话痕迹与本机行为。
+# 前缀式兜底：路径任意层级的 state 类文件全拦，未来新增产物类型默认命中。
+**/sidecar.log
+**/sidecar-*.json
+**/sidecar-*.jsonl
+**/sidecar.lock
+**/runtime.json
+**/runtime.json.bak-*
+**/batch-report.json
+**/release-sync-report.json
+**/mcp-control.json
+
 # ── 备份与清理区 ────────────────────────────────────────────
 /backups/
 /待清理/
@@ -60,3 +75,6 @@ node_modules/
 # ── 私人理论文档（不入发行物）──
 /engine/md_cg/whitebox_kb/seed_knowledge/wisdom_cards/情感情绪仿真·知识综述.md
 /engine/md_cg/whitebox_kb/seed_knowledge/wisdom_cards/时空记忆图·知识综述.md
+
+# ── 知识链热度计数（运行产物 · 20260923）──────────────────
+/engine/md_cg/whitebox_kb/wisdom/audit_log/

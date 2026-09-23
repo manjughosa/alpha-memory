@@ -1,6 +1,6 @@
 {
   "name": "alpha-memory",
-  "version": "0.4.11",
+  "version": "0.5.0",
   "description": "Alpha-Memory：面向 AI Agent 的本地长期记忆系统。标准 MCP stdio 接口，宿主无关；对话自动沉淀为可审阅的 Markdown 认知图。",
   "type": "module",
   "bin": {

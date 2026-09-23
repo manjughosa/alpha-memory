@@ -8,7 +8,10 @@ export type WakePlan = {
 };
 export declare class AlphaDogWakeQueue {
     private queue;
-    enqueue(plan: Omit<WakePlan, 'status'>): WakePlan;
+    /** status 缺省为 queued；恢复持久化状态时可显式传入既有状态（running 由调用方先归一为 queued）。 */
+    enqueue(plan: Omit<WakePlan, 'status'> & {
+        status?: WakePlan['status'];
+    }): WakePlan;
     next(): WakePlan | null;
     complete(id: string, ok?: boolean): WakePlan | null;
     cancelPending(): void;

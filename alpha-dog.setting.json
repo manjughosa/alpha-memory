@@ -5,8 +5,8 @@
   "interfaces": {
     "Alpha_Dog_On": true,
     "Alpha_Dog_Off": true,
-    "cg": false,
-    "stg": false
+    "cg": true,
+    "stg": true
   },
   "schedule": {
     "slots": [
@@ -14,7 +14,7 @@
         "id": "light",
         "label": "即时落盘",
         "interval": 15,
-        "prompt": "watchdog-light",
+        "prompt": "alpha-dog-light",
         "registryTags": [
           "即时落盘·15轮"
         ],
@@ -27,7 +27,7 @@
         "id": "medium",
         "label": "中档巡检",
         "interval": 21,
-        "prompt": "watchdog-medium",
+        "prompt": "alpha-dog-medium",
         "registryTags": [
           "系统巡检·21轮"
         ],
@@ -40,7 +40,7 @@
         "id": "heavy",
         "label": "重档巡检",
         "interval": 30,
-        "prompt": "watchdog-heavy",
+        "prompt": "alpha-dog-heavy",
         "registryTags": [
           "记忆巡检·30轮"
         ],
@@ -93,5 +93,8 @@
     "bridge": "alpha_memory_bridge.js",
     "node": "",
     "serverName": "alpha-memory"
+  },
+  "conversation": {
+    "dir": "E:/pi-agent/agent/sessions/--E--New Documents-资料-活动-一般-Deeptalk--"
   }
 }

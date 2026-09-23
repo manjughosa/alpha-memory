@@ -4,5 +4,5 @@ export declare function readRegistry(setting: any, registry: any, root: string, 
     error: null;
 } | {
     entries: any[];
-    error: string | null;
+    error: string;
 };

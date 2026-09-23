@@ -1,7 +1,8 @@
 export type WakePlan = { id: string; slot: any; round: number; batch: any; context: any; status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' }
 export class AlphaDogWakeQueue {
   private queue: WakePlan[] = []
-  enqueue(plan: Omit<WakePlan, 'status'>) { const item: WakePlan = { ...plan, status: 'queued' }; this.queue.push(item); return item }
+  /** status 缺省为 queued；恢复持久化状态时可显式传入既有状态（running 由调用方先归一为 queued）。 */
+  enqueue(plan: Omit<WakePlan, 'status'> & { status?: WakePlan['status'] }) { const item: WakePlan = { ...plan, status: plan.status || 'queued' }; this.queue.push(item); return item }
   next() { const item = this.queue.find((entry) => entry.status === 'queued'); if (item) item.status = 'running'; return item ?? null }
   complete(id: string, ok = true) { const item = this.queue.find((entry) => entry.id === id); if (item) item.status = ok ? 'completed' : 'failed'; return item ?? null }
   cancelPending() { for (const item of this.queue) if (item.status === 'queued') item.status = 'cancelled' }

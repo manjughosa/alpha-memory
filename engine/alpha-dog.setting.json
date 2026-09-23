@@ -13,7 +13,7 @@
         "id": "light",
         "label": "即时落盘",
         "interval": 15,
-        "prompt": "watchdog-light",
+        "prompt": "alpha-dog-light",
         "registryTags": ["即时落盘·15轮"],
         "allowedModes": ["backfill", "monitor"]
       },
@@ -21,7 +21,7 @@
         "id": "medium",
         "label": "中档巡检",
         "interval": 21,
-        "prompt": "watchdog-medium",
+        "prompt": "alpha-dog-medium",
         "registryTags": ["系统巡检·21轮"],
         "allowedModes": ["backfill", "monitor"]
       },
@@ -29,7 +29,7 @@
         "id": "heavy",
         "label": "重档巡检",
         "interval": 30,
-        "prompt": "watchdog-heavy",
+        "prompt": "alpha-dog-heavy",
         "registryTags": ["记忆巡检·30轮"],
         "allowedModes": ["interrupt", "fixed_defer", "backfill", "monitor"]
       }

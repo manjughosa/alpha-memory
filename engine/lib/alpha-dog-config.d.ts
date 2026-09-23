@@ -14,21 +14,21 @@ export declare const DEFAULT_DOG_SETTING: {
             readonly id: "light";
             readonly label: "即时落盘";
             readonly interval: 15;
-            readonly prompt: "watchdog-light";
+            readonly prompt: "alpha-dog-light";
             readonly registryTags: readonly ["即时落盘·15轮"];
             readonly allowedModes: readonly ["backfill", "monitor"];
         }, {
             readonly id: "medium";
             readonly label: "中档巡检";
             readonly interval: 21;
-            readonly prompt: "watchdog-medium";
+            readonly prompt: "alpha-dog-medium";
             readonly registryTags: readonly ["系统巡检·21轮"];
             readonly allowedModes: readonly ["backfill", "monitor"];
         }, {
             readonly id: "heavy";
             readonly label: "重档巡检";
             readonly interval: 30;
-            readonly prompt: "watchdog-heavy";
+            readonly prompt: "alpha-dog-heavy";
             readonly registryTags: readonly ["记忆巡检·30轮"];
             readonly allowedModes: readonly ["interrupt", "fixed_defer", "backfill", "monitor"];
         }];

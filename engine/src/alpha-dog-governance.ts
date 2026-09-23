@@ -54,7 +54,11 @@ export class AlphaDogGovernance {
       // 只有明确 'ok' 才算成功。宿主会把 adapter 异常转成 finish 事件（不抛出），
       // 上层据此返回 'error'；若把非 ok 状态当成功，永久失败会被伪装成正常唤醒，
       // 熔断永远不触发。
-      if (status && status !== 'ok') return this.defer(request, String(status))
+      if (status && status !== 'ok') {
+        const detail = result?.error || result?.message || ''
+        const reason = detail ? `${String(status)}: ${String(detail)}` : String(status)
+        return this.defer(request, reason)
+      }
       this.failures = 0
       this.openedAt = 0
       this.successes += 1

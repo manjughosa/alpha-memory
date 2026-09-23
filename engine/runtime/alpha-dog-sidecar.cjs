@@ -126,15 +126,32 @@ async function loadRuntime() {
   if (runtimeReady) return runtime
   const modulePath = path.join(ENGINE_DIR, 'lib', 'alpha-dog.js')
   if (!fs.existsSync(modulePath)) throw new Error(`Alpha-Dog runtime missing: ${modulePath}`)
-  const [{ AlphaDogRuntime }, modelModule] = await Promise.all([
+  const [{ AlphaDogRuntime }, { findUpward }, modelModule] = await Promise.all([
     import(pathToFileURL(modulePath).href),
+    import(pathToFileURL(path.join(ENGINE_DIR, 'lib', 'alpha-dog-config.js')).href),
     import(pathToFileURL(path.join(ENGINE_DIR, 'model.js')).href),
   ])
+  // 注册表条目路径是【workspace 根】相对的（如 tools/算力下沉/记忆映射/…）。
+  // 用 realpath 先解开 junction（C:\...\Alpha-Memory → E:\...\Deeptalk\…），
+  // 再向上找 agent_registry.json，拿到 workspace 根；同时把 registry 对象交给 runtime。
+  const registryPath = findUpward(fs.realpathSync(PKG_ROOT), 'agent_registry.json')
+  let registry = null
+  let workspaceRoot = PKG_ROOT
+  if (registryPath) {
+    try { registry = JSON.parse(fs.readFileSync(registryPath, 'utf8')) } catch (error) { log(`registry load failed: ${error.message}`) }
+    workspaceRoot = path.dirname(registryPath)
+  } else {
+    log('agent_registry.json not found upward; @-refs will resolve to null')
+  }
   runtime = new AlphaDogRuntime({
     setting: setting(),
-    root: PKG_ROOT,
+    root: workspaceRoot,
     packageRoot: ENGINE_DIR,
+    registry,
     statePath: RUNTIME_STATE_PATH,
+    // 对话源声明（黑箱自包含）：显式路径优先，runtime 内部还会探测常见位置。
+    conversationDir: process.env.ALPHA_DOG_CONVERSATION_DIR || setting().conversation?.dir || '',
+    // 模型直调：对话窗口/占位符模式已由 runtime 注入 context，狗直接基于真实对话判断。
     invokeModel: async (request) => {
       if (!NETWORK_ALLOWED) return { status: 'network-disabled', request }
       return modelModule.openAICompletionsTransport(request, setting().model || {})
@@ -149,6 +166,46 @@ async function loadRuntime() {
 const counter = readJSON(COUNTER_PATH, { count: 0, byTool: {}, startedAt: new Date().toISOString() })
 if (!counter.startedAt) counter.startedAt = new Date().toISOString()
 writeJSON(COUNTER_PATH, counter)
+
+// ── 幂等锁（zyq 2026-09-23 · 第二层）────────────────────────────
+// 病根：Pi 被手动关闭时不向 MCP 子进程发关闭信号；sidecar 是 setInterval
+// 常驻进程，stdio 管道断了也无感，继续跑。下次 Pi 再 spawn 一个 sidecar，
+// 就出现「两只狗在岗」。锁机制：
+//   state/sidecar.lock 内容 = PID。
+//   启动时：锁存在 → 读 PID → 探活。
+//     PID 活着 → 自己退出（「已经有狗在岗了」）。
+//     PID 死了 → 抢锁，写入自己的 PID，正常启动。
+//   锁不存在 → 直接写自己的 PID，正常启动。
+//   正常退出（SIGINT/SIGTERM）→ 释放锁（只删自己 PID 的锁，不误删新狗的）。
+const LOCK_PATH = process.env.SIDECAR_LOCK || path.join(STATE_DIR, 'sidecar.lock')
+function probeAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try { process.kill(pid, 0); return true } catch (error) { return error.code === 'EPERM' } // EPERM = 进程存在但无权发信号
+}
+function acquireLock() {
+  ensureDir(LOCK_PATH)
+  try {
+    const existing = fs.readFileSync(LOCK_PATH, 'utf8').trim()
+    const pid = Number(existing)
+    if (probeAlive(pid)) {
+      log(`已有狗在岗 (pid=${pid})，拒绝重复启动，本进程 (pid=${process.pid}) 退出`)
+      process.stderr.write(`[sidecar] already running as pid=${pid}; refusing duplicate startup.\n`)
+      process.exit(0)
+    }
+    // PID 死了或锁内容非法 → 清理死锁，抢锁。
+    if (existing) log(`旧锁归属 pid=${pid} 已死，抢锁接管`)
+    try { fs.unlinkSync(LOCK_PATH) } catch (_) {}
+  } catch (_) { /* 锁文件不存在/不可读 → 直接抢锁 */ }
+  fs.writeFileSync(LOCK_PATH, String(process.pid), 'utf8')
+  log(`抢锁成功 pid=${process.pid}`)
+}
+function releaseLock() {
+  try {
+    const existing = fs.readFileSync(LOCK_PATH, 'utf8').trim()
+    if (existing === String(process.pid)) fs.unlinkSync(LOCK_PATH)
+  } catch (_) {}
+}
+acquireLock()
 
 if (!fs.existsSync(BRIDGE)) {
   process.stderr.write(`[sidecar] bridge missing: ${BRIDGE}\n`)
@@ -215,12 +272,22 @@ function observe(message) {
   if (message.method !== 'tools/call') return false
   const name = message.params?.name
   if (name === 'Alpha_Dog_On') {
-    loadRuntime().then((dog) => dog.on()).catch((error) => log(`power-on failed: ${error.message}`))
-    log('observed Alpha_Dog_On')
+    loadRuntime().then((dog) => {
+      // 上电 + TLS 自检（Agent setup 检查项：检测中间人 → 提示装证书）。
+      return dog.onWithTlsCheck()
+    }).then((result) => {
+      if (result?.initialization || result?.initialization === 'declined') {
+        writeJSON(CONTROL_STATE_PATH, { ...control(), running: false, watchdog: 'dormant', lastResult: result, savedAt: new Date().toISOString() })
+      } else {
+        writeJSON(CONTROL_STATE_PATH, { ...control(), running: true, watchdog: 'dormant', poweredAt: new Date().toISOString(), lastTlsCheck: result?.tlsCheck || null, savedAt: new Date().toISOString() })
+      }
+      log(`power-on ${result?.initialization ? 'blocked: initialization required' : 'complete'} tls=${result?.tlsCheck ? (result.tlsCheck.ok ? 'ok' : result.tlsCheck.mitm ? 'mitm-detected' : 'error') : 'n/a'}`)
+    }).catch((error) => log(`power-on failed: ${error.message}`))
     return
   }
   if (name === 'Alpha_Dog_Off') {
-    if (runtime) runtime.off()
+    const result = runtime?.off()
+    writeJSON(CONTROL_STATE_PATH, { ...control(), running: false, watchdog: 'dormant', pendingWakes: [], lastResult: result || null, savedAt: new Date().toISOString() })
     log('observed Alpha_Dog_Off; counting stopped')
     return
   }
@@ -241,6 +308,38 @@ async function emitExternalRoundTick(event) {
   counter.byTool.round_tick = (counter.byTool.round_tick || 0) + 1
   writeJSON(COUNTER_PATH, counter)
   return trigger('round_tick', sequence, { params: { arguments: event } })
+}
+
+// ── 自驱敲醒（zyq 2026-09-23）────────────────────────────────
+// 不依赖智能体主动敲、不依赖宿主事件：sidecar 周期读对话源 jsonl，
+// 数 user 消息数 = 真实对话轮。到达档口倍数（15/21/30）立即触发 tick。
+// 工具调用仍是即时信号（emitTick），轮询保证「纯聊天、无工具调用」也醒。
+// 轮询不传 round（runtime 自取对话源轮次），只负责「到点了，敲一下」。
+let lastSelfDrivenRound = 0
+const SELF_DRIVE_POLL_MS = Number(process.env.ALPHA_DOG_POLL_MS || 10000)
+function startSelfDrivenPolling() {
+  if (!MODE || MODE === 'observe' || MODE === 'signal') return
+  setInterval(async () => {
+    try {
+      if (!sidecarEnabled() || !isRunning() || mode() === 'legacy') return
+      const { readConversation } = await import(pathToFileURL(path.join(ENGINE_DIR, 'lib', 'alpha-dog', 'runtime', 'conversation-source.js')).href)
+      const conversationDir = process.env.ALPHA_DOG_CONVERSATION_DIR || setting().conversation?.dir || ''
+      const result = readConversation(conversationDir)
+      if (!result.ok || result.userTurns.length === 0) return
+      const round = result.userTurns.length
+      const due = [15, 21, 30].some((interval) => round % interval === 0)
+      if (due && round > lastSelfDrivenRound) {
+        lastSelfDrivenRound = round
+        log(`self-driven wake at conversation round ${round}`)
+        trigger('selfdrive', round, { params: { arguments: { eventId: `selfdrive:${round}` } } }).catch((error) => {
+          recordWake({ round, lastOp: 'selfdrive', status: 'failed', error: error.message, completedAt: new Date().toISOString() })
+          log(`selfdrive tick failed: ${error.message}`)
+        })
+      }
+    } catch (error) {
+      log(`selfdrive poll error: ${error.message}`)
+    }
+  }, SELF_DRIVE_POLL_MS)
 }
 
 function emitTick(name, message) {
@@ -301,8 +400,9 @@ function recordWake(record) {
   return enriched
 }
 
-function shutdown(signal) { if (exiting) return; exiting = true; log(`shutdown ${signal}`); try { bridge.kill() } catch (_) {} setTimeout(() => process.exit(0), 100) }
+function shutdown(signal) { if (exiting) return; exiting = true; log(`shutdown ${signal}`); try { bridge.kill() } catch (_) {} releaseLock(); setTimeout(() => process.exit(0), 100) }
 process.on('SIGINT', () => shutdown('SIGINT'))
 process.on('SIGTERM', () => shutdown('SIGTERM'))
-process.on('exit', () => { try { bridge.kill() } catch (_) {} })
+process.on('exit', () => { try { bridge.kill() } catch (_) {} releaseLock() })
 log(`ready server=${SERVER_NAME} mode=${MODE} network=${NETWORK} scope=${TICK_SCOPE} entry=${ENTRY} bridge=${BRIDGE}`)
+startSelfDrivenPolling()

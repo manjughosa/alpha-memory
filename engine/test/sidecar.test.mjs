@@ -65,7 +65,7 @@ test('published sidecar runs the real bridge chain and honors On/Off plus wake s
   writeFileSync(setting, JSON.stringify({
     enabled: true,
     interfaces: { Alpha_Dog_On: true, Alpha_Dog_Off: true, cg: false, stg: false },
-    schedule: { slots: [{ id: 'light', interval: 2, prompt: 'watchdog-light', registryTags: [], allowedModes: ['backfill', 'monitor'] }], simultaneousOrder: ['light'], sequentialWake: true },
+    schedule: { slots: [{ id: 'light', interval: 2, prompt: 'alpha-dog-light', registryTags: [], allowedModes: ['backfill', 'monitor'] }], simultaneousOrder: ['light'], sequentialWake: true },
     initialization: { mention: 'off', status: 'configured' },
     state: { directory: 'state', mode: 'shadow' },
     sidecar: { enabled: true, mode: 'wake', network: 'off', countScope: 'tool_call', bridge: 'alpha_memory_bridge.js' },

@@ -13,9 +13,9 @@ const base = {
   interfaces: { Alpha_Dog_On: true, Alpha_Dog_Off: true, cg: false, stg: false },
   schedule: {
     slots: [
-      { id: 'light', label: '即时落盘', interval: 15, prompt: 'watchdog-light', registryTags: ['即时落盘·15轮'], allowedModes: ['backfill', 'monitor'] },
-      { id: 'medium', label: '中档巡检', interval: 21, prompt: 'watchdog-medium', registryTags: ['系统巡检·21轮'], allowedModes: ['backfill', 'monitor'] },
-      { id: 'heavy', label: '重档巡检', interval: 30, prompt: 'watchdog-heavy', registryTags: ['记忆巡检·30轮'], allowedModes: ['interrupt', 'fixed_defer', 'backfill', 'monitor'] },
+      { id: 'light', label: '即时落盘', interval: 15, prompt: 'alpha-dog-light', registryTags: ['即时落盘·15轮'], allowedModes: ['backfill', 'monitor'] },
+      { id: 'medium', label: '中档巡检', interval: 21, prompt: 'alpha-dog-medium', registryTags: ['系统巡检·21轮'], allowedModes: ['backfill', 'monitor'] },
+      { id: 'heavy', label: '重档巡检', interval: 30, prompt: 'alpha-dog-heavy', registryTags: ['记忆巡检·30轮'], allowedModes: ['interrupt', 'fixed_defer', 'backfill', 'monitor'] },
     ],
     simultaneousOrder: ['medium', 'light', 'heavy'], sequentialWake: true,
   },
@@ -40,7 +40,7 @@ const table = [
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'alpha-dog-targets-'))
   mkdirSync(join(root, 'prompts'), { recursive: true })
-  for (const name of ['watchdog-light', 'watchdog-medium', 'watchdog-heavy', 'watchdog-batch-report']) writeFileSync(join(root, 'prompts', `${name}.md`), name)
+  for (const name of ['alpha-dog-light', 'alpha-dog-medium', 'alpha-dog-heavy', 'alpha-dog-batch-report']) writeFileSync(join(root, 'prompts', `${name}.md`), name)
   writeFileSync(join(root, 'targets.json'), JSON.stringify({ files: table }))
   return root
 }

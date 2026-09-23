@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { AlphaDogGovernance } from './alpha-dog-governance.js';
 import { memoryPropose, runFeedbackLoop } from './alpha-dog/feedback.js';
 import { appendShadowAudit, compareShadow } from './alpha-dog/modes.js';
-import { AlphaDogPower, AlphaDogCounter, AlphaDogWakeQueue, createBatches, dueSlots, invokeWatchdog, loadRuntimeState, loadWatchdogPrompt, readRegistry, saveRuntimeState } from './alpha-dog/runtime/index.js';
+import { AlphaDogPower, AlphaDogCounter, AlphaDogWakeQueue, createBatches, dueSlots, invokeWatchdog, loadRuntimeState, loadWatchdogPrompt, readRegistry, saveRuntimeState, evaluatePlaceholder, initPlaceholders, movePlaceholder, readConversation } from './alpha-dog/runtime/index.js';
 export class AlphaDogRuntime {
     setting;
     root;
@@ -31,6 +31,12 @@ export class AlphaDogRuntime {
     preflightMemory;
     writeMemory;
     feedback = [];
+    /** 占位符引擎状态（第0轮初始化；存档后挪位；持久化） */
+    placeholders = { initialized: false, initializedAt: '', slots: {} };
+    /** 对话源声明路径（黑箱：不读注册表，显式路径 + 常见位置探测） */
+    conversationDir = '';
+    /** 最近一次对话源读取结果（留痕用） */
+    conversationState = null;
     constructor(options = {}) {
         this.setting = options.setting;
         this.root = options.root || process.cwd();
@@ -44,16 +50,116 @@ export class AlphaDogRuntime {
         this.persistent = Boolean(options.packageRoot || options.statePath);
         if (options.statePath)
             this.statePath = options.statePath;
-        const restored = this.persistent ? loadRuntimeState(this.statePath, { round: 0, wakeCount: 0, batches: [], processedEvents: [] }) : { round: 0, wakeCount: 0, batches: [], processedEvents: [] };
+        const restored = this.persistent ? loadRuntimeState(this.statePath, { round: 0, wakeCount: 0, batches: [], processedEvents: [], wakeQueue: [] }) : { round: 0, wakeCount: 0, batches: [], processedEvents: [], wakeQueue: [] };
         this.counter = new AlphaDogCounter(restored.round);
         this.wakeCount = restored.wakeCount;
         this.batches = Array.isArray(restored.batches) ? restored.batches : [];
         this.processedEvents = new Set(Array.isArray(restored.processedEvents) ? restored.processedEvents : []);
         this.feedback = Array.isArray(restored.feedback) ? restored.feedback : [];
         this.targetStats = restored.targetStats && typeof restored.targetStats === 'object' ? restored.targetStats : {};
+        this.wakeQueue = new AlphaDogWakeQueue();
+        for (const plan of Array.isArray(restored.wakeQueue) ? restored.wakeQueue : []) {
+            // 重启后没有在跑的执行者：running 一律回落为 queued（失败项保持 failed，
+            // 等待 recoverFailedBatches 显式重试；completed/cancelled 原样保留防重复）。
+            if (!plan || typeof plan !== 'object' || typeof plan.id !== 'string')
+                continue;
+            const status = plan.status === 'running' ? 'queued' : plan.status;
+            if (!['queued', 'completed', 'failed', 'cancelled'].includes(status))
+                continue;
+            this.wakeQueue.enqueue({ id: plan.id, slot: plan.slot, round: plan.round, batch: plan.batch, context: plan.context, status });
+        }
         this.initializationHandler = options.initializationHandler || null;
         this.preflightMemory = options.preflightMemory || null;
         this.writeMemory = options.writeMemory || null;
+        this.conversationDir = String(options.conversationDir || this.setting?.conversation?.dir || this.setting?.conversationSource?.path || '');
+        // 占位符：优先恢复持久化状态；首次启动（无状态）时初始化三档（第 0 轮敲醒语义）。
+        if (restored.placeholders && restored.placeholders.initialized === true) {
+            this.placeholders = restored.placeholders;
+        }
+        else {
+            this.placeholders = initPlaceholders();
+        }
+    }
+    /** 第 0 轮初始化：占位符就位 + 首次对话源探测。返回初始化摘要。 */
+    initRoundZero() {
+        if (!this.placeholders?.initialized)
+            this.placeholders = initPlaceholders();
+        const source = this.readConversationSource();
+        this.persist();
+        return { placeholders: this.placeholders, conversation: source };
+    }
+    /**
+     * TLS 中间人自检（Agent setup 初始化检查项之一，zyq 2026-09-23 豁免放行）。
+     *
+     * 背景：本机网络出口可能被杀软/代理做 HTTPS 中间人（自签根替换真实证书链），
+     * 导致模型调用偶发 SELF_SIGNED_CERT_IN_CHAIN。这不是 Alpha-Memory 的缺陷，
+     * 是宿主网络环境——发行版不应预装任何一台机器的证书（绑机器 = 平台依赖）。
+     * 正确做法：初始化时检测，检测到就提示「当前 Agent 自己安装自己的根证书」。
+     *
+     * 检测方法：不带任何自定义 CA（process.env.NODE_EXTRA_CA_CERTS 视为外部配置，
+     * 本检查故意排除它，以探测「裸环境」是否被中间人）直连模型 baseUrl，
+     * 看 TLS 校验是否失败 + 失败原因是否为自签链。
+     *
+     * @returns { ok, mitm, error?, hint? }
+     *   ok=true   裸环境可直通（无中间人，或网络正常）
+     *   ok=false + mitm=true  检测到 TLS 中间人 → 返回证书安装指引
+     *   ok=false + mitm=false 其他网络错误（DNS/超时等），不误导用户装证书
+     */
+    async tlsSelfCheck() {
+        const baseUrl = String(this.setting?.model?.baseUrl || '').replace(/\/$/, '');
+        if (!baseUrl)
+            return { ok: true, mitm: false, error: null, hint: null };
+        const saved = process.env.NODE_EXTRA_CA_CERTS;
+        delete process.env.NODE_EXTRA_CA_CERTS;
+        let result;
+        try {
+            const response = await fetch(baseUrl, { method: 'GET', signal: AbortSignal.timeout(15000) });
+            result = { ok: true, mitm: false, error: null, hint: null };
+            void response;
+        }
+        catch (error) {
+            const msg = String(error?.cause?.code || error?.cause?.message || error?.message || '');
+            const certChain = /SELF_SIGNED_CERT_IN_CHAIN|UNABLE_TO_VERIFY_LEAF_SIGNATURE|CERT_UNTRUSTED|DEPTH_ZERO_SELF_SIGNED_CERT/.test(msg);
+            if (certChain) {
+                result = {
+                    ok: false,
+                    mitm: true,
+                    error: msg,
+                    hint: '检测到 TLS 中间人（网络出口的杀软/代理在做 HTTPS 扫描）。' +
+                        '请当前 Agent 完成证书安装（初始化必做项）：1) 找到你的杀软/代理的根证书；' +
+                        '2) 导出为 PEM；3) 在 mcp.json 的 alpha-memory env 里配置 NODE_EXTRA_CA_CERTS=<该 PEM 路径>；' +
+                        '4) 重启 MCP。这是宿主网络环境，Alpha-Memory 不代装任何机器的证书。',
+                };
+            }
+            else {
+                result = { ok: false, mitm: false, error: msg, hint: null };
+            }
+        }
+        finally {
+            if (saved)
+                process.env.NODE_EXTRA_CA_CERTS = saved;
+        }
+        return result;
+    }
+    /** 读取对话源（黑箱探测）。失败返回留痕状态，不抛异常。 */
+    readConversationSource() {
+        // 对话源是 Agent setup 显式配置的外部交互窗口：未配置时绝不静默探测
+        // （避免误读本机任意 jsonl 劫持轮次），一律退回计数器语义。
+        if (!this.conversationDir || !String(this.conversationDir).trim()) {
+            this.conversationState = { ok: false, error: 'conversation.dir not configured (Agent setup)', userTurns: 0, totalTurns: 0, at: new Date().toISOString() };
+            return { ok: false, error: 'conversation.dir not configured', turns: [], userTurns: [], mtimeMs: 0 };
+        }
+        const result = readConversation(this.conversationDir);
+        this.conversationState = {
+            ok: result.ok,
+            error: result.error || null,
+            file: result.file || null,
+            userTurns: result.userTurns.length,
+            totalTurns: result.turns.length,
+            mtimeMs: result.mtimeMs,
+            at: new Date().toISOString(),
+        };
+        return result;
     }
     on() {
         if (this.setting?.initialization?.status === 'declined')
@@ -63,6 +169,12 @@ export class AlphaDogRuntime {
         this.power.on();
         this.persist();
         return { ...this.status(), watchdog: 'dormant' };
+    }
+    /** 上电 + TLS 自检（Agent setup 检查项）。返回带 tlsCheck 的状态。 */
+    async onWithTlsCheck() {
+        const tlsCheck = await this.tlsSelfCheck();
+        const base = this.on();
+        return { ...base, tlsCheck };
     }
     off() {
         this.power.off();
@@ -102,8 +214,25 @@ export class AlphaDogRuntime {
             if (eventId && this.processedEvents.has(eventId))
                 return { skipped: true, reason: 'duplicate-event', ...this.status() };
             const generation = this.power.snapshot().generation;
+            // 自驱敲醒（zyq 2026-09-23）：轮次以「真实对话轮」为准 = 对话源里 user 消息的数量。
+            // 第 N 条用户消息一写入 jsonl，N % interval === 0 就立即触发档口，不多等一轮。
+            // 对话源不可用时退回：外部传的 round → 内部计数器。
+            const source = this.readConversationSource();
+            const userTurns = source.ok ? source.userTurns : [];
+            const conversationRound = source.ok && userTurns.length > 0 ? userTurns.length : 0;
             const suppliedRound = Number(context.round);
-            const round = Number.isInteger(suppliedRound) && suppliedRound > this.counter.current() ? this.counter.restore(suppliedRound) : this.counter.tick();
+            let round;
+            if (conversationRound > 0) {
+                // 对话源是权威：真实对话轮就是 N。counter 只是历史工具计数，
+                // 落后或领先都不许吞掉对话源轮次（否则对话 15 轮会被旧 counter 17 吞掉）。
+                round = this.counter.restore(conversationRound);
+            }
+            else if (Number.isInteger(suppliedRound) && suppliedRound > this.counter.current()) {
+                round = this.counter.restore(suppliedRound);
+            }
+            else {
+                round = this.counter.tick();
+            }
             if (eventId)
                 this.processedEvents.add(eventId);
             const slots = dueSlots(round, this.setting.schedule);
@@ -117,6 +246,12 @@ export class AlphaDogRuntime {
                 const { matched: targets, unlabeled } = matchTargets(entries, slot.registryTags, context.query);
                 const batches = createBatches(slot, round, targets, this.setting.batchSize, Number(slot.tokenBudget || this.setting.tokenBudget || 0));
                 this.batches.push(...batches);
+                // 占位符评估：选模式 + 话题边界 + 窗口原文（狗做最终判断的原料）。
+                const ph = this.placeholders?.slots?.[slot.interval];
+                const evalResult = evaluatePlaceholder(userTurns, ph, round, slot.allowedModes);
+                if (this.placeholders?.slots?.[slot.interval]) {
+                    this.placeholders.slots[slot.interval].lastEval = { at: new Date().toISOString(), topicClosed: evalResult.topicClosed, closedAtRound: evalResult.closedAtRound, mode: evalResult.mode, note: evalResult.note };
+                }
                 // 筛选结果必须留痕：档口筛出 0 条时状态里要看得见，否则看门狗
                 // 会「按时醒、加载说明书、空跑」而不留任何痕迹。
                 this.targetStats[slot.id] = {
@@ -127,8 +262,18 @@ export class AlphaDogRuntime {
                     unlabeled: unlabeled.length,
                     unlabeledIds: unlabeled.slice(0, 20).map((entry) => String(entry.id ?? entry.path)),
                 };
+                // 注入占位符评估 + 对话窗口到 wake 上下文，让狗有真实原料可判断。
+                const wakeContext = {
+                    ...context,
+                    mode: evalResult.mode,
+                    topicClosed: evalResult.topicClosed,
+                    closedAtRound: evalResult.closedAtRound,
+                    windowText: evalResult.windowText,
+                    conversationSource: source.ok ? source.file : null,
+                    conversationError: source.ok ? null : (source.error || 'unknown'),
+                };
                 for (const batch of batches.length ? batches : [createEmptyBatch(slot, round)]) {
-                    this.wakeQueue.enqueue({ id: `${slot.id}:${round}:${batch.batchId}`, slot, round, batch, context });
+                    this.wakeQueue.enqueue({ id: `${slot.id}:${round}:${batch.batchId}`, slot, round, batch, context: wakeContext });
                 }
             }
             const wakes = [];
@@ -166,10 +311,16 @@ export class AlphaDogRuntime {
                 this.lastWake = wake;
                 this.onWake(wake);
                 wakes.push(wake);
+                // 占位符挪位：本档 wake 成功（结题存档完成）→ 占位符挪到话题结束轮；
+                // monitor（继续监听）/失败 → 占位符不动，下次继续从同一锚点评估。
+                if (!wake.degraded && !feedbackFailed && plan.context?.topicClosed === true) {
+                    const closedAt = Number.isFinite(Number(plan.context?.closedAtRound)) ? Number(plan.context.closedAtRound) : wakeRound;
+                    this.placeholders = movePlaceholder(this.placeholders, plan.slot.interval, closedAt);
+                }
                 this.persist();
                 plan = this.wakeQueue.next();
             }
-            const reportPrompt = loadWatchdogPrompt(this.packageRoot, 'watchdog-batch-report');
+            const reportPrompt = loadWatchdogPrompt(this.packageRoot, 'alpha-dog-batch-report');
             this.lastReport = { kind: 'report', round, prompt: reportPrompt.path, summary: { wakes: wakes.length, completed: wakes.filter((wake) => !wake.degraded).length, degraded: wakes.filter((wake) => wake.degraded).length, batches: wakes.map((wake) => wake.batch?.batchId).filter(Boolean) }, wakes };
             if (this.setting?.state?.mode === 'shadow' && context.legacyResult) {
                 const alphaDogResult = { round, candidates: wakes.flatMap((wake) => wake.feedback || []), slots: wakes.map((wake) => wake.slotId), feedback: wakes.flatMap((wake) => wake.feedback || []) };
@@ -194,7 +345,7 @@ export class AlphaDogRuntime {
     persist() {
         if (!this.persistent)
             return null;
-        return saveRuntimeState(this.statePath, { version: 'alpha-dog/1', running: this.power.snapshot().running, round: this.counter.current(), wakeCount: this.wakeCount, batches: this.batches, feedback: this.feedback.slice(-1000), wakeQueue: this.wakeQueue.snapshot(), processedEvents: [...this.processedEvents].slice(-1000), lastWake: this.lastWake, lastReport: this.lastReport, targetStats: this.targetStats, governance: this.governance.snapshot(), savedAt: new Date().toISOString() });
+        return saveRuntimeState(this.statePath, { version: 'alpha-dog/1', running: this.power.snapshot().running, round: this.counter.current(), wakeCount: this.wakeCount, batches: this.batches, feedback: this.feedback.slice(-1000), wakeQueue: this.wakeQueue.snapshot(), processedEvents: [...this.processedEvents].slice(-1000), lastWake: this.lastWake, lastReport: this.lastReport, targetStats: this.targetStats, mappingError: this.mappingError, governance: this.governance.snapshot(), placeholders: this.placeholders, conversationState: this.conversationState, savedAt: new Date().toISOString() });
     }
 }
 function extractCandidates(model, plan) {

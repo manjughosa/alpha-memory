@@ -11,9 +11,9 @@ export const DEFAULT_DOG_SETTING = {
   interfaces: { Alpha_Dog_On: true, Alpha_Dog_Off: true, cg: false, stg: false },
   schedule: {
     slots: [
-      { id: 'light', label: '即时落盘', interval: 15, prompt: 'watchdog-light', registryTags: ['即时落盘·15轮'], allowedModes: ['backfill', 'monitor'] },
-      { id: 'medium', label: '中档巡检', interval: 21, prompt: 'watchdog-medium', registryTags: ['系统巡检·21轮'], allowedModes: ['backfill', 'monitor'] },
-      { id: 'heavy', label: '重档巡检', interval: 30, prompt: 'watchdog-heavy', registryTags: ['记忆巡检·30轮'], allowedModes: [...MODES] },
+      { id: 'light', label: '即时落盘', interval: 15, prompt: 'alpha-dog-light', registryTags: ['即时落盘·15轮'], allowedModes: ['backfill', 'monitor'] },
+      { id: 'medium', label: '中档巡检', interval: 21, prompt: 'alpha-dog-medium', registryTags: ['系统巡检·21轮'], allowedModes: ['backfill', 'monitor'] },
+      { id: 'heavy', label: '重档巡检', interval: 30, prompt: 'alpha-dog-heavy', registryTags: ['记忆巡检·30轮'], allowedModes: [...MODES] },
     ],
     simultaneousOrder: ['medium', 'light', 'heavy'],
     sequentialWake: true,
@@ -119,7 +119,7 @@ function normalizeLegacySetting(input: any) {
       slots: input.slots.map((interval: number) => {
         const id = interval === 15 ? 'light' : interval === 21 ? 'medium' : interval === 30 ? 'heavy' : `slot-${interval}`
         const allowedModes = input.actions?.[interval] || (interval === 30 ? [...MODES] : ['backfill', 'monitor'])
-        const prompt = allowedModes.includes('interrupt') || allowedModes.includes('fixed_defer') ? 'watchdog-heavy' : interval === 21 ? 'watchdog-medium' : 'watchdog-light'
+        const prompt = allowedModes.includes('interrupt') || allowedModes.includes('fixed_defer') ? 'alpha-dog-heavy' : interval === 21 ? 'alpha-dog-medium' : 'alpha-dog-light'
         return { id, label: `${interval}轮`, interval, prompt, registryTags: [], allowedModes }
       }),
       simultaneousOrder: (input.wakeOrder || input.slots).map((interval: number) => interval === 15 ? 'light' : interval === 21 ? 'medium' : interval === 30 ? 'heavy' : `slot-${interval}`),

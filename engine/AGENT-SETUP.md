@@ -2,6 +2,7 @@
 
 > 这份文件写给**接进来的 Agent**，不是写给人看的教程。人的安装说明在 [`README.md`](README.md)。
 > 你要做的是：读环境 → 找配置落点 → 写配置 → 验证通路 → 报告结果。**自己探测，不要问用户「配置文件在哪」。**
+> 接入完成后，必须再完成文末 [7. 初始化必读清单](#7-初始化必读清单) 的 6 项。
 
 ## 0. 前置事实
 
@@ -102,3 +103,74 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol
 - 不要在配置里写相对路径。
 - 不要复制、移动或删除用户的既有记忆目录。
 - 不要把令牌写进会被提交的文件里。
+
+## 7. 初始化必读清单
+
+接入完成后，按顺序完成以下 6 项。
+
+### 7.1 接入 Alpha-Dog API 与中间人证书
+
+不接 `Alpha_Dog_On/Off` 也能用（机械降级：cg/stg 可用、计数退回工具调用语义），但**后台不会提醒你**；完整职能（三档自驱唤醒、占位符引擎、结题存档）必须接 API。
+
+接入后必须处理 TLS 中间人，否则模型调用会被杀软 HTTPS 扫描打死（`SELF_SIGNED_CERT_IN_CHAIN`）：
+
+1. 找到杀软/代理根证书，导出为 PEM
+2. mcp.json 的 alpha-memory env 加 `NODE_EXTRA_CA_CERTS=<PEM路径>`
+3. 重启 MCP
+
+（Alpha-Memory 不代装证书。自检：`Alpha_Dog_On` 返回的 `tlsCheck` 字段会告诉你有没有中间人。）
+
+### 7.2 conversation.dir（自驱唤醒对话源，必填）
+
+`alpha-dog.setting.json` 的 `conversation.dir` 必须显式填写，引擎不静默探测：
+
+```json
+"conversation": { "dir": "C:/你的用户名/.pi-agent/agent/sessions/--项目目录编码--" }
+```
+
+- 填含 `.jsonl` 的会话目录（引擎递归扫描取 mtime 最新）；**收窄到当前项目目录**，别填 sessions 根（会被其他项目会话抢源）
+- **留空的后果**：表面正常，但自驱唤醒永不触发（静默退回工具计数语义）——最容易漏配的一项
+- 怎么找：MCP 宿主的 sessions 存储目录，通常在 `~/.<宿主>/agent/sessions/` 下按工作目录编码分文件夹
+
+### 7.3 映射表（看门狗的目标清单）
+
+Alpha-Dog 按注册表 `@memory_mapping_table_md / @memory_mapping_table_json` 读取映射表筛选处理目标。`layer` 字段决定文件进哪个档口：`即时落盘·15轮` / `系统巡检·21轮` / `记忆巡检·30轮`。
+
+最小可用示例（存为 `记忆映射表.json`，在用户的注册表登记后生效）：
+
+```json
+{
+  "meta": { "version": "v1", "root": "<你的工作区根目录>", "count": 2 },
+  "files": [
+    { "id": 1, "path": "notes/近期决策.md", "layer": "即时落盘·15轮", "importance": 4, "status": "温", "keywords": ["决策"] },
+    { "id": 2, "path": "notes/巡检记录.md", "layer": "系统巡检·21轮", "importance": 3, "status": "温", "keywords": ["巡检"] }
+  ]
+}
+```
+
+配好后确认三档任务（默认说明书 `engine/prompts/alpha-dog-light|medium|heavy.md`，可直接用或替换）：
+
+- **15 轮**：即时落盘（backfill 结题存档 / monitor 继续监听）
+- **21 轮**：中档巡检（补齐已成立、可审计的缺口）
+- **30 轮**：重档巡检（interrupt / fixed_defer / backfill / monitor 四模式）
+
+并协助用户跑通完整链路：触发 → 唤醒 → 候选 → Alpha 反馈 → 落盘回执。
+
+### 7.4 显式路径依赖（提醒主人处理好）
+
+Alpha-Dog 必然依赖若干显式路径：对话源、映射表、证书、会话根目录。提醒主人把它们放环境变量或在配置里显式声明。
+
+（研发端/使用端可写注册表地址如 `@memory_mapping_table_md`；**发行端不能出现任何机器的绝对路径**——发行端用户自建映射表并在自己的注册表登记。）
+
+### 7.5 cg / stg 接口开关
+
+`alpha-dog.setting.json` 的 `interfaces` 块：
+
+```json
+"interfaces": { "Alpha_Dog_On": true, "Alpha_Dog_Off": true, "cg": false, "stg": false }
+```
+
+- **cg** = 记忆大脑多态入口（op=write 写 / op=read 读）；**stg** = 语义时空图四操作（纯读）
+- **发行版默认 false**（隐藏，只留 On/Off 驾驶舱，走狗的治理链）
+- **改 true** = 记忆读写工具直接暴露给 Agent（可绕过狗直读写，调试用）；改完重启 MCP
+- 修改位置：`interfaces.cg / interfaces.stg`
