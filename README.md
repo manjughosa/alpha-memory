@@ -78,7 +78,7 @@ npm pack --dry-run --json
 
 ## 鸣谢
 
-本项目的产品代码为自主设计与实现，其中以下项目提供了**设计参照**：
+本项目的产品代码为自主设计与实现，以下项目提供了**设计参照**：
 
 - [Omega-Memory](https://github.com/omega-memory/omega-memory)（Apache-2.0）—— 分层降级、熔断、校验与评估这一问题域上的工程参照
 - [MCP Memory](https://github.com/modelcontextprotocol/servers/tree/main/src/memory)（MIT）—— 原子化纪律与关系类型受控的理念对照
