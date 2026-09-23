@@ -75,6 +75,3 @@ node_modules/
 # ── 私人理论文档（不入发行物）──
 /engine/md_cg/whitebox_kb/seed_knowledge/wisdom_cards/情感情绪仿真·知识综述.md
 /engine/md_cg/whitebox_kb/seed_knowledge/wisdom_cards/时空记忆图·知识综述.md
-
-# ── 知识链热度计数（运行产物 · 20260923）──────────────────
-/engine/md_cg/whitebox_kb/wisdom/audit_log/

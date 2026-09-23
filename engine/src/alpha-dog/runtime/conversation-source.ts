@@ -50,11 +50,14 @@ export function resolveConversationCandidates(declared: string, probeRoots: stri
 
 function defaultProbeRoots(): string[] {
   const home = typeof process.env.USERPROFILE === 'string' ? process.env.USERPROFILE : process.env.HOME || ''
+  // 零本机路径：宿主根可被 PI_AGENT_HOME 覆盖；常见布局是 <宿主根>/agent/sessions
+  // 或 <home>/.pi-agent/agent/sessions。任何写死的盘符路径都不进公开仓库。
+  const hostRoot = String(process.env.PI_AGENT_HOME || '').trim()
   const roots = [
     process.env.ALPHA_DOG_CONVERSATION_DIR || '',
     join(home, '.pi', 'agent', 'sessions'),
-    'E:/pi-agent/agent/sessions',
-    'C:/pi-agent/agent/sessions',
+    hostRoot ? join(hostRoot, 'agent', 'sessions') : '',
+    join(home, '.pi-agent', 'agent', 'sessions'),
   ].filter(Boolean)
   return roots
 }
