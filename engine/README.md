@@ -13,15 +13,13 @@ Alpha-Memory 是面向 AI Agent 的本地长期记忆系统。它把对话沉淀
 
 ## 鸣谢
 
-本项目的产品代码（`md_cg/`、`src/`、`lib/`、`skills/` 及随包脚本）为自主设计与实现，除下列依赖外**不包含第三方源代码**。
-
-运行时依赖：标准 MCP stdio 通道、随包的 Python 内核和 Node.js runtime。Alpha-Memory 不包含、不安装、不依赖任何宿主插件；推荐事件源由随包 sidecar 在 MCP stdio 接缝提供，宿主不需要主动提醒。需要严格的真实对话轮语义时，宿主仍可投递标准化事件；sidecar 的工具调用计数只是无宿主依赖的 fallback。
+运行时依赖：标准 MCP stdio 通道、随包的 Python 内核和 Node.js runtime。Alpha-Memory 推荐事件源由随包 sidecar 在 MCP stdio 接缝提供，宿主不需要主动提醒。需要严格的真实对话轮语义时，宿主仍可投递标准化事件；sidecar 的工具调用计数只是无宿主依赖的 fallback。
 
 以下项目提供了**设计参照**：
 
 - **Omega-Memory**（Apache-2.0）：在"分层降级、熔断、校验、评估"这一问题域上提供了成熟的工程参照。Alpha-Dog 的降级与熔断是就着其**提问方式**、针对自身运行链重新设计的实现。([omega-memory](https://github.com/omega-memory/omega-memory))
 - **MCP Memory**（`@modelcontextprotocol/server-memory`，MIT）：其公开契约简洁，本项目对照了它的原子化纪律与关系类型受控理念，并在其之上引入了关系类型约束、修订语义与本地治理接口。([memory](https://github.com/modelcontextprotocol/servers/tree/main/src/memory))
-- **dsh-memory**（同一作者的公开项目）：感谢其公开的工程思路。([dsh-memory](https://github.com/FuRongJun-1999/dsh-memory))
+- **dsh-memory**：感谢其公开的工程思路，dsh-memory是一个跨 harness 的记忆基础设施，其“大脑”本身就是一个标准的 stdio MCP server，可以被任何支持 MCP 的 AI Agent 直接接入，不与特定框架绑定。([dsh-memory](https://github.com/FuRongJun-1999/dsh-memory))
 
 ## Alpha-Dog 部署与发行安全
 
@@ -150,8 +148,6 @@ Windows 上用 `robocopy` 或资源管理器复制即可。备份前建议停止
 迁移工具（`python -m md_cg.migrate --help`）用于格式迁移，**不替代备份**。
 
 ### 仓库里为什么没有 `data/` 和 `token/`
-
-**这是故意的，不是漏了。**
 
 下载这个仓库后你会发现根目录下既没有 `data/` 也没有 `token/`。
 因为记忆和凭据都**默认落在你的用户目录**，不落在仓库里：
