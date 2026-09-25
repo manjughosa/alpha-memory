@@ -9,7 +9,7 @@
 // batching and de-duplication stay owned by the runtime (single authority) —
 // a second counter here would silently disagree with it.
 
-const { spawn } = require('node:child_process')
+const { spawn, execFileSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 const { pathToFileURL } = require('node:url')
@@ -182,18 +182,87 @@ function probeAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false
   try { process.kill(pid, 0); return true } catch (error) { return error.code === 'EPERM' } // EPERM = 进程存在但无权发信号
 }
+// ── 孤儿判据 + 挂载接管（zyq 2026-09-26 拍板 B 方案）──────────────
+// 病根（2026-09-24 排查）：锁只判「pid 活着」，不判「主人还在不在」——
+// 孤儿守门人把新入口全挡在门外。现在撞到活锁先判孤：孤儿安乐死后接管，
+// 有主照旧退让。判孤证据两条，命中任一即孤：
+//   ① 僵尸实锤：日志里最后一条 ready 之后出现过 bridge exit。bridge 是
+//      所有工具调用的必经之路且从不重启——它一死，这只狗永远接不到任何
+//      客户端（客户端关闭 → stdin EOF → bridge 退出，正是这条路径）。
+//   ② 心跳兜底：日志/唤醒史/信号/计数器四件全部超过阈值没动（抓 crash）。
+// 安全条款：动手前必须核对该 pid 的命令行确实含 alpha-dog-sidecar（防
+// pid 复用误杀）；核对不了就不杀，退让并写明原因。绝不盲杀。
+const ORPHAN_STALE_MS = Number(process.env.ALPHA_DOG_ORPHAN_STALE_MS || 30 * 60 * 1000)
+function readLogTail(bytes = 16384) {
+  try {
+    const stat = fs.statSync(LOG_PATH)
+    const length = Math.min(bytes, Math.max(stat.size, 0))
+    if (length <= 0) return ''
+    const fd = fs.openSync(LOG_PATH, 'r')
+    try {
+      const buffer = Buffer.alloc(length)
+      fs.readSync(fd, buffer, 0, length, stat.size - length)
+      return buffer.toString('utf8')
+    } finally { fs.closeSync(fd) }
+  } catch (_) { return '' }
+}
+function cmdlineOf(pid) {
+  try {
+    const out = execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command',
+      `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CommandLine`],
+      { encoding: 'utf8', windowsHide: true, timeout: 8000 }).trim()
+    return out || null
+  } catch (_) { return null }
+}
+function lockHolderIsOrphan() {
+  const lines = readLogTail().split('\n').filter((line) => line.includes('[sidecar]'))
+  let lastReady = -1
+  lines.forEach((line, index) => { if (line.includes('ready server=')) lastReady = index })
+  if (lastReady >= 0 && lines.slice(lastReady + 1).some((line) => line.includes('bridge exit code='))) {
+    return { orphan: true, why: 'bridge exited after last ready — client-less zombie' }
+  }
+  const beats = [LOG_PATH, HISTORY_PATH, SIGNAL_PATH, COUNTER_PATH].map((file) => {
+    try { return fs.statSync(file).mtimeMs } catch (_) { return 0 }
+  })
+  const newest = Math.max(...beats)
+  if (newest > 0 && Date.now() - newest > ORPHAN_STALE_MS) {
+    return { orphan: true, why: `no heartbeat for ${Math.round((Date.now() - newest) / 60000)}min` }
+  }
+  return { orphan: false, why: 'lock holder alive with recent heartbeat' }
+}
 function acquireLock() {
   ensureDir(LOCK_PATH)
   try {
     const existing = fs.readFileSync(LOCK_PATH, 'utf8').trim()
     const pid = Number(existing)
     if (probeAlive(pid)) {
-      log(`已有狗在岗 (pid=${pid})，拒绝重复启动，本进程 (pid=${process.pid}) 退出`)
-      process.stderr.write(`[sidecar] already running as pid=${pid}; refusing duplicate startup.\n`)
-      process.exit(0)
+      const verdict = lockHolderIsOrphan()
+      if (!verdict.orphan) {
+        log(`已有狗在岗 (pid=${pid})，拒绝重复启动，本进程 (pid=${process.pid}) 退出`)
+        process.stderr.write(`[sidecar] already running as pid=${pid}; refusing duplicate startup.\n`)
+        process.exit(0)
+      }
+      const cmdline = cmdlineOf(pid)
+      if (cmdline === null) {
+        log(`锁主 pid=${pid} 疑似孤儿（${verdict.why}），但拿不到命令行无法核对，保守退让`)
+        process.stderr.write(`[sidecar] orphan suspected (pid=${pid}) but cmdline unavailable; yielding.\n`)
+        process.exit(0)
+      }
+      if (!cmdline.includes('alpha-dog-sidecar')) {
+        log(`锁主 pid=${pid} 已不是狗（命令行不含 alpha-dog-sidecar，pid 被复用？），只清锁不杀进程`)
+      } else {
+        log(`锁主 pid=${pid} 判为孤儿（${verdict.why}），安乐死后接管`)
+        try { process.kill(pid, 'SIGKILL') } catch (_) {}
+        try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500) } catch (_) {}
+        if (probeAlive(pid)) {
+          log(`孤儿 pid=${pid} 500ms 后仍在，放弃本次接管（避免双狗），退让`)
+          process.stderr.write(`[sidecar] orphan pid=${pid} survived kill; yielding.\n`)
+          process.exit(0)
+        }
+      }
     }
-    // PID 死了或锁内容非法 → 清理死锁，抢锁。
-    if (existing) log(`旧锁归属 pid=${pid} 已死，抢锁接管`)
+    // PID 死了 / 锁内容非法 / 孤儿已清 → 清锁，抢锁。
+    if (existing) log(`清旧锁（原归属 pid=${pid}），抢锁接管`)
     try { fs.unlinkSync(LOCK_PATH) } catch (_) {}
   } catch (_) { /* 锁文件不存在/不可读 → 直接抢锁 */ }
   fs.writeFileSync(LOCK_PATH, String(process.pid), 'utf8')
@@ -260,7 +329,14 @@ process.stdin.on('data', (chunk) => {
     if (!consumed) bridge.stdin.write(raw + '\n')
   }
 })
-process.stdin.on('end', () => { try { bridge.stdin.end() } catch (_) {} })
+// ── 客户端断开即随行退出（zyq 2026-09-26）────────────────────────
+// 病根修复：此前 stdin EOF 只结束 bridge 的输入，sidecar 靠 setInterval
+// 常驻，变成占锁孤儿。现在客户端一断：先让 bridge 收尾，1.5 秒后本进程
+// 优雅退出并释放锁——下一个入口挂载时直接拿到空锁，连接管都不用。
+process.stdin.on('end', () => {
+  try { bridge.stdin.end() } catch (_) {}
+  setTimeout(() => shutdown('stdin-end'), 1500)
+})
 
 function observe(message) {
   // 客户端可发送未注册的 JSON-RPC notification `alpha-dog/round_tick`。

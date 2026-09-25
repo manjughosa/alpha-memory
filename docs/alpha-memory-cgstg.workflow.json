@@ -1,0 +1,360 @@
+{
+    "schema_version":  2,
+    "diagram_type":  "workflow",
+    "meta":  {
+                 "title":  "Alpha-Memory CG/STG 记忆回路 · 门卫→看门→管家→医生",
+                 "locale":  "zh-CN",
+                 "quality_profile":  "showcase",
+                 "animation":  "trace",
+                 "views":  [
+                               {
+                                   "id":  "writegate",
+                                   "label":  "写入闸门（门卫）",
+                                   "focus":  [
+                                                 "propose",
+                                                 "audit",
+                                                 "writelimit",
+                                                 "forgetting",
+                                                 "protect",
+                                                 "twophase",
+                                                 "verdict"
+                                             ],
+                                   "note":  "海马体 inbox → 审核 → 限流 → 遗忘三问 → 写保护 → 两段式，出四态判定。"
+                               },
+                               {
+                                   "id":  "base",
+                                   "label":  "记忆基底与时空",
+                                   "focus":  [
+                                                 "mdstore",
+                                                 "stg",
+                                                 "trust"
+                                             ],
+                                   "note":  "Markdown 真源 + CCG 条件空间，检索可经 STG 时空定位。"
+                               },
+                               {
+                                   "id":  "maintain",
+                                   "label":  "管家与医生（质检/演化）",
+                                   "focus":  [
+                                                 "consistency",
+                                                 "scrub",
+                                                 "evolution",
+                                                 "predict",
+                                                 "flywheel",
+                                                 "coldverify",
+                                                 "blindspot"
+                                             ],
+                                   "note":  "冲突三级决策、自净、演化账本、预测、误差飞轮与冷验证。"
+                               }
+                           ]
+             },
+    "lanes":  [
+                  {
+                      "id":  "ingest",
+                      "label":  "摄取 / 提议"
+                  },
+                  {
+                      "id":  "gate",
+                      "label":  "写入闸门 · 门卫"
+                  },
+                  {
+                      "id":  "base",
+                      "label":  "记忆基底 / 核验（真源 · 管家）"
+                  },
+                  {
+                      "label":  "维护 · 医生",
+                      "variant":  "exception",
+                      "id":  "maintain"
+                  }
+              ],
+    "phases":  [
+                   {
+                       "id":  "write",
+                       "label":  "写入链",
+                       "fromCol":  0,
+                       "toCol":  3,
+                       "variant":  "emphasis"
+                   },
+                   {
+                       "id":  "store",
+                       "label":  "落盘 / 入队",
+                       "fromCol":  4,
+                       "toCol":  4
+                   },
+                   {
+                       "id":  "loop",
+                       "label":  "维护回路",
+                       "fromCol":  5,
+                       "toCol":  5,
+                       "variant":  "dashed"
+                   }
+               ],
+    "mainPath":  [
+                     "propose",
+                     "audit",
+                     "writelimit",
+                     "forgetting",
+                     "protect",
+                     "twophase",
+                     "verdict",
+                     "mdstore"
+                 ],
+    "nodes":  [
+                  {
+                      "id":  "propose",
+                      "lane":  "ingest",
+                      "col":  0,
+                      "type":  "messagebus",
+                      "label":  "propose / ingest",
+                      "sublabel":  "海马体 inbox",
+                      "width":  150
+                  },
+                  {
+                      "id":  "audit",
+                      "lane":  "gate",
+                      "col":  0,
+                      "type":  "security",
+                      "label":  "audit 审核",
+                      "sublabel":  "按内容类型验证",
+                      "width":  150
+                  },
+                  {
+                      "id":  "writelimit",
+                      "lane":  "gate",
+                      "col":  1,
+                      "type":  "security",
+                      "label":  "writelimit 限流",
+                      "sublabel":  "同构聚合",
+                      "width":  140
+                  },
+                  {
+                      "id":  "forgetting",
+                      "lane":  "gate",
+                      "col":  2,
+                      "type":  "security",
+                      "label":  "forgetting 遗忘三问",
+                      "sublabel":  "主动遗忘闸门",
+                      "width":  150
+                  },
+                  {
+                      "id":  "protect",
+                      "lane":  "gate",
+                      "col":  3,
+                      "type":  "security",
+                      "label":  "protect 写保护",
+                      "sublabel":  "自我/锚点层",
+                      "width":  140
+                  },
+                  {
+                      "id":  "twophase",
+                      "lane":  "gate",
+                      "col":  4,
+                      "type":  "backend",
+                      "label":  "twophase 两段式",
+                      "sublabel":  "先意图后结果",
+                      "width":  140
+                  },
+                  {
+                      "id":  "verdict",
+                      "lane":  "gate",
+                      "col":  5,
+                      "type":  "messagebus",
+                      "label":  "四态判定",
+                      "sublabel":  "ACCEPT/REJECT/DEFER/BLINDSPOT",
+                      "tag":  "committed",
+                      "width":  160
+                  },
+                  {
+                      "id":  "mdstore",
+                      "lane":  "base",
+                      "col":  5,
+                      "type":  "database",
+                      "label":  "md_cg 记忆基底",
+                      "sublabel":  "nodefile+mdcg+fsutil",
+                      "width":  150
+                  },
+                  {
+                      "id":  "stg",
+                      "lane":  "base",
+                      "col":  1,
+                      "type":  "backend",
+                      "label":  "STG 时空检索",
+                      "sublabel":  "Allen 6 时态+空间 7 态",
+                      "width":  140
+                  },
+                  {
+                      "id":  "trust",
+                      "lane":  "base",
+                      "col":  3,
+                      "type":  "security",
+                      "label":  "trust 验证态",
+                      "sublabel":  "双时间轴依赖图",
+                      "width":  140
+                  },
+                  {
+                      "id":  "consistency",
+                      "lane":  "base",
+                      "col":  2,
+                      "type":  "security",
+                      "label":  "consistency 质检",
+                      "sublabel":  "冲突三级决策",
+                      "width":  140
+                  },
+                  {
+                      "id":  "coldverify",
+                      "lane":  "base",
+                      "col":  4,
+                      "type":  "security",
+                      "label":  "coldverify 冷验证",
+                      "sublabel":  "异步深度验证",
+                      "width":  140
+                  },
+                  {
+                      "id":  "scrub",
+                      "lane":  "maintain",
+                      "col":  3,
+                      "type":  "backend",
+                      "label":  "scrub 自净",
+                      "sublabel":  "抽查/去污染",
+                      "width":  130
+                  },
+                  {
+                      "id":  "evolution",
+                      "lane":  "maintain",
+                      "col":  4,
+                      "type":  "messagebus",
+                      "label":  "evolution 演化账本",
+                      "sublabel":  "补缺失条件",
+                      "width":  140
+                  },
+                  {
+                      "id":  "predict",
+                      "lane":  "maintain",
+                      "col":  5,
+                      "type":  "backend",
+                      "label":  "predict 预测",
+                      "sublabel":  "候选未来路线",
+                      "width":  130
+                  },
+                  {
+                      "id":  "flywheel",
+                      "lane":  "maintain",
+                      "col":  2,
+                      "type":  "messagebus",
+                      "label":  "flywheel 误差飞轮",
+                      "sublabel":  "预期vs实际",
+                      "width":  140
+                  },
+                  {
+                      "id":  "blindspot",
+                      "lane":  "ingest",
+                      "col":  3,
+                      "type":  "messagebus",
+                      "label":  "blindspot 盲区票据",
+                      "sublabel":  "消解任务卡",
+                      "width":  140
+                  }
+              ],
+    "edges":  [
+                  {
+                      "from":  "propose",
+                      "to":  "audit",
+                      "label":  "候选记忆",
+                      "variant":  "emphasis"
+                  },
+                  {
+                      "from":  "audit",
+                      "to":  "writelimit"
+                  },
+                  {
+                      "from":  "writelimit",
+                      "to":  "forgetting"
+                  },
+                  {
+                      "from":  "forgetting",
+                      "to":  "protect",
+                      "label":  "流水治理后"
+                  },
+                  {
+                      "from":  "protect",
+                      "to":  "twophase"
+                  },
+                  {
+                      "from":  "twophase",
+                      "to":  "verdict",
+                      "label":  "两段式对账",
+                      "variant":  "emphasis"
+                  },
+                  {
+                      "from":  "verdict",
+                      "to":  "mdstore",
+                      "label":  "ACCEPT 落盘",
+                      "variant":  "emphasis"
+                  },
+                  {
+                      "from":  "verdict",
+                      "to":  "blindspot",
+                      "label":  "DEFER/BLINDSPOT",
+                      "variant":  "security",
+                      "role":  "branch"
+                  },
+                  {
+                      "from":  "mdstore",
+                      "to":  "stg",
+                      "label":  "时空检索"
+                  },
+                  {
+                      "from":  "mdstore",
+                      "to":  "consistency",
+                      "label":  "冲突质检",
+                      "variant":  "dashed",
+                      "role":  "async"
+                  },
+                  {
+                      "from":  "consistency",
+                      "to":  "scrub",
+                      "label":  "三级决策",
+                      "variant":  "dashed"
+                  },
+                  {
+                      "from":  "trust",
+                      "to":  "coldverify",
+                      "label":  "异步深验",
+                      "variant":  "dashed",
+                      "role":  "async"
+                  },
+                  {
+                      "from":  "scrub",
+                      "to":  "evolution",
+                      "label":  "演化",
+                      "variant":  "dashed"
+                  },
+                  {
+                      "from":  "evolution",
+                      "to":  "predict"
+                  },
+                  {
+                      "from":  "predict",
+                      "to":  "flywheel",
+                      "label":  "误差回写",
+                      "variant":  "dashed",
+                      "role":  "return"
+                  },
+                  {
+                      "from":  "flywheel",
+                      "to":  "propose",
+                      "label":  "unresolved 驱动补条件",
+                      "variant":  "dashed",
+                      "role":  "return"
+                  },
+                  {
+                      "from":  "blindspot",
+                      "to":  "audit",
+                      "label":  "消解后回流再审",
+                      "variant":  "dashed",
+                      "role":  "return"
+                  }
+              ],
+    "cards":  [
+
+              ]
+}

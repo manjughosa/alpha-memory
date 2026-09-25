@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Alpha-Memory 系统架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "viewBox": [1200, 640],
+    "views": [
+      { "id": "entry", "label": "谁接进来", "focus": ["mcp_host", "cli", "sidecar", "bridge", "kernel"], "note": "MCP 宿主或 CLI 经 sidecar+bridge 连到同一个 Python 记忆内核。" },
+      { "id": "writegate", "label": "写入闸门", "focus": ["kernel", "write_gate", "verdict", "commit", "review_queue", "storage"], "note": "writepipe 两段式提交出判定；ACCEPT 落盘，DEFER/BLINDSPOT 入队。" },
+      { "id": "maintain", "label": "调度与降级", "focus": ["sidecar", "alphadog", "governance", "storage"], "note": "sidecar 按调用计数唤醒 Alpha-Dog；熔断降级挂账 recover。" }
+    ]
+  },
+  "components": [
+    { "id": "mcp_host", "type": "external", "label": "MCP 宿主", "sublabel": "DSH / 任意 MCP 客户端", "pos": [70, 60], "size": [180, 56] },
+    { "id": "cli", "type": "backend", "label": "CLI 直连", "sublabel": "python -m md_cg.mcp_server", "pos": [70, 200], "size": [180, 56] },
+    { "id": "sidecar", "type": "security", "label": "alpha-dog-sidecar", "sublabel": "stdio 计数事件源", "pos": [360, 60], "size": [200, 56] },
+    { "id": "bridge", "type": "backend", "label": "alpha_memory_bridge", "sublabel": "零依赖 stdio 桥", "pos": [640, 60], "size": [190, 56] },
+    { "id": "kernel", "type": "security", "label": "md_cg 记忆内核", "sublabel": "Python · 8.3 万行", "pos": [940, 60], "size": [200, 64] },
+    { "id": "write_gate", "type": "security", "label": "写入闸门", "sublabel": "audit / writelimit / forgetting", "pos": [940, 200], "size": [200, 60] },
+    { "id": "verdict", "type": "messagebus", "label": "写入判定", "sublabel": "ACCEPT / REJECT / DEFER / BLINDSPOT", "pos": [940, 330], "size": [210, 56] },
+    { "id": "commit", "type": "backend", "label": "两段式提交", "sublabel": "committed 才算真相", "pos": [640, 330], "size": [180, 56] },
+    { "id": "review_queue", "type": "messagebus", "label": "review_queue", "sublabel": "DEFER / BLINDSPOT 入队", "pos": [940, 450], "size": [190, 56] },
+    { "id": "storage", "type": "database", "label": "Markdown 认知图", "sublabel": "~/.alpha-memory/data/mdcg", "pos": [360, 560], "size": [210, 60] },
+    { "id": "alphadog", "type": "backend", "label": "Alpha-Dog 调度器", "sublabel": "增量维护 · 15/21/30 档口", "pos": [70, 320], "size": [200, 64] },
+    { "id": "governance", "type": "security", "label": "熔断与降级治理", "sublabel": "mechanical / degraded", "pos": [70, 450], "size": [190, 56] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "写入链路 fail-closed", "wraps": ["write_gate", "verdict"], "pad": 20 },
+    { "kind": "region", "label": "Alpha-Dog 运行时（Node >= 22）", "wraps": ["sidecar", "bridge", "alphadog", "governance"], "pad": 20 }
+  ],
+  "connections": [
+    { "from": "mcp_host", "to": "sidecar", "label": "stdio MCP", "fromSide": "right", "toSide": "left" },
+    { "from": "sidecar", "to": "bridge", "label": "透传 JSON-RPC", "fromSide": "right", "toSide": "left", "labelDy": 46 },
+    { "from": "bridge", "to": "kernel", "label": "spawn + 握手", "fromSide": "right", "toSide": "left", "labelDy": 46 },
+    { "from": "cli", "to": "bridge", "label": "MDCG_ROOT 直起", "fromSide": "right", "toSide": "bottom", "via": [[735, 228]], "labelAt": [420, 252] },
+    { "from": "kernel", "to": "write_gate", "label": "写入拦截", "fromSide": "bottom", "toSide": "top", "labelDy": 26 },
+    { "from": "write_gate", "to": "verdict", "label": "闸门裁决", "fromSide": "bottom", "toSide": "top", "labelDy": 26 },
+    { "from": "verdict", "to": "commit", "label": "ACCEPT", "fromSide": "left", "toSide": "right" },
+    { "from": "verdict", "to": "review_queue", "label": "DEFER / BLINDSPOT", "fromSide": "bottom", "toSide": "top", "labelDy": 26 },
+    { "from": "commit", "to": "storage", "label": ".md 落盘", "fromSide": "bottom", "toSide": "top", "via": [[730, 420], [465, 420]] },
+    { "from": "review_queue", "to": "storage", "label": "人工放行后落盘", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "via": [[1035, 520], [465, 520]], "labelAt": [760, 506] },
+    { "from": "sidecar", "to": "alphadog", "label": "工具调用计数", "fromSide": "bottom", "toSide": "left", "via": [[460, 150], [40, 150], [40, 352]], "labelAt": [250, 174] },
+    { "from": "alphadog", "to": "storage", "label": "增量维护 / 回写", "fromSide": "right", "toSide": "left", "labelDy": 44 },
+    { "from": "alphadog", "to": "governance", "label": "熔断 / 恢复 · recover 重排 failed", "fromSide": "bottom", "toSide": "top", "labelDy": 26 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "两个入口，一个内核", "items": ["MCP 宿主经 sidecar+bridge 接入，CLI 可绕过直起", "内核只暴露 cg / stg 两个认知查询面", "宿主无关，任意 stdio MCP 工程端可直接接"] },
+    { "dot": "emerald", "title": "记忆在哪", "items": ["Markdown 原文即真源，索引可重建", "默认落用户级目录，不在安装包内", "更新包不删数据，复制目录即备份"] },
+    { "dot": "rose", "title": "写入的真相", "items": ["ok:true 不等于落盘，只有 committed 才是真相", "未落盘时 moved_to 指向 review_queue", "Alpha-Dog 走 shadow 双链，对账通过才提权"] }
+  ]
+}

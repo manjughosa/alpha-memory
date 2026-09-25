@@ -47,6 +47,12 @@ const excludes = [
   // 同理，本体保持原样，不在同步里改写它，只保证它不被镜像到发行端。
   /^治理清单(?:速朗)?\.md$/,
   /^变更清单-\d+\.md$/,
+  // 文档视觉质检产物（*.visual-check.* —— 回执 json / 逐视口截图 png / 接触表 html）：
+  // 回执里逐视口记录本机绝对路径与浏览器可执行路径，会让发布闸门 fail-closed 拦下
+  // 整批发版；截图是二进制，闸门扫不了像素内容（隐私不可验证）。两者都属内部质检
+  // 簿记，不是发行物——整套排除，按「内部过程记录不随包发行」惯例。
+  // 本体保持原样，不在同步里改写它。
+  /\.visual-check\./,
   /^engine[\\/]recovery-alpha-dog(?:[\\/]|$)/,
   /^engine[\\/]md_cg[\\/]whitebox_kb[\\/]seed_knowledge[\\/]wisdom_cards[\\/](?:情感情绪仿真·知识综述|时空记忆图·知识综述)\.md$/,
   // 知识链热度计数（audit_log）：sidecar/内核的运行产物，记录使用行为，不入发行物。
@@ -78,6 +84,8 @@ const purgeFromTarget = [
   /^\d+(?:\.\d+)?\.md$/,
   /^治理清单(?:速朗)?\.md$/,
   /^变更清单-\d+\.md$/,
+  // 与 excludes 同步：发行端若历史残留质检回执（含本机绝对路径），一并清掉。
+  /(?:^|[\\/])[^/\\]*\.visual-check\.json$/,
 ]
 
 function files(root, rules = excludes) {

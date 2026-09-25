@@ -59,7 +59,22 @@ const ALPHA_DOG_STATE_PATH = process.env.ALPHA_DOG_CONTROL_STATE || _local("engi
 function readAlphaDogSetting() {
   const candidates = [process.env.ALPHA_DOG_SETTING, _local("alpha-dog.setting.json"), _local("engine/alpha-dog.setting.json")].filter(Boolean);
   for (const candidate of candidates) {
-    try { if (fs.existsSync(candidate)) return JSON.parse(fs.readFileSync(candidate, "utf8")); } catch (_) {}
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      // 热加载（2026-09-24 · interfaces 开关不再要求重启 MCP）：
+      // 原实现每次都 JSON.parse 全文——功能正确但 tools/list 每次都付解析成本；
+      // 外层代理模式又把它缓存在进程启动时的一次性变量里，改完 setting 必须
+      // 重启 MCP（甚至关机）才生效，"改了没反应"的体感来源。
+      // 现改法：按 mtime 缓存——文件没变直接回缓存的解析结果（零解析成本），
+      // mtime 变了才重读重解析。读失败/解析失败不吞掉返回 null，由调用方
+      // 落到下一个 candidate 或最终默认值（与原 catch-continue 语义一致）。
+      const st = fs.statSync(candidate);
+      const cache = readAlphaDogSetting._cache;
+      if (cache && cache.path === candidate && cache.mtimeMs === st.mtimeMs) return cache.setting;
+      const setting = JSON.parse(fs.readFileSync(candidate, "utf8"));
+      readAlphaDogSetting._cache = { path: candidate, mtimeMs: st.mtimeMs, setting };
+      return setting;
+    } catch (_) {}
   }
   return { enabled: false, interfaces: { Alpha_Dog_On: true, Alpha_Dog_Off: true, cg: false, stg: false }, initialization: { mention: "on", status: "unconfigured" } };
 }
@@ -766,7 +781,9 @@ if (argv.length === 0 || op === "mcp") {
   // 下行同 id 响应：成功→commitGateHash+recordBigram；error/isError→releaseGatePending。
   const inflight = new Map();
   const alphaDogRequestKinds = new Map();
-  const alphaDogSetting = readAlphaDogSetting();
+  // 热加载（2026-09-24）：不再缓存启动时的 setting 快照。tools/list 过滤与
+  // Alpha_Dog_On/Off 一样走 readAlphaDogSetting()——内部按 mtime 缓存，
+  // 文件没变零成本，改完 interfaces 下一次 tools/list 即生效，无需重启 MCP。
   let downbuf = "";
   child.stdout.setEncoding("utf8");
   const downLine = (line) => {
@@ -787,6 +804,7 @@ if (argv.length === 0 || op === "mcp") {
     const requestKind = msg && msg.id !== undefined ? alphaDogRequestKinds.get(msg.id) : null;
     if (requestKind === "tools/list" && msg.result && Array.isArray(msg.result.tools)) {
       alphaDogRequestKinds.delete(msg.id);
+      const alphaDogSetting = readAlphaDogSetting();   // 热加载：每次 tools/list 现取（mtime 缓存）
       const visibleKernel = msg.result.tools.filter((tool) => (tool.name !== "cg" || alphaDogSetting.interfaces?.cg === true) && (tool.name !== "stg" || alphaDogSetting.interfaces?.stg === true));
       msg.result.tools = [...alphaDogTools(alphaDogSetting), ...visibleKernel];
       process.stdout.write(JSON.stringify(msg) + "\n");

@@ -172,5 +172,6 @@ Alpha-Dog 必然依赖若干显式路径：对话源、映射表、证书、会�
 
 - **cg** = 记忆大脑多态入口（op=write 写 / op=read 读）；**stg** = 语义时空图四操作（纯读）
 - **发行版默认 false**（隐藏，只留 On/Off 驾驶舱，走狗的治理链）
-- **改 true** = 记忆读写工具直接暴露给 Agent（可绕过狗直读写，调试用）；改完重启 MCP
+- **改 true** = 记忆读写工具直接暴露给 Agent（可绕过狗直读写，调试用）
+- **2026-09-24 起热加载**：桥按 mtime 缓存 setting，改完保存 → 客户端下一次 `tools/list` 即生效，**无需重启 MCP**
 - 修改位置：`interfaces.cg / interfaces.stg`

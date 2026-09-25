@@ -5,8 +5,8 @@
   "interfaces": {
     "Alpha_Dog_On": true,
     "Alpha_Dog_Off": true,
-    "cg": true,
-    "stg": true
+    "cg": false,
+    "stg": false
   },
   "schedule": {
     "slots": [
