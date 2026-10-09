@@ -1,5 +1,4 @@
-#!/usr/bin/env node
-'use strict'
+'use strict';
 
 // Alpha-Dog Sidecar: universal MCP stdio event source.
 //
@@ -131,7 +130,7 @@ async function loadRuntime() {
     import(pathToFileURL(path.join(ENGINE_DIR, 'lib', 'alpha-dog-config.js')).href),
     import(pathToFileURL(path.join(ENGINE_DIR, 'model.js')).href),
   ])
-  // 注册表条目路径是【workspace 根】相对的（如 tools/算力下沉/记忆映射/…）。
+  // 注册表条目路径是【workspace 根】相对的（如 tools/CLI/记忆映射/…）。
   // 用 realpath 先解开 junction（C:\...\Alpha-Memory → E:\...\Deeptalk\…），
   // 再向上找 agent_registry.json，拿到 workspace 根；同时把 registry 对象交给 runtime。
   const registryPath = findUpward(fs.realpathSync(PKG_ROOT), 'agent_registry.json')
@@ -193,6 +192,11 @@ function probeAlive(pid) {
 // 安全条款：动手前必须核对该 pid 的命令行确实含 alpha-dog-sidecar（防
 // pid 复用误杀）；核对不了就不杀，退让并写明原因。绝不盲杀。
 const ORPHAN_STALE_MS = Number(process.env.ALPHA_DOG_ORPHAN_STALE_MS || 30 * 60 * 1000)
+// 2026-09-28 祝余补：哑狗宽限期。ready 之后 bridge 一次都没吭声，超过这个时间即判半启动僵尸。
+const ORPHAN_GRACE_MS = Number(process.env.ALPHA_DOG_ORPHAN_GRACE_MS || 90 * 1000)
+// 2026-09-28 祝余补：在岗心跳记号。锁主每 15s 写 sidecar.heartbeat.json；超过 45s 没刷新＝定时器死了。
+const HEARTBEAT_PATH = path.join(STATE_DIR, 'sidecar.heartbeat.json')
+const HEARTBEAT_STALE_MS = Number(process.env.ALPHA_DOG_HEARTBEAT_STALE_MS || 45 * 1000)
 function readLogTail(bytes = 16384) {
   try {
     const stat = fs.statSync(LOG_PATH)
@@ -214,14 +218,41 @@ function cmdlineOf(pid) {
     return out || null
   } catch (_) { return null }
 }
-function lockHolderIsOrphan() {
+function lockHolderIsOrphan(pid) {
   const lines = readLogTail().split('\n').filter((line) => line.includes('[sidecar]'))
   let lastReady = -1
   lines.forEach((line, index) => { if (line.includes('ready server=')) lastReady = index })
   if (lastReady >= 0 && lines.slice(lastReady + 1).some((line) => line.includes('bridge exit code='))) {
     return { orphan: true, why: 'bridge exited after last ready — client-less zombie' }
   }
-  const beats = [LOG_PATH, HISTORY_PATH, SIGNAL_PATH, COUNTER_PATH].map((file) => {
+  // ③ 哑狗实锤（2026-09-28 祝余补 · zyq 令）：
+  //    病根：① 要「bridge exit」才认，可 bridge 根本没起来，没有 exit 可判；② 要三十分钟
+  //    静默才认，可它刚上岗几十秒，四个文件全是新的。两把尺子都量不到 → 判「有主」→
+  //    拒绝接管 → 死锁，只能人工抽。补第三把尺子：ready 之后 bridge 一次都没吭声。
+  if (lastReady >= 0) {
+    const after = lines.slice(lastReady + 1)
+    const bridgeSpoke = after.some((line) => line.includes('bridge exit code=')
+      || line.includes('tick ') || line.includes('observed tick')
+      || line.includes('power-on complete') || line.includes('self-driven wake'))
+    if (!bridgeSpoke) {
+      const stamp = /^\[([^\]]+)\]/.exec(lines[lastReady])
+      const readyAt = stamp ? Date.parse(stamp[1]) : NaN
+      if (Number.isFinite(readyAt) && Date.now() - readyAt > ORPHAN_GRACE_MS) {
+        return { orphan: true, why: `silent after ready for ${Math.round((Date.now() - readyAt) / 1000)}s — half-started dog` }
+      }
+    }
+  }
+  // ④ 心跳记号实锤（2026-09-28 祝余补）：锁主 pid 活着，但它自己写的心跳记号
+  //    超过 HEARTBEAT_STALE_MS 没刷新 → 它的定时器死了或卡死，判孤接管。
+  try {
+    const marker = JSON.parse(fs.readFileSync(HEARTBEAT_PATH, 'utf8'))
+    if (marker && marker.pid === pid && Number.isFinite(marker.at) && Date.now() - marker.at > HEARTBEAT_STALE_MS) {
+      return { orphan: true, why: `heartbeat stale ${Math.round((Date.now() - marker.at) / 1000)}s（进程活着但定时器死了）` }
+    }
+  } catch (_) { /* 记号不存在/损坏 → 没这把尺子，走旧证据 */ }
+  // ② 心跳兜底：LOG_PATH 已摘出——任何启动中的进程都会写它（含拒绝启动那条路自己），
+  //    留着它等于每次去连一次就替僵尸续一次心跳，越连越像活的。
+  const beats = [HISTORY_PATH, SIGNAL_PATH, COUNTER_PATH].map((file) => {
     try { return fs.statSync(file).mtimeMs } catch (_) { return 0 }
   })
   const newest = Math.max(...beats)
@@ -236,7 +267,7 @@ function acquireLock() {
     const existing = fs.readFileSync(LOCK_PATH, 'utf8').trim()
     const pid = Number(existing)
     if (probeAlive(pid)) {
-      const verdict = lockHolderIsOrphan()
+      const verdict = lockHolderIsOrphan(pid)
       if (!verdict.orphan) {
         log(`已有狗在岗 (pid=${pid})，拒绝重复启动，本进程 (pid=${process.pid}) 退出`)
         process.stderr.write(`[sidecar] already running as pid=${pid}; refusing duplicate startup.\n`)
@@ -275,6 +306,24 @@ function releaseLock() {
   } catch (_) {}
 }
 acquireLock()
+
+// ── 2026-09-28 祝余补：在岗心跳记号 + 起不来自己退位 ──────────────────
+// 一本万利三件套之二三：每 15s 写心跳给下一只来撞门的狗留「我还活着」的记号；
+// 上岗 120s 内没收到任何客户端字节 → 自己是起不来的哑狗，释放锁退位，把门让出来。
+let sawClientTraffic = false
+function writeHeartbeat() {
+  try { ensureDir(HEARTBEAT_PATH); fs.writeFileSync(HEARTBEAT_PATH, `${JSON.stringify({ pid: process.pid, at: Date.now(), traffic: sawClientTraffic })}\n`, 'utf8') } catch (_) { /* 心跳写失败不致命 */ }
+}
+writeHeartbeat()
+setInterval(writeHeartbeat, Number(process.env.ALPHA_DOG_HEARTBEAT_MS || 15 * 1000)).unref()
+const TRAFFIC_GUARD_MS = Number(process.env.ALPHA_DOG_TRAFFIC_GUARD_MS || 120 * 1000)
+setTimeout(() => {
+  if (!sawClientTraffic) {
+    log(`上岗 ${Math.round(TRAFFIC_GUARD_MS / 1000)}s 无客户端字节，自判起不来，退位让贤`)
+    releaseLock()
+    process.exit(0)
+  }
+}, TRAFFIC_GUARD_MS).unref()
 
 if (!fs.existsSync(BRIDGE)) {
   process.stderr.write(`[sidecar] bridge missing: ${BRIDGE}\n`)
@@ -318,6 +367,7 @@ bridge.on('exit', (code) => { log(`bridge exit code=${code}`); if (!exiting) pro
 let input = ''
 process.stdin.setEncoding('utf8')
 process.stdin.on('data', (chunk) => {
+  sawClientTraffic = true
   input += chunk
   let index
   while ((index = input.indexOf('\n')) >= 0) {
@@ -476,9 +526,99 @@ function recordWake(record) {
   return enriched
 }
 
+// ── 启动自查（zyq 2026-10-08 授权 · 祝余补）──────────────────────
+// 病根（10-01~10-07 七天现场）：狗生死绑定 pi 会话 + 上电只挂 Alpha_Dog_On
+// 人工调用 → 会话关狗下班，新会话没人调 On，狗每场只闪现几秒；计数器冻死
+// 9-23；自驱唤醒被去重表吃掉（processedEvents 记着旧轮 selfdrive:15/21/30/45/60/63，
+// placeholder 锚钉旧轮）。
+// 修法：ready 后跑一次 powerOnSelfCheck，全自动零上下文，不动 MCP 协议：
+//   A. 电源自查：runtime.json.running === false 落盘 = 上次是 Alpha_Dog_Off
+//      主动关（off() → persist），人的决定绝不复活；其余（running:true 崩在
+//      岗上 / 无状态文件）→ 自己上电 + TLS 自检，并把控制文件写回在岗。
+//   B. 陈旧重锚：runtime 记的账还是旧会话的（锚轮 vs 当前对话轮差距 > 15，
+//      即最小档口）→ 只清 selfdrive 去重记录（手动 tick 的 eventId 不动），
+//      placeholder 重锚回 0，档口重新能触发。对话源是权威轮，runtime 内部
+//      counter.restore() 会把轮次拉到当前对话轮。
+//   C. failed 批次追补：recoverFailedBatches 一直有，从没人调——顺手补上。
+// 留痕全走 sidecar.log，每步一行，人能查狗也能查。
+function countUserTurns(conversationDir) {
+  // 与自驱轮询同一读法：读对话源目录最新 jsonl，数 user 消息（role==='user'）。
+  // 会话文件格式解析以 conversation-source.js 为准；本兜底只在 import 失败时用。
+  try {
+    const files = fs.readdirSync(conversationDir).filter((file) => file.endsWith('.jsonl')).map((file) => path.join(conversationDir, file))
+    if (files.length === 0) return 0
+    files.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)
+    const raw = fs.readFileSync(files[0], 'utf8')
+    let count = 0
+    for (const line of raw.split('\n')) {
+      if (!line.trim()) continue
+      try { const message = JSON.parse(line); if (message?.type === 'user' || message?.role === 'user') count += 1 } catch (_) {}
+    }
+    return count
+  } catch (_) { return 0 }
+}
+
+async function powerOnSelfCheck() {
+  try {
+    if (!sidecarEnabled() || MODE === 'observe' || MODE === 'signal' || mode() === 'legacy') { log('selfcheck: skip (disabled/observe/signal/legacy)'); return }
+    const saved = readJSON(RUNTIME_STATE_PATH, null)
+    // A. 电源自查
+    if (saved && saved.running === false) {
+      log(`selfcheck: last shutdown was manual Off (round=${saved.round ?? '?'}); respecting it, no auto power-on`)
+    } else {
+      const dog = await loadRuntime()
+      if (!dog.status().running) {
+        const result = await dog.onWithTlsCheck()
+        if (result?.initialization || result?.initialization === 'declined') {
+          log('selfcheck: auto power-on blocked: initialization required')
+        } else {
+          writeJSON(CONTROL_STATE_PATH, { ...control(), running: true, watchdog: 'dormant', poweredAt: new Date().toISOString(), lastTlsCheck: result?.tlsCheck || null, savedAt: new Date().toISOString() })
+          log(`selfcheck: auto power-on complete tls=${result?.tlsCheck ? (result.tlsCheck.ok ? 'ok' : result.tlsCheck.mitm ? 'mitm-detected' : 'error') : 'n/a'}`)
+        }
+      } else {
+        log(`selfcheck: runtime already running (round=${dog.status().round})`)
+      }
+    }
+    // B. 陈旧重锚
+    const dog = await loadRuntime()
+    const conversationDir = process.env.ALPHA_DOG_CONVERSATION_DIR || setting().conversation?.dir || ''
+    if (conversationDir) {
+      let userTurns = 0
+      let sourceLabel = 'fallback-parser'
+      try {
+        const { readConversation } = await import(pathToFileURL(path.join(ENGINE_DIR, 'lib', 'alpha-dog', 'runtime', 'conversation-source.js')).href)
+        const result = readConversation(conversationDir)
+        if (result.ok) { userTurns = result.userTurns.length; sourceLabel = result.file || 'conversation-source' }
+      } catch (_) { userTurns = countUserTurns(conversationDir) }
+      const roundNow = dog.counter.current()
+      if (userTurns > 0 && roundNow > 0 && Math.abs(userTurns - roundNow) > 15) {
+        const keep = [...dog.processedEvents].filter((id) => !String(id).startsWith('selfdrive:'))
+        const dropped = dog.processedEvents.size - keep.length
+        dog.processedEvents = new Set(keep)
+        for (const slot of Object.values(dog.placeholders?.slots || {})) {
+          slot.anchorRound = 0
+          delete slot.lastEval
+        }
+        dog.persist()
+        log(`selfcheck: stale detected (runtime round=${roundNow} vs conversation turns=${userTurns} via ${sourceLabel}) — dropped ${dropped} selfdrive dedup entries, re-anchored placeholders`)
+      } else {
+        log(`selfcheck: not stale (runtime round=${roundNow}, conversation turns=${userTurns} via ${sourceLabel})`)
+      }
+    }
+    // C. failed 批次追补
+    const recovered = dog.recoverFailedBatches()
+    if (recovered && recovered.length) {
+      log(`selfcheck: recovered failed batches ${recovered.join(', ')}`)
+    }
+  } catch (error) {
+    log(`selfcheck failed: ${error.message}`)
+  }
+}
+
 function shutdown(signal) { if (exiting) return; exiting = true; log(`shutdown ${signal}`); try { bridge.kill() } catch (_) {} releaseLock(); setTimeout(() => process.exit(0), 100) }
 process.on('SIGINT', () => shutdown('SIGINT'))
 process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('exit', () => { try { bridge.kill() } catch (_) {} releaseLock() })
 log(`ready server=${SERVER_NAME} mode=${MODE} network=${NETWORK} scope=${TICK_SCOPE} entry=${ENTRY} bridge=${BRIDGE}`)
 startSelfDrivenPolling()
+powerOnSelfCheck()

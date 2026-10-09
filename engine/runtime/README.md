@@ -62,6 +62,27 @@ sidecar 直接 spawn Python 会把这些一起丢掉，症状是「装好了但�
 - `state.mode = legacy` → sidecar 完全不计数
 - `sidecar.enabled = false` → 不计数（`SIDECAR_FORCE=1` 仅供诊断）
 
+## 启动自查（2026-10-08 zyq 授权 · 祝余补）
+
+**病根**：狗生死绑定 pi 会话 + 上电只挂 `Alpha_Dog_On` 人工调用。会话关了狗下班，
+新会话没人调 On，狗每场只闪现几秒（10-01~10-07 七天现场）；计数器冻死 9-23；
+自驱唤醒被去重表吃掉（`processedEvents` 记着旧轮 `selfdrive:15/21/30/...`，
+placeholder 锚钉旧轮，档口永远到不了）。
+
+**修法**：ready 后自动跑一次 `powerOnSelfCheck()`，零上下文、不动 MCP 协议：
+
+| 步骤 | 行为 |
+|---|---|
+| A 电源自查 | `runtime.json` 里 `running===false` 落盘 = 上次是 `Alpha_Dog_Off` 主动关（人工决定绝不复活）；其余情况 → 自己上电 + TLS 自检，控制文件写回在岗 |
+| B 陈旧重锚 | runtime 记的账还是旧会话的（runtime 轮次 vs 当前对话轮差距 > 15，即最小档口）→ 只清 `selfdrive:` 前缀的去重记录（手动 tick 的 eventId 不动），placeholder 各 slot 重锚回 0，`persist()` 落盘 |
+| C 批次追补 | `recoverFailedBatches()` 一直有 API 没人调——启动时顺手补 failed 批次 |
+
+留痕全走 `sidecar.log`，每步一行 `selfcheck: ...`，人能查狗也能查。
+
+**陈旧判据读哪**：优先动态 import `conversation-source.js` 的 `readConversation`（与自驱轮询同一读法），
+import 失败时兜底 `countUserTurns()` 本地解析器（读最新 jsonl 数 `user` 消息）。对话源目录来自
+`ALPHA_DOG_CONVERSATION_DIR` env 或 `setting.conversation.dir`。
+
 ## 配置
 
 MCP 入口由 `alpha-dog.setting.json` 的 `sidecar` 块决定，**不在宿主配置里写死路径**：
