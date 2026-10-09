@@ -55,15 +55,15 @@ class Source:
 
 # ────────────────────────────────────────────────────────────────────────────
 # 已知宿主 JSONL 格式表（唯一真源 · 2026-10-08 加）
-# 背景：JsonlSource 默认键是 time/role/text，而宿主日志常用 ts/user_input/susu_reply
+# 背景：JsonlSource 默认键是 time/role/text，而宿主日志常用 ts/user_input/assistant_reply
 # 一类字段 —— 取不到文本就整行静默跳过，目录摄取只报 written 0，看不出原因。
 # 新增宿主格式只改这张表：require = 顶层键签名（全部命中才算），其余键名同 JsonlSource。
 # ────────────────────────────────────────────────────────────────────────────
 KNOWN_JSONL_FORMATS = (
-    # Deeptalk 回合流水（susumemory/session_trace.jsonl）：
-    # 一行一个回合，user_input = 提问原文，susu_reply = 回复原文，ts 为时间戳
-    {"require": ("user_input", "susu_reply"), "t_key": "ts",
-     "pair_fields": (("user_input", "user"), ("susu_reply", "assistant")),
+    # Deeptalk 回合流水（memory/session_trace.jsonl）：
+    # 一行一个回合，user_input = 提问原文，assistant_reply = 回复原文，ts 为时间戳
+    {"require": ("user_input", "assistant_reply"), "t_key": "ts",
+     "pair_fields": (("user_input", "user"), ("assistant_reply", "assistant")),
      "session_key": "session_id"},
 )
 
