@@ -41,7 +41,7 @@ export declare class AlphaDogRuntime {
         conversation: import("./alpha-dog/runtime/conversation-source.js").ConversationSourceResult;
     };
     /**
-     * TLS 中间人自检（Agent setup 初始化检查项之一，zyq 2026-09-23 豁免放行）。
+     * TLS 中间人自检（Agent setup 初始化检查项之一，author 2026-09-23 豁免放行）。
      *
      * 背景：本机网络出口可能被杀软/代理做 HTTPS 中间人（自签根替换真实证书链），
      * 导致模型调用偶发 SELF_SIGNED_CERT_IN_CHAIN。这不是 Alpha-Memory 的缺陷，

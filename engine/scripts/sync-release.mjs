@@ -18,7 +18,7 @@ const excludes = [
   // （__pycache__ / \.py[cod]$ 见下方），后者会嵌入构建机绝对路径。
   /^runtime[\\/]bin[\\/]/,
   /^engine[\\/]state(?:[\\/]|$)/,
-  // 兜底（苏苏 20260923）：sidecar/runtime 状态文件无论落在仓库哪个层级，
+  // 兜底（assistant 20260923）：sidecar/runtime 状态文件无论落在仓库哪个层级，
   // 一律排除——它们记录真实对话痕迹与本机行为，与 engine/state 同级敏感。
   /(?:^|[/\\])sidecar\.log$/,
   /(?:^|[/\\])sidecar-[^/\\]+\.(?:json|jsonl)$/,
@@ -64,7 +64,7 @@ const purgeFromTarget = [
   // bin/ 需要从目标端清掉，否则历史残留会一直躺在发行端。
   /^runtime[\\/]bin[\\/]/,
   /^engine[\\/]state(?:[\\/]|$)/,
-  // 兜底（苏苏 20260923）：与 excludes 同步——发行端历史残留的状态文件
+  // 兜底（assistant 20260923）：与 excludes 同步——发行端历史残留的状态文件
   // （无论落在哪一层）也一并清除，防止旧版本残留的对话痕迹永久沉积。
   /(?:^|[/\\])sidecar\.log$/,
   /(?:^|[/\\])sidecar-[^/\\]+\.(?:json|jsonl)$/,
