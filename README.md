@@ -1,6 +1,90 @@
 # Alpha-Memory
 
+> **版本**: v0.4.x | **最后更新**: 2026-10-10
+
 Alpha-Memory 是面向 AI Agent 的本地长期记忆系统；Alpha-Dog 是其增量维护调度器。
+
+记忆内核是一个标准 stdio MCP server，**宿主无关**——任何支持 MCP 的工程端都能直接接，内核里不含任何宿主专属代码。
+
+---
+
+## ⚡ 5分钟快速开始
+
+### 1. 克隆并测试内核
+```bash
+git clone https://github.com/manjughosa/alpha-memory.git
+cd alpha-memory/engine
+python md_cg/datapath.py
+# 应打印：State root: ~/.alpha-memory
+```
+
+### 2. 添加到你的 MCP 配置
+在你的 MCP 客户端配置中加入：
+```json
+{
+  "mcpServers": {
+    "alpha-memory": {
+      "command": "node",
+      "args": ["<path-to>/alpha-memory/engine/runtime/alpha-dog-sidecar.cjs"],
+      "env": {
+        "ALPHA_MEMORY_HOME": "<path-to>/alpha-memory"
+      }
+    }
+  }
+}
+```
+
+### 3. 验证连通
+在你的 Agent 中调用：
+```python
+alpha_memory_recall(query="测试")
+# 应返回记忆列表（可能为空，这是正常的）
+```
+
+✅ **成功！** 详细配置见下方完整文档。
+
+---
+
+## 📖 使用示例
+
+### 基础记忆操作
+```python
+# 记住一件事
+alpha_memory_remember(content="用户喜欢喝咖啡，每天早上必喝拿铁")
+
+# 回忆相关内容
+results = alpha_memory_recall(query="用户的兴趣爱好")
+
+# 精确读取（已知节点ID）
+node = alpha_memory_get(node_id="xxx")
+```
+
+### 🚀 向量语义搜索（新特性）
+```python
+# 纯向量召回
+results = alpha_memory_recall(query="饮品偏好", vector=True)
+
+# 多路径融合（推荐）
+results = alpha_memory_recall(
+    query="用户是谁", 
+    vector=True,   # 向量语义
+    fuzzy=True,    # 词法匹配
+    semantic=True  # 条件匹配
+)
+```
+
+详见 [VECTOR_RECALL_GUIDE.md](VECTOR_RECALL_GUIDE.md)
+
+### Alpha-Dog 自动维护
+```python
+# 开启看门狗
+alpha_dog_on()
+
+# 之后每15/21/30轮会自动巡检和维护记忆
+# 无需手动提醒
+```
+
+---
 
 记忆内核是一个标准 stdio MCP server，**宿主无关**——任何支持 MCP 的工程端都能直接接，
 内核里不含任何宿主专属代码。
@@ -85,3 +169,53 @@ npm pack --dry-run --json
 - [dsh-memory](https://github.com/FuRongJun-1999/dsh-memory) —— 感谢其公开的工程思路
 
 完整的依赖披露见 [engine/README.md](engine/README.md) 的「鸣谢」一节。
+
+---
+
+## ❓ 常见问题（FAQ）
+
+### Q1: 记忆数据存储在哪里？
+默认存储在 `~/.alpha-memory/data/mdcg`（纯 Markdown 格式）。可通过环境变量 `ALPHA_MEMORY_HOME` 自定义位置。
+
+### Q2: 如何备份我的记忆？
+直接复制 `~/.alpha-memory/data/` 目录即可。记忆以 Markdown 格式存储，易于备份和版本控制。
+
+### Q3: Alpha-Dog 的15/21/30轮是什么意思？
+这是自动维护的触发间隔：
+- **15轮**：轻量级即时落盘
+- **21轮**：系统巡检（索引、冲突检测）
+- **30轮**：深度记忆巡检（优化、质量评估）
+
+### Q4: 向量召回需要额外配置吗？
+需要 Qdrant 向量数据库（支持本地模式）和嵌入模型（默认 `qwen3-embedding:0.6b`）。详见 [VECTOR_RECALL_GUIDE.md](VECTOR_RECALL_GUIDE.md)
+
+### Q5: 出现 "API key not found" 错误怎么办？
+检查 `~/.mdcg/` 下的凭据配置，或在 `alpha-dog.setting.json` 中配置 `apiKeyRef` 引用。
+
+### Q6: 如何验证 Alpha-Dog 正常工作？
+调用 `alpha_dog_status()` 查看运行状态，或检查 `engine/state/runtime.json` 的 `wakeCount` 是否递增。
+
+### Q7: 可以在多个项目间共享记忆吗？
+可以。所有使用相同 `ALPHA_MEMORY_HOME` 的 Agent 共享同一记忆池。不同项目可设置不同路径实现隔离。
+
+### Q8: 记忆内核支持哪些 MCP 客户端？
+任何支持 stdio MCP 的客户端（Claude Desktop、Cline、Continue 等）。内核是宿主无关的标准 MCP server。
+
+---
+
+## 📚 相关文档
+
+- [完整配置指南](engine/README.md) - 详细的安装、配置和开发说明
+- [向量召回指南](VECTOR_RECALL_GUIDE.md) - 向量搜索功能使用指南
+- [Agent 接入指南](engine/AGENT-SETUP.md) - 快速接入指南（可直接给 Agent）
+- [Sidecar 运行时](engine/runtime/README.md) - MCP stdio 事件源说明
+
+---
+
+## 📄 许可证
+
+详见项目根目录 LICENSE 文件。
+
+---
+
+**Alpha-Memory** - 让 AI Agent 拥有长期记忆 🧠
