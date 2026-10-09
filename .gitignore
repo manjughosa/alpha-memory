@@ -29,7 +29,7 @@
 !/runtime/*.exe
 !/runtime/**/*.exe
 
-# ── Alpha-Dog 运行时状态（兜底·20260923 苏苏补）──────────────
+# ── Alpha-Dog 运行时状态（兜底·20260923 assistant补）──────────────
 # 无论 sidecar 的状态文件将来挪到仓库哪个角落（sidecar.log / runtime.json /
 # wake-history / counter / signal / lock / batch-report / sync-report），
 # 一律不入公开仓库——它们记录真实对话痕迹与本机行为。

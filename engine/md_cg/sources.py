@@ -11,8 +11,6 @@
   · SessionLogSource   —— 宿主会话日志（<会话根>/**/session.jsonl[.zstd]；会话根由
                           MDCG_SESSIONS_ROOT 指定，内核不预设任何宿主路径）
                           zstd 为**可选**依赖：缺失时优雅降级（跳过 .zstd 文件并告警）
-  · PiSessionSource    —— Pi 会话 jsonl（每行 {type:"message", message:{role, content}}；
-                          角色与正文嵌在 message 字段里，与 SessionLogSource 的平键格式不同）
 
 默认敏感度：会话内容是私有记忆 → sensitivity="private"（避免落入公开根）。
 
@@ -20,7 +18,6 @@
 """
 from __future__ import annotations
 
-import datetime
 import glob
 import json
 import os
@@ -53,64 +50,7 @@ class Source:
         return self.name
 
 
-# ────────────────────────────────────────────────────────────────────────────
-# 已知宿主 JSONL 格式表（唯一真源 · 2026-10-08 加）
-# 背景：JsonlSource 默认键是 time/role/text，而宿主日志常用 ts/user_input/susu_reply
-# 一类字段 —— 取不到文本就整行静默跳过，目录摄取只报 written 0，看不出原因。
-# 新增宿主格式只改这张表：require = 顶层键签名（全部命中才算），其余键名同 JsonlSource。
-# ────────────────────────────────────────────────────────────────────────────
-KNOWN_JSONL_FORMATS = (
-    # Deeptalk 回合流水（susumemory/session_trace.jsonl）：
-    # 一行一个回合，user_input = 提问原文，susu_reply = 回复原文，ts 为时间戳
-    {"require": ("user_input", "susu_reply"), "t_key": "ts",
-     "pair_fields": (("user_input", "user"), ("susu_reply", "assistant")),
-     "session_key": "session_id"},
-)
-
-
-# 生效条件：path 存在且可读时，从头逐行试解析，已取满 max_hits(3) 个非空 JSON 对象、或已扫过 max_scan(200) 个物理行即停，返回这些对象顶层键的并集；文件不存在 / 无对象 / 全不可解析时返回空 set。（不设字节上限：宿主一行可能几十 KB，按累计字节掐会在解析首行之前就 break，嗅探必然落空。）
-def _first_object_keys(path, max_hits=3, max_scan=200):
-    """取文件开头几个 JSON 对象行的顶层键（格式嗅探用；只认对象行，坏行跳过）。"""
-    keys = set()
-    if not os.path.exists(path):
-        return keys
-    got = 0
-    with open(path, encoding="utf-8", errors="replace") as f:
-        for i, line in enumerate(f):
-            if i >= max_scan:
-                break
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                o = json.loads(line)
-            except ValueError:
-                continue
-            if isinstance(o, dict) and o:
-                keys |= set(o.keys())
-                got += 1
-                if got >= max_hits:
-                    break
-    return keys
-
-
-# 生效条件：path 头部的 JSON 顶层键命中 KNOWN_JSONL_FORMATS 任一条的 require 时，返回按该条映射构造的 JsonlSource（t_key/role_key/text_key/pair_fields/session_key/meta_keys 全部来自表内，缺省用 JsonlSource 默认值）；未命中任何一条时返回默认键的 JsonlSource(path)。name 透传给 JsonlSource，为 None 时回落为 "jsonl:"+basename(path)。
-def jsonl_source_for(path, name=None):
-    """按内容嗅探宿主格式的 JsonlSource 工厂 —— dir / file 摄取统一走这里。"""
-    keys = _first_object_keys(path)
-    for fmt in KNOWN_JSONL_FORMATS:
-        if all(k in keys for k in fmt["require"]):
-            return JsonlSource(path, name=name,
-                               t_key=fmt.get("t_key", "time"),
-                               role_key=fmt.get("role_key", "role"),
-                               text_key=fmt.get("text_key", "text"),
-                               pair_fields=fmt.get("pair_fields"),
-                               session_key=fmt.get("session_key") or "session",
-                               meta_keys=fmt.get("meta_keys"))
-    return JsonlSource(path, name=name)
-
-
-# 生效条件：required 形参 path 总被存入 self.path；可选形参 name 为假值（None/空串）时 self.name 回落到 "jsonl:"+os.path.basename(path)，为真值时用 name 本身，t_key/role_key/text_key/default_role/pair_fields/session_key/cwd_key/meta_keys 原样存入属性（默认值 "time"/"role"/"text"/"user"/None/"session"/"cwd"/None）。
+# 生效条件：required 形参 path 总被存入 self.path；可选形参 name 为假值（None/空串）时 self.name 回落到 "jsonl:"+os.path.basename(path)，为真值时用 name 本身，t_key/role_key/text_key/default_role 原样存入属性。
 class JsonlSource(Source):
     """通用 JSONL 会话源。
 
@@ -118,31 +58,15 @@ class JsonlSource(Source):
       t_key      —— 时间戳字段（默认 "time"，也接受 ISO 字符串）
       role_key   —— 角色字段（默认 "role"）
       text_key   —— 文本字段（默认 "text"）
-
-    一问一答型宿主格式（**一行多事件**，2026-10-08 加）：某些宿主把「用户原话 +
-    回复原文」写在同一行。此时给 `pair_fields` 即可，无需改本类：
-      pair_fields —— [(字段名, 角色), ...]，按序各产出一条事件（空字段跳过）
-    seq 用 `2*行号 + 槽位` 区分同行两事件 —— Ingestor 的去重键是 (session, seq)，
-    同行共用 seq 会让第二条被静默丢弃。
-
-    其余可选映射：session_key（默认 "session"）、cwd_key（默认 "cwd"）、
-    meta_keys（默认 None）——列出的附加字段以 `[键] 值` 追加到事件文本末尾，
-    供检索命中结构化旁注（情绪/骰子一类）；默认不追加，行为与改造前逐字一致。
     """
 
 # 生效条件：传入 path；name 为假值（None/空串）时回落为 "jsonl:"+os.path.basename(path)，t_key/role_key/text_key/default_role 原样存为属性（默认值 "time"/"role"/"text"/"user"）。
     def __init__(self, path: str, name: str = None, t_key="time", role_key="role",
-                 text_key="text", default_role="user", pair_fields=None,
-                 session_key="session", cwd_key="cwd", meta_keys=None):
+                 text_key="text", default_role="user"):
         self.path = path
         self.name = name or ("jsonl:" + os.path.basename(path))
         self.t_key, self.role_key, self.text_key = t_key, role_key, text_key
         self.default_role = default_role
-        # 一行多事件（一问一答型宿主格式）：[(字段名, 角色), ...]；None = 走 t_key/role_key/text_key 单事件老路
-        self.pair_fields = [(str(k), str(v)) for k, v in pair_fields] if pair_fields else None
-        self.session_key = session_key or "session"
-        self.cwd_key = cwd_key or "cwd"
-        self.meta_keys = [str(k) for k in meta_keys] if meta_keys else None
 
 # 生效条件：无前置；返回 self.name（构造时已回落为 "jsonl:"+basename(path)），只随构造参数变化、不随文件内容变化；
     def key(self):
@@ -160,13 +84,12 @@ class JsonlSource(Source):
                 return 0.0
         return 0.0
 
-# 生效条件：os.path.exists(self.path) 为真时逐行产出；空行、json.loads 抛 ValueError、解析出非 dict 的行一律跳过。pair_fields 为 None（默认）时每行产出 1 条：seq=o.get("seq", i)、role=o.get(self.role_key) or self.default_role、text=str(o.get(self.text_key))，text 为假则跳过该行；pair_fields 非 None（一问一答型宿主）时每行按序为每个 (字段名, 角色) 产出 1 条，槽位值为假则跳过该槽位，seq=行内 seq*2+槽位（行内 seq 非 int 则原样沿用）。产出项统一带 session=o.get(self.session_key)、cwd=o.get(self.cwd_key)、line=i+1（所在文件行号——瘦身节点靠它写 `# 位置` 回读）；meta_keys 非 None 时把命中字段以 `[键] 值` 追加到 text 末尾。path 不存在时直接 return，不产出。
+# 生效条件：os.path.exists(self.path) 为真时逐行产出，空行、json.loads 抛 ValueError、o.get(self.text_key) 为假的行被跳过，产出项为 t=self._ts(o)、seq=o.get("seq", i)、role=o.get(self.role_key) or self.default_role、text=str(text)、session/cwd 取 o 同名键；path 不存在时直接 return 不产出。
     def events(self):
         if not os.path.exists(self.path):
             return
         with open(self.path, encoding="utf-8", errors="replace") as f:
             for i, line in enumerate(f):
-                self.last_line = i + 1
                 line = line.strip()
                 if not line:
                     continue
@@ -174,41 +97,13 @@ class JsonlSource(Source):
                     o = json.loads(line)
                 except ValueError:
                     continue
-                if not isinstance(o, dict):   # 非对象行（模板/裸字符串）跳过，不再整目录崩
-                    continue
-                base = o.get("seq", i)
-                if self.pair_fields:
-                    # 一行多事件：同行每个字段各成一条。seq 必须同行内互异，
-                    # 否则被 Ingestor 的 (session, seq) 去重键静默丢一条。
-                    for k, (fkey, role) in enumerate(self.pair_fields):
-                        text = o.get(fkey)
-                        if not text:
-                            continue
-                        yield {"t": self._ts(o),
-                               "seq": (base * 2 + k) if isinstance(base, int) else base,
-                               "role": role,
-                               "line": i + 1,
-                               "text": self._meta(str(text), o),
-                               "session": o.get(self.session_key),
-                               "cwd": o.get(self.cwd_key)}
-                    continue
                 text = o.get(self.text_key)
                 if not text:
                     continue
-                yield {"t": self._ts(o), "seq": base,
+                yield {"t": self._ts(o), "seq": o.get("seq", i),
                        "role": o.get(self.role_key) or self.default_role,
-                       "line": i + 1,
-                       "text": self._meta(str(text), o),
-                       "session": o.get(self.session_key),
-                       "cwd": o.get(self.cwd_key)}
-
-# 生效条件：self.meta_keys 为 None 时原样返回 text；否则按 meta_keys 顺序把 o 中非空值拼成 `[键] 值`（空格分隔）追加到 text 末尾；无任何非空值时不追加。
-    def _meta(self, text, o):
-        if not self.meta_keys:
-            return text
-        parts = ["[%s] %s" % (k, o.get(k)) for k in self.meta_keys
-                 if o.get(k) not in (None, "", [], {})]
-        return (text + chr(10) + " ".join(parts)) if parts else text
+                       "text": str(text), "session": o.get("session"),
+                       "cwd": o.get("cwd")}
 
 
 # 生效条件：path 指向的内容可读且 zstandard 可导入时返回 StringIO(raw.decode("utf-8", errors="replace"))；ImportError 时返回 None。
@@ -303,11 +198,11 @@ class SessionLogSource(Source):
             return "\n".join(parts)
         return ""
 
-# 生效条件：逐行解析后按 o.get("type") 分派——"session" 只更新 sess/cwd 不产出；"user/message" 产出 role=user 与 _text_of(data.get("content"))；"assistant/message" 产出 role=assistant 与 _text_of(msg.get("content"))，include_reasoning 为真时再把 content 中 type=="reasoning" 且有 text 的项追加 "\n[reasoning] "+str(c["text"])；"tool/call" 产出 role=command 与 f"{name}({arguments or ''})"；"tool/result" 产出 role=tool-output，仅当 inner[0] 为 dict 时 text=_text_of(inner[0].get("content"))；其它 type 或 ev 中 text 为空的事件不产出。产出项带 line（文件行号，enumerate 计数）。
+# 生效条件：逐行解析后按 o.get("type") 分派——"session" 只更新 sess/cwd 不产出；"user/message" 产出 role=user 与 _text_of(data.get("content"))；"assistant/message" 产出 role=assistant 与 _text_of(msg.get("content"))，include_reasoning 为真时再把 content 中 type=="reasoning" 且有 text 的项追加 "\n[reasoning] "+str(c["text"])；"tool/call" 产出 role=command 与 f"{name}({arguments or ''})"；"tool/result" 产出 role=tool-output，仅当 inner[0] 为 dict 时 text=_text_of(inner[0].get("content"))；其它 type 或 ev 中 text 为空的事件不产出。
     def events(self):
         sess = None
         cwd = None
-        for i, line in enumerate(self._lines()):
+        for line in self._lines():
             line = line.strip()
             if not line:
                 continue
@@ -315,15 +210,12 @@ class SessionLogSource(Source):
                 o = json.loads(line)
             except ValueError:
                 continue
-            if not isinstance(o, dict):   # 同上：非对象行跳过
-                continue
             t = o.get("type")
             data = o.get("data") or {}
             if t == "session":
                 sess, cwd = o.get("id"), o.get("cwd")
                 continue
             ev = {"t": float(o.get("time") or 0), "seq": o.get("seq"),
-                  "line": i + 1,
                   "session": sess, "cwd": cwd}
             if t == "user/message":
                 ev["role"], ev["text"] = "user", self._text_of(data.get("content"))
@@ -352,350 +244,11 @@ class SessionLogSource(Source):
                 yield ev
 
 
-# 生效条件：required 形参 path 总被存入 self.path；可选形参 name 为假值（None/空串）时回落为 "pi:"+文件主名（去扩展名）；可选形参 max_chars 为假值时取 1800，超长正文按行切块。
-class PiSessionSource(Source):
-    """Pi 会话日志源（`{type:"message", message:{role, content}}` 事件流）。
-
-    与 SessionLogSource 的区别：Pi 把角色与正文**嵌在 message 字段里**，且每个
-    assistant 回合的 thinking / toolCall 与正文平级；行级 type 取值是
-    `session` / `message` / `custom` / `custom_message` / `model_change` /
-    `thinking_level_change`，不是 `user/message` 那一套平键格式。
-
-    事件映射（只取正文，思维链与工具结果不入图）：
-      message.role=user      → role=user（content[].type=="text" 的 text）
-      message.role=assistant → role=assistant（同上；只有 toolCall 没有正文的回合不产出）
-      其它 role（system/toolResult）与其它 type 不产出
-
-    时间：优先取 message.timestamp（毫秒数），否则把行 timestamp（ISO，UTC）按 UTC 解析。
-    序号：seq = 行号 × CHUNK + 块号，切块后同行仍互异（Ingestor 去重键是 (session, seq)）。
-    """
-
-    CHUNK = 50
-
-# 生效条件：传入 path；name 为假值时回落为 "pi:"+os.path.splitext(os.path.basename(path))[0]；max_chars 为假值（0/None）时用 1800。
-    def __init__(self, path: str, name: str = None, max_chars: int = 1800):
-        self.path = path
-        self.name = name or ("pi:" + os.path.splitext(os.path.basename(path))[0])
-        self.max_chars = int(max_chars or 1800)
-
-# 生效条件：无前置；返回 self.name。
-    def key(self):
-        return self.name
-
-    @staticmethod
-# 生效条件：root 为假值时改用 _env_session_root()（MDCG_SESSIONS_ROOT 首个非空项），该值为空串时返回空列表；否则递归 glob root 下全部 .jsonl 后按文件名升序（Pi 文件名前缀即 ISO 时刻）返回，limit 为假值时全量返回。
-    def discover(root: str = None, limit: int = None):
-        root = root or _env_session_root()
-        if not root:
-            return []
-        files = glob.glob(os.path.join(root, "**", "*.jsonl"), recursive=True)
-        files.sort(key=lambda p: os.path.basename(p))
-        return files[:limit] if limit else files
-
-# 生效条件：始终以 utf-8/errors=replace 打开 self.path 逐行产出文本行（不做 zstd 解压）。
-    def _lines(self):
-        with open(self.path, encoding="utf-8", errors="replace") as f:
-            yield from f
-
-    @staticmethod
-# 生效条件：content 为 str 时原样返回；为 list 时收集其中 str 元素与 type 属于 ("text","input-text") 且 text 为真值的 dict 元素，以换行连接返回；其它类型返回空串（thinking/toolCall 不计入）。
-    def _text_of(content):
-        if isinstance(content, str):
-            return content
-        parts = []
-        if isinstance(content, list):
-            for c in content:
-                if isinstance(c, dict):
-                    if c.get("type") in ("text", "input-text") and c.get("text"):
-                        parts.append(str(c["text"]))
-                elif isinstance(c, str):
-                    parts.append(c)
-        return chr(10).join(parts)
-
-# 生效条件：msg.get("timestamp") 为真值数字时按 <1e12 乘 1000 返回；否则取 o.get("timestamp") 为字符串且前 19 字符按 "%Y-%m-%dT%H:%M:%S" 解析成功时按 UTC 返回毫秒；两者都不成立时返回 0.0。
-    def _ts_ms(self, o, msg):
-        v = msg.get("timestamp")
-        if isinstance(v, (int, float)) and v:
-            return float(v) * (1000.0 if v < 1e12 else 1.0)
-        v = o.get("timestamp")
-        if isinstance(v, str) and v:
-            try:
-                dt = datetime.datetime.strptime(v[:19], "%Y-%m-%dT%H:%M:%S")
-                return float(dt.replace(tzinfo=datetime.timezone.utc).timestamp()) * 1000
-            except ValueError:
-                return 0.0
-        return 0.0
-
-# 生效条件：text 长度不超过 self.max_chars 时原样返回单元素列表；否则按换行逐段累积，累积将超限即先落一块，单段自身超限时按 max_chars 硬切；空文本返回空列表。
-    def _chunks(self, text):
-        if len(text) <= self.max_chars:
-            return [text]
-        out, buf = [], ""
-        for para in text.split(chr(10)):
-            if buf and len(buf) + len(para) + 1 > self.max_chars:
-                out.append(buf)
-                buf = ""
-            buf = (buf + chr(10) + para) if buf else para
-            while len(buf) > self.max_chars:
-                out.append(buf[:self.max_chars])
-                buf = buf[self.max_chars:]
-        if buf:
-            out.append(buf)
-        return out
-
-# 生效条件：逐行解析，空行、json.loads 抛 ValueError、非 dict 行一律跳过；type=="session" 只记 id/cwd 不产事件；type=="message" 且 message.role 属于 ("user","assistant") 时取正文，正文全空白则不产出，否则按 _chunks 切块、第 k 块 seq=行号×CHUNK+k；产出项带 session（会话 id，缺失时用文件名主名）与 cwd；其它 type 与其它 role 不产出。
-    def events(self):
-        sess = None
-        cwd = None
-        stem = os.path.splitext(os.path.basename(self.path))[0]
-        for i, line in enumerate(self._lines()):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                o = json.loads(line)
-            except ValueError:
-                continue
-            if not isinstance(o, dict):
-                continue
-            if o.get("type") == "session":
-                sess = o.get("id") or sess
-                cwd = o.get("cwd") or cwd
-                continue
-            if o.get("type") != "message":
-                continue
-            msg = o.get("message")
-            if not isinstance(msg, dict):
-                continue
-            role = msg.get("role")
-            if role not in ("user", "assistant"):
-                continue
-            text = self._text_of(msg.get("content"))
-            if not text.strip():
-                continue
-            t = self._ts_ms(o, msg)
-            for k, chunk in enumerate(self._chunks(text)):
-                yield {"t": t, "seq": i * self.CHUNK + k, "role": role,
-                       "line": i + 1, "text": chunk, "session": sess or stem,
-                       "cwd": cwd}
-
-
-# 生效条件：path 不是文件、无非空行、首行 json.loads 抛 ValueError 或 open 抛 OSError 时返回 None；首行解析为 dict 且 type=="session" 且含 "version" 时返回 PiSessionSource(path)；首行是其它内容（含 message 行）时立即返回 None。
-def pi_session_source_for(path, name=None):
-    """Pi 会话 jsonl 嗅探：头部是 type=session 头即认领，其它返回 None。"""
-    if not os.path.isfile(path):
-        return None
-    try:
-        with open(path, encoding="utf-8", errors="replace") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    o = json.loads(line)
-                except ValueError:
-                    return None
-                if isinstance(o, dict) and o.get("type") == "session" and "version" in o:
-                    return PiSessionSource(path, name=name)
-                return None
-    except OSError:
-        return None
-    return None
-
-
 # --------------------------------------------------------------------------
 # 摄取器
 # --------------------------------------------------------------------------
 
 # 生效条件：required 形参 cg 总被存入并以其 cg.root 拼出 self.path=os.path.join(cg.root,"_sources.json")；layer/sensitivity 原样存入，未传时取模块级常量 SESSION_LAYER、SESSION_SENSITIVITY 作为默认值。
-def _source_roots():
-    roots = []
-    seen = set()
-    for part in os.environ.get("MDCG_SESSIONS_ROOT", "").split(os.pathsep):
-        part = part.strip()
-        if not part:
-            continue
-        root = os.path.realpath(os.path.expanduser(part))
-        key = os.path.normcase(root)
-        if os.path.isdir(root) and key not in seen:
-            roots.append(root)
-            seen.add(key)
-    return sorted(roots, key=len, reverse=True)
-
-
-def _source_root_id(root):
-    import hashlib
-    canonical = os.path.normcase(os.path.realpath(root))
-    return hashlib.sha256(canonical.encode("utf-8", errors="surrogatepass")).hexdigest()[:24]
-
-
-def _source_parser_config(source):
-    if isinstance(source, JsonlSource):
-        fields = (source.t_key, source.role_key, source.text_key,
-                  source.default_role, source.session_key, source.cwd_key)
-        pairs = [list(pair) for pair in source.pair_fields] if source.pair_fields else None
-        meta_keys = list(source.meta_keys) if source.meta_keys else None
-        if not all(isinstance(value, str) for value in fields):
-            return None
-        if pairs is not None and not all(
-                isinstance(pair, list) and len(pair) == 2
-                and all(isinstance(value, str) for value in pair) for pair in pairs):
-            return None
-        if meta_keys is not None and not all(isinstance(value, str) for value in meta_keys):
-            return None
-        return "jsonl", {
-            "t_key": source.t_key, "role_key": source.role_key,
-            "text_key": source.text_key, "default_role": source.default_role,
-            "pair_fields": pairs, "session_key": source.session_key,
-            "cwd_key": source.cwd_key, "meta_keys": meta_keys,
-        }
-    if isinstance(source, SessionLogSource):
-        return "sessionlog", {"include_reasoning": bool(source.include_reasoning)}
-    if isinstance(source, PiSessionSource):
-        if not isinstance(source.max_chars, int) or source.max_chars < 1:
-            return None
-        return "pi", {"max_chars": source.max_chars}
-    return None
-
-
-def _build_source_search_index(cg, node_id, text, sensitivity):
-    from .mdcg import bigrams, trigrams, en_zh_bigrams, normalize_en
-    normalized = normalize_en(text)
-    terms = sorted(bigrams(normalized) | en_zh_bigrams(text))
-    trigram_terms = sorted(trigrams(normalized))
-    payload = json.dumps({"version": 2, "terms": terms,
-                          "trigrams": trigram_terms},
-                         ensure_ascii=False, separators=(",", ":"))
-    return cg._seal_content(node_id, payload, sensitivity)
-
-
-def _build_source_ref(source, event):
-    import hashlib
-    parser = _source_parser_config(source)
-    path = getattr(source, "path", None)
-    line = event.get("line")
-    text = event.get("text")
-    if parser is None or not isinstance(path, str) or not isinstance(line, int) or line < 1:
-        return None
-    if not isinstance(text, str):
-        return None
-    seq, session, role = event.get("seq"), event.get("session"), event.get("role")
-    if not (seq is None or isinstance(seq, (str, int, float, bool))):
-        return None
-    if not (session is None or isinstance(session, str)):
-        return None
-    if not (role is None or isinstance(role, str)):
-        return None
-    source_path = os.path.realpath(path)
-    for root in _source_roots():
-        try:
-            if os.path.normcase(os.path.commonpath((root, source_path))) != os.path.normcase(root):
-                continue
-        except ValueError:
-            continue
-        relative = os.path.relpath(source_path, root).replace(os.sep, "/")
-        parts = relative.split("/")
-        if (not relative or relative.startswith("/") or chr(92) in relative
-                or any(part in ("", ".", "..") for part in parts)):
-            continue
-        adapter, config = parser
-        return {
-            "version": 1,
-            "root_id": _source_root_id(root),
-            "path": relative,
-            "adapter": adapter,
-            "config": config,
-            "line": line,
-            "seq": seq,
-            "session": session,
-            "role": role,
-            "event_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
-        }
-    return None
-
-
-def _resolve_source_ref(ref):
-    import hashlib
-    import ntpath
-    if not isinstance(ref, dict) or type(ref.get("version")) is not int or ref["version"] != 1:
-        return {"status": "source_ref_invalid"}
-    relative = ref.get("path")
-    if not isinstance(relative, str) or not relative or relative.startswith("/"):
-        return {"status": "source_path_invalid"}
-    if ntpath.splitdrive(relative)[0] or chr(92) in relative:
-        return {"status": "source_path_invalid"}
-    parts = relative.split("/")
-    if any(part in ("", ".", "..") for part in parts):
-        return {"status": "source_path_invalid"}
-    if not isinstance(ref.get("line"), int) or ref["line"] < 1:
-        return {"status": "source_ref_invalid"}
-    if not isinstance(ref.get("event_sha256"), str):
-        return {"status": "source_ref_invalid"}
-    root = next((candidate for candidate in _source_roots()
-                 if _source_root_id(candidate) == ref.get("root_id")), None)
-    if root is None:
-        return {"status": "source_root_unavailable"}
-    path = os.path.realpath(os.path.join(root, *parts))
-    try:
-        if os.path.normcase(os.path.commonpath((root, path))) != os.path.normcase(root):
-            return {"status": "source_path_invalid"}
-    except ValueError:
-        return {"status": "source_path_invalid"}
-    if not os.path.isfile(path):
-        return {"status": "source_missing"}
-    adapter, config = ref.get("adapter"), ref.get("config")
-    if not isinstance(config, dict):
-        return {"status": "source_ref_invalid"}
-    if adapter == "jsonl":
-        required = {"t_key", "role_key", "text_key", "default_role", "pair_fields",
-                    "session_key", "cwd_key", "meta_keys"}
-        if set(config) != required:
-            return {"status": "source_ref_invalid"}
-        string_keys = required - {"pair_fields", "meta_keys"}
-        if not all(isinstance(config.get(key), str) for key in string_keys):
-            return {"status": "source_ref_invalid"}
-        for key in ("pair_fields", "meta_keys"):
-            value = config.get(key)
-            if value is not None and not isinstance(value, list):
-                return {"status": "source_ref_invalid"}
-        pairs = config.get("pair_fields") or []
-        if not all(isinstance(pair, list) and len(pair) == 2
-                   and all(isinstance(value, str) for value in pair) for pair in pairs):
-            return {"status": "source_ref_invalid"}
-        if not all(isinstance(value, str) for value in (config.get("meta_keys") or [])):
-            return {"status": "source_ref_invalid"}
-        source = JsonlSource(path, **config)
-    elif adapter == "sessionlog":
-        if set(config) != {"include_reasoning"} or not isinstance(config["include_reasoning"], bool):
-            return {"status": "source_ref_invalid"}
-        source = SessionLogSource(path, **config)
-    elif adapter == "pi":
-        if (set(config) != {"max_chars"} or not isinstance(config["max_chars"], int)
-                or config["max_chars"] < 1 or config["max_chars"] > 1000000):
-            return {"status": "source_ref_invalid"}
-        source = PiSessionSource(path, **config)
-    else:
-        return {"status": "source_ref_invalid"}
-    matches = []
-    try:
-        for event in source.events():
-            event_line = event.get("line")
-            if event_line > ref["line"]:
-                break
-            if (event_line == ref["line"] and event.get("seq") == ref.get("seq")
-                    and event.get("session") == ref.get("session")
-                    and event.get("role") == ref.get("role")):
-                matches.append(event)
-    except (OSError, RuntimeError, UnicodeError):
-        return {"status": "source_unavailable"}
-    if not matches:
-        return {"status": "source_event_missing"}
-    if len(matches) != 1:
-        return {"status": "source_event_ambiguous"}
-    text = matches[0].get("text")
-    if not isinstance(text, str) or hashlib.sha256(text.encode("utf-8")).hexdigest() != ref["event_sha256"]:
-        return {"status": "source_event_changed"}
-    return {"status": "ok", "text": text}
 class Ingestor:
     """增量摄取：watermark + 去重 + 写节点 + 自动 fix-pair 挖掘。
 
@@ -705,11 +258,9 @@ class Ingestor:
 
 # 生效条件：传入带 root 的 cg 即成立，layer/sensitivity 默认 SESSION_LAYER/SESSION_SENSITIVITY 并原样存为属性，路径为 os.path.join(cg.root, "_sources.json")。
     def __init__(self, cg, layer: str = SESSION_LAYER,
-                 sensitivity: str = SESSION_SENSITIVITY, rebuild: bool = False):
+                 sensitivity: str = SESSION_SENSITIVITY):
         self.cg = cg
         self.layer = layer
-        # rebuild=True：越过「id 已存在即跳过」的幂等守卫，原地重写为当前形态（瘦身/形态迁移用）
-        self.rebuild = bool(rebuild)
         self.sensitivity = sensitivity
         self.path = os.path.join(cg.root, "_sources.json")
 
@@ -755,9 +306,6 @@ class Ingestor:
         key = source.key()
         wm = self.watermark(key)
         last_t, last_seq = float(wm.get("t") or 0), wm.get("seq")
-        if getattr(self, "rebuild", False):
-            # 重建模式：忽略水位全量重走，配合上面的幂等旁路把旧节点原地重写为当前形态
-            last_t, last_seq = 0.0, None
         new_events, seen = [], set()
         for ev in source.events():
             if ev.get("t", 0) < last_t:
@@ -776,36 +324,25 @@ class Ingestor:
         written, ids, denied = 0, [], 0
         if not dry_run:
             for ev in new_events:
-                source_ref = _build_source_ref(source, ev)
-                source_ref_kw = {"source_ref": source_ref} if source_ref is not None else {}
                 nid = "src_%s_%s" % (_sig(key)[:6], _sig(
                     f"{ev.get('session')}:{ev.get('seq')}")[:10])
-                if nid in self.cg.index["nodes"] and not getattr(self, "rebuild", False):
-                    continue          # 幂等（rebuild=True 时原地重写为瘦身版）
-                if source_ref is not None:
-                    source_ref_kw["source_search_index"] = _build_source_search_index(
-                        self.cg, nid, ev["text"], self.sensitivity)
-                _head = " ".join(str(ev.get("text") or "").split())
-                _line = ev.get("line") or getattr(source, "last_line", None) or ev.get("seq")
-                _pos = "%s:%s" % (os.path.basename(getattr(source, "path", "") or key), _line)
+                if nid in self.cg.index["nodes"]:
+                    continue          # 幂等
                 body = ("# 功能名：会话事件\n"
-                        f"# 生效条件：检索「{_head[:20]}」\n"
+                        f"# 生效条件：检索「{str(ev.get('text'))[:20]}」\n"
                         "# 子功能：记录会话事件\n"
-                        f"# 执行：{_head[:240]}\n"
-                        f"# 验证方式：data（以原始日志为准；区间 {_pos}）\n"
-                        "# 不适用条件：其它会话\n"
-                        f"# 位置：{_pos}（jsonl，precise=True）\n")
+                        f"# 执行：{str(ev.get('text'))[:80]}\n"
+                        "# 验证方式：data（会话原始记录）\n"
+                        "# 不适用条件：其它会话\n\n"
+                        f"{ev.get('text')}\n")
                 try:
                     self.cg.add(nid, body, layer=self.layer, role=ev.get("role"),
                                 tags=["session", key], sensitivity=self.sensitivity,
                                 verification_basis="data",
-                                override=bool(getattr(self, "rebuild", False)),
                                 condition_space={"observation_position": key,
                                                  "observation_tool": "会话流",
-                                                 "existence_constraint": "源日志 %s 存在且可读" % _pos,
                                                  "time_window": [ev.get("t") or 0,
-                                                                 ev.get("t") or 0]},
-                                **source_ref_kw)
+                                                                 ev.get("t") or 0]})
                 except Exception as exc:   # noqa: BLE001 —— 权限/层错误不中断整批
                     denied += 1
                     self.last_error = f"{type(exc).__name__}: {exc}"
@@ -888,11 +425,10 @@ class FileDispatcher:
     """单一入口吃多种文件：按扩展名分派到会话流 / 文档 / 代码三条摄取链。"""
 
 # 生效条件：传入 cg 即成立，sensitivity 为假值（None/空串）时所用 Ingestor 回落 SESSION_SENSITIVITY，否则用传入值。
-    def __init__(self, cg, sensitivity=None, rebuild=False):
+    def __init__(self, cg, sensitivity=None):
         self.cg = cg
         # 会话链默认 sensitivity=private；调用方可显式覆盖（测试/受限环境）
-        self.ingestor = Ingestor(cg, sensitivity=sensitivity or SESSION_SENSITIVITY,
-                                 rebuild=rebuild)
+        self.ingestor = Ingestor(cg, sensitivity=sensitivity or SESSION_SENSITIVITY)
 
     # ---- stat：看水位与支持面 ----
 
@@ -900,8 +436,7 @@ class FileDispatcher:
     def _ledger_stat(self):
         try:
             from . import refindex
-            # 2026-10-08 修（祝余）：Ledger 没有 stat()，原名一直 AttributeError 被 except 吞成 {}
-            return refindex.Ledger(self.cg.root).summary()
+            return refindex.Ledger(self.cg.root).stat()
         except Exception:                                  # noqa: BLE001
             return {}
 
@@ -1011,12 +546,9 @@ class FileDispatcher:
     # ---- 会话流 ----
 
     @staticmethod
-# 生效条件：required 形参 path 先交给 pi_session_source_for 嗅探，命中 Pi 会话头（首行 type=="session" 且含 version）即返回 PiSessionSource；未命中时被 open(...,encoding="utf-8",errors="replace") 打开读前 50000 字符，head 含 '"user/message"'、'"assistant/message"'、'"tool/call"' 任一标记则返回 SessionLogSource(path)，否则返回 jsonl_source_for(path)（头部键命中 KNOWN_JSONL_FORMATS 时带表内字段映射，未命中则为默认键 JsonlSource）；打开抛 OSError 时同样走 jsonl_source_for(path)（文件不可读 → 空键集 → 默认键 JsonlSource）。
+# 生效条件：required 形参 path 能被 open(...,encoding="utf-8",errors="replace") 打开时读前 50000 字符，head 含 '"user/message"'、'"assistant/message"'、'"tool/call"' 任一标记则返回 SessionLogSource(path)，否则返回 JsonlSource(path)；打开抛 OSError 时直接返回 JsonlSource(path)。
     def _auto_source(path):
         """通用 JSONL vs 会话日志：按内容探测，避免调用方选错源类型。"""
-        pi = pi_session_source_for(path)
-        if pi is not None:
-            return pi
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
                 head = f.read(50000)
@@ -1025,7 +557,7 @@ class FileDispatcher:
         for marker in ('"user/message"', '"assistant/message"', '"tool/call"'):
             if marker in head:
                 return SessionLogSource(path)
-        return jsonl_source_for(path)   # 宿主格式嗅探：命中 KNOWN_JSONL_FORMATS 就用表内字段映射
+        return JsonlSource(path)
 
 # 生效条件：path 不是文件时返回 ok=False 的「文件不存在」；否则经 _auto_source(path) 选源后调 self.ingestor.ingest(src, dry_run=dry_run, max_events=max_events)，并补上 ok=True/kind/path/source_class 后返回。
     def ingest_jsonl(self, path, dry_run=False, max_events=None):
@@ -1042,8 +574,7 @@ class FileDispatcher:
 def run(cg, action: str = "stat", **kw):
     """ingest op 唯一入口。"""
     act = (action or "stat").strip().lower()
-    d = FileDispatcher(cg, sensitivity=kw.get("sensitivity"),
-                       rebuild=bool(kw.get("rebuild")))
+    d = FileDispatcher(cg, sensitivity=kw.get("sensitivity"))
     if act == "stat":
         return d.stat()
     if act == "file":

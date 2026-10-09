@@ -6,7 +6,7 @@
     python migrate_to_vector.py <root_path> [--batch-size 100] [--skip-private]
     
 示例:
-    python migrate_to_vector.py C:/Users/32203/Desktop/Alpha-Memory/data/mdcg/zyq
+    python migrate_to_vector.py C:/Users/xxxxx/Desktop/Alpha-Memory/data/mdcg/user
 """
 
 import sys

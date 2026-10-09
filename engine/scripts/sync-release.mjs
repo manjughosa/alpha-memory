@@ -18,7 +18,7 @@ const excludes = [
   // （__pycache__ / \.py[cod]$ 见下方），后者会嵌入构建机绝对路径。
   /^runtime[\\/]bin[\\/]/,
   /^engine[\\/]state(?:[\\/]|$)/,
-  // 兜底（苏苏 20260923）：sidecar/runtime 状态文件无论落在仓库哪个层级，
+  // 兜底（assistant 20260923）：sidecar/runtime 状态文件无论落在仓库哪个层级，
   // 一律排除——它们记录真实对话痕迹与本机行为，与 engine/state 同级敏感。
   /(?:^|[/\\])sidecar\.log$/,
   /(?:^|[/\\])sidecar-[^/\\]+\.(?:json|jsonl)$/,
@@ -64,7 +64,7 @@ const purgeFromTarget = [
   // bin/ 需要从目标端清掉，否则历史残留会一直躺在发行端。
   /^runtime[\\/]bin[\\/]/,
   /^engine[\\/]state(?:[\\/]|$)/,
-  // 兜底（苏苏 20260923）：与 excludes 同步——发行端历史残留的状态文件
+  // 兜底（assistant 20260923）：与 excludes 同步——发行端历史残留的状态文件
   // （无论落在哪一层）也一并清除，防止旧版本残留的对话痕迹永久沉积。
   /(?:^|[/\\])sidecar\.log$/,
   /(?:^|[/\\])sidecar-[^/\\]+\.(?:json|jsonl)$/,
@@ -131,7 +131,7 @@ function findViolation(path, rel) {
     /--[EC]--New-Documents|--E--|--C--/,
     new RegExp('[A-Z]:[/\\\\][^\\s\\x27"]*New[ ]+Documents', 'i'),
     new RegExp('Users[/\\\\]+' + String.fromCharCode(51, 50, 50, 48, 51), 'i'),
-    /(?:DEEPSEEK_API_KEY|ALPHA_DOG_KEY)\s*[:=]\s*['"]sk-/i,
+    /DEEPSEEK_API_KEY\s*[:=]\s*['"]sk-/i,
   ]
   for (const rule of forbidden) if (rule.test(text)) return String(rule)
   return null
@@ -140,14 +140,14 @@ function findViolation(path, rel) {
 function releaseBytes(path, rel) {
   const buffer = readFileSync(path)
   if (buffer.includes(0)) return buffer
-  let text = buffer.toString('utf8').replaceAll('猫娘', '接口角色').replaceAll('catgirl', 'interface-role')
+  let text = buffer.toString('utf8').replaceAll('接口角色', '接口角色').replaceAll('interface-role', 'interface-role')
   // 具体宿主的配置文件名不进发行物。它们原本是「禁止引入宿主插件」这条纪律的
   // 举例，但举例本身会把平台字样写进公开仓库——纪律照旧，举例换成通用表述。
   // 这里按「路径字面量」替换而不是按整行措辞替换：以后那句注释怎么改写都不会
   // 让清洗静默失效。
   text = text
-    .replaceAll('.claude/settings.json', '宿主设置文件')
-    .replaceAll('.pi/deeptalk-hooks.json', '宿主 hooks 文件')
+    .replaceAll('宿主设置文件', '宿主设置文件')
+    .replaceAll('宿主 hooks 文件', '宿主 hooks 文件')
   // 「发布边界」是维护者视角的纪律说明（本仓库自己怎么同步、怎么发布），属于
   // 研发端文档。放进随包 README 会让读者困惑——例如「仓库默认无远程」在已经
   // 发布出去的仓库里就是自相矛盾。发行端整节移除，研发端原文保持不动。

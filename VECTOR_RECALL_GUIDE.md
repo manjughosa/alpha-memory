@@ -18,10 +18,10 @@
 
 ```python
 # 纯向量召回
-alpha_memory_recall(query="zyq的兴趣爱好", vector=True)
+alpha_memory_recall(query="user的兴趣爱好", vector=True)
 
 # 多路径融合（向量 + 词法 + 语义）
-alpha_memory_recall(query="苏苏是谁", vector=True, fuzzy=True, semantic=True)
+alpha_memory_recall(query="assistant是谁", vector=True, fuzzy=True, semantic=True)
 ```
 
 ### 2. Python API 调用
@@ -30,7 +30,7 @@ alpha_memory_recall(query="苏苏是谁", vector=True, fuzzy=True, semantic=True
 from md_cg.mdcos import MdCGSecure, Principal
 
 principal = Principal()
-principal.actor = "zyq"
+principal.actor = "user"
 principal.clearance = "secret"
 
 md = MdCGSecure(root="your_root", principal=principal)
@@ -47,7 +47,7 @@ for node, score, qual, prov in results:
 ### 3. 批量迁移存量记忆
 
 ```bash
-cd C:\Users\32203\Desktop\Alpha-Memory\engine
+cd C:\Users\xxxxx\Desktop\Alpha-Memory\engine
 python -m md_cg.migrate_to_vector <root_path> --batch-size 100 --skip-private
 ```
 

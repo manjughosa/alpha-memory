@@ -89,7 +89,7 @@ export class AlphaDogRuntime {
         return { placeholders: this.placeholders, conversation: source };
     }
     /**
-     * TLS 中间人自检（Agent setup 初始化检查项之一，zyq 2026-09-23 豁免放行）。
+     * TLS 中间人自检（Agent setup 初始化检查项之一，豁免放行）。
      *
      * 背景：本机网络出口可能被杀软/代理做 HTTPS 中间人（自签根替换真实证书链），
      * 导致模型调用偶发 SELF_SIGNED_CERT_IN_CHAIN。这不是 Alpha-Memory 的缺陷，
@@ -214,7 +214,7 @@ export class AlphaDogRuntime {
             if (eventId && this.processedEvents.has(eventId))
                 return { skipped: true, reason: 'duplicate-event', ...this.status() };
             const generation = this.power.snapshot().generation;
-            // 自驱敲醒（zyq 2026-09-23）：轮次以「真实对话轮」为准 = 对话源里 user 消息的数量。
+            // 自驱敲醒（）：轮次以「真实对话轮」为准 = 对话源里 user 消息的数量。
             // 第 N 条用户消息一写入 jsonl，N % interval === 0 就立即触发档口，不多等一轮。
             // 对话源不可用时退回：外部传的 round → 内部计数器。
             const source = this.readConversationSource();
