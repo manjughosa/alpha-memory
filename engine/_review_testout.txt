@@ -1,0 +1,4505 @@
+﻿
+> alpha-memory@0.4.11 test:python
+> python scripts/run_tests.py md_cg
+
+
+[1/117] md_cg.test_accept_user_flows
+沙箱: C:\Users\32203\AppData\Local\Temp\alpha-user-accept-zpamzh_6
+
+[S1] 缺 MDCG_ROOT 直起
+  [PASS] 缺 MDCG_ROOT 时明确拒绝且非零退出
+
+[S2] 正常直起 / 握手 / 工具面
+  [PASS] 握手成功且能力含 tools+resources  · ['resources', 'tools']
+  [PASS] 默认工具面为 cg/stg 两基元  · ['cg', 'stg']
+
+[S3] 无令牌 = 只读 guest
+  [PASS] guest 写入被拒  · AccessDenied: 角色 guest 无权执行 op=write（作用域 ['info', 'route', '
+  [PASS] 身份为 guest 只读  · role=guest
+
+[S4] 签发令牌 → 写入 → committed 语义
+  [PASS] recorder 令牌签发成功  · {
+ "ok": true,
+ "token": "mdcg1.record.tk_3987da281302.Sftjcn-_PDaSrgL4dQ2XV6f1MgKSy9bvyYHDu2aEUT4",
+ "token_id": "tk_39
+  [PASS] 写入返回可判读的 verdict  · {"ok": true, "id": "mem_1790056394007", "committed": true, "verdict": {"state": "ACCEPT", "kind": "text", "basis": "other", "evidence": "通过 5 条禁止 + 0 条必需规则", "d
+  [PASS] committed=true 时给出 node_id  · mem_1790056394007
+
+[S5] 读回
+  [PASS] 读取接口可用且返回结构正常  · hits=1
+
+[S6] 时间线 stg
+  [PASS] stg 时间线可调用
+
+[S7] 资源订阅与写后通知
+  [PASS] 订阅后写入触发 resources/updated 通知  · notices=1
+
+[S8] 落盘位置与内容
+  [PASS] 记忆根下出现 .md 文件
+       落盘 .md 数量 = 2（写入被审核/拒绝时为 0，属正确行为）
+
+[S9] 损坏令牌降级
+  [PASS] 坏令牌下服务仍可启动
+  [PASS] 坏令牌降级为 guest  · role=guest
+  [PASS] 坏令牌下写入被拒
+
+[S10] 重启数据仍在
+  [PASS] 新进程可正常打开同一记忆根
+
+[S11] 双进程同根并发
+  [PASS] 双进程同时可用
+
+通过 17 / 失败 0
+沙箱目录（待你清理）: C:\Users\32203\AppData\Local\Temp\alpha-user-accept-zpamzh_6
+
+[2/117] md_cg.test_action_derive
+[PASS] A1 review+decision→decide（契约漂移核心）
+[PASS] A2 review+node_id→verify_record
+[PASS] A3 review 仅 pid 不猜（保持 list，避免误判 rounds/records）
+[PASS] A4 recent+text→add
+[PASS] A4b recent+content→add
+[PASS] A5 goal+goal→add
+[PASS] A6 predict+hit=False 仍推导（键存在即签名，非真值判断）
+[PASS] A7 predict 空参数→不猜
+[PASS] A8 session+summary→note
+[PASS] A9 insight+statement→record
+[PASS] A10 whitebox+question→ask
+[PASS] A10b whitebox+questions→verify_existing
+[PASS] A11 ingest+*.jsonl→jsonl
+[PASS] A12 ingest+patterns→dir
+[PASS] A13 ingest 裸 path→file（保守优先，不猜 dir）
+[PASS] A14 ingest 空 path→不猜
+[PASS] A15 非推导 op 不猜
+[PASS] A16 显式 None 不算签名
+[PASS] B1 源码每个缺省 action 都在 _ACTION_DEFAULT 值域内（防漏列）
+[PASS] B2 _ACTION_DEFAULT 每项都在源码中真实出现（防幻影表）
+[PASS] B3 whitebox dispatch 的缺省 action=ping 真实存在（跨文件守卫）
+[PASS] B4 推导目标 action 在分支中被识别：review
+[PASS] B4 推导目标 action 在分支中被识别：recent
+[PASS] B4 推导目标 action 在分支中被识别：goal
+[PASS] B4 推导目标 action 在分支中被识别：task
+[PASS] B4 推导目标 action 在分支中被识别：predict
+[PASS] B4 推导目标 action 在分支中被识别：session
+[PASS] B4 推导目标 action 在分支中被识别：insight
+[PASS] B4 推导目标 action 在分支中被识别：whitebox
+[PASS] C1 review+decision 不再静默走 list（旧行为返回 pending）
+[PASS] C1b 确实进了 decide 分支（pid_not_found 属预期）
+[PASS] C1c 透出 action_derived + hint_action
+[PASS] C2 不带 action 的裁决真实落盘
+[PASS] C2b 裁决后队列清空
+[PASS] C2c 候选节点已按裁决写入
+[PASS] C3 recent+text 推导 add（旧行为返回 events 列表）
+[PASS] C3b 事件确实写入近况窗口
+[PASS] C3c 透出 action_derived
+[PASS] C4 goal+goal 推导 add（旧行为返回 goals 列表）
+[PASS] C4b 目标确实落盘
+[PASS] C5 显式 action=list 行为逐位不变
+[PASS] C6 无签名缺省走默认 list 且透出
+[PASS] C6b hint_action 点名默认 action 便于纠偏
+[PASS] C7 未知 op fail-closed 抛错
+[PASS] C8 stg 缺 op fail-closed 且提示必填
+[PASS] C9 op 缺省推导仍透出 op_derived
+============================================================
+action_derive：46 通过 / 0 失败
+
+[3/117] md_cg.test_audit_rotate
+
+audit_rotate: 29 pass / 0 fail
+
+[4/117] md_cg.test_autonomy
+
+autonomy: 14 passed, 0 failed
+
+[5/117] md_cg.test_bench_governance
+pass ① 语料守卫通过（当前语料合法）
+pass ② 篡改语料被守卫拦截
+pass ③a g1 完美传播=1.0（got 1.0）
+pass ③b g1 依赖索引=4 且全部同步
+pass ③c g2 矛盾裁决全对=1.0（got 1.0，detail={'judged': [{'nid': 'g_n1', 'state': 'REJECT'}, {'nid': 'g_n2', 'state': 'REJECT'}, {'nid': 'g_n3', 'state': 'REJECT'}, {'nid': 'g_n4', 'state': 'REJECT'}], 'retrieval': {'top_ids': ['g_b1', 'g_b2', 'g_b3', 'g_d1', 'g_d2'], 'leaked_negatives': [], 'judge_filtered': 4}, 'correct': 5, 'wrong': 0, 'skipped': 0, 'reference_mage': 0.885}）
+pass ③d 否定节点定点裁决全 REJECT
+pass ③e 检索防线 top-k 无否定节点冒充
+pass ③f g3 validity 防线残留=0（got 0.0）
+pass ③g 默认面确实暴露过期节点（同题竞争成立）
+pass ③h guard 面 top-k 无过期节点
+pass ③i 不可答集计数守恒
+pass ③j 可答集计数守恒
+pass ③k g4 F1 在 [0,1]（got 0.0）
+pass ③l 语料规模守卫
+pass ③m 四指标均可计算
+pass ④ 两次运行四指标逐位一致
+{
+  "g1_correction_propagation": 1.0,
+  "g2_contradiction_handling": 1.0,
+  "g3_expired_recall": 0.0,
+  "g4_refusal_f1": 0.0
+}
+baseline -> C:\Users\32203\AppData\Local\Temp\gov_out_7a2dmh65\baseline.json | temp root: C:\Users\32203\AppData\Local\Temp\mdcg_governance_6l7d0vdl
+pass ⑤ 输出 JSON 结构完整且 exit 0
+
+bench_governance selftest: 0 failed
+
+[6/117] md_cg.test_blindspot_tickets
+[test_blindspot_tickets] PASS=18 FAIL=0
+
+[7/117] md_cg.test_branches
+  ok   fork成功
+  ok   副本血缘
+  ok   副本内容继承
+  ok   fork空入参拒
+  ok   fork非法id拒
+  ok   fork幂等skipped
+  ok   rewrite改写成功
+  ok   rewrite非分支拒
+  ok   rewrite不存在拒
+  ok   rewrite归属不可篡改
+  ok   主支检索分支内容零命中
+  ok   主支检索原内容仍命中
+  ok   分支内检索命中改写
+  ok   分支内检索主支也可见
+  ok   跨分支隐身
+  ok   merge成功
+  ok   主支内容已回写
+  ok   主支链追加分支且原链保留
+  ok   原链保留(mem_b)
+  ok   merge后主支检索命中回写
+  ok   merge幂等安全
+  ok   merge空分支拒
+  ok   merge主支缺失skipped
+  ok   discard缺标记拒
+  ok   discard需can_admin
+  ok   discard成功
+  ok   教训节点入库
+  ok   教训节点可检索
+  ok   分支文件冷区保留
+  ok   索引已摘除
+  ok   list_branches已不含
+  ok   discard空分支拒
+  ok   list_branches聚合
+  ok   insight act=fork
+  ok   insight act=branches
+  ok   insight act=branch_rewrite
+  ok   insight act=branch_search
+  ok   insight act=branch_merge
+  ok   insight act=branch_discard
+  ok   session过滤与branch过滤正交
+  ok   默认检索主支正常
+
+branches 验收：41 通过
+
+[8/117] md_cg.test_ccg_perturb
+ccg_perturb: 36 passed, 0 failed
+
+[9/117] md_cg.test_ccgc
+
+ccgc: PASS=84 FAIL=0
+
+[10/117] md_cg.test_census_prune
+  [PASS] 仅活跃节点入普查（2 个）
+  [PASS] 归档区 t1 被剪枝
+  [PASS] 归档区 p1 被剪枝
+  [PASS] 归档区 i1 被剪枝
+  [PASS] 归档区 h1 被剪枝
+  [PASS] 归档区 x 被剪枝
+  [PASS] 归档区 20260101_000000 被剪枝
+
+test_census_prune: 7 断言通过
+
+[11/117] md_cg.test_codeindex
+====================================================================
+md_cg codeindex 验收 · Phase 0（行序压制修复 + 契约裁决）
+====================================================================
+
+【1】契约常量：合成区字段名与 CCG 零重名
+  ok   索引元条件字段名不在 CCG 六要素内
+  ok   is_ccg_mark 对六要素逐一为真
+  ok   is_ccg_mark 对元条件与位置为假
+
+【2】render 三分区：源码区置首，人工声明不被压制
+  ok   extract 命中带注释的函数
+  ok   源码注释逐字保留（不被丢弃）
+  ok   源码区先于合成区（人工优先的确定性序）
+  ok   检索侧取到人工条件（行序压制已修）
+  ok   生效条件行恰一条（合成区不再产出该行）
+  ok   补了注释 → 五要素齐备（complete=True）
+  ok   未声明生效条件的条目：合成区不冒充该字段
+  ok   未声明 → 恰缺生效条件（诚实缺证据，非整体失效）
+  ok   合成区其余 5 要素仍齐备
+
+【3】索引元信息区（非 CCG 字段名，与 frontmatter 同源）
+  ok   索引元条件独立成行
+  ok   元条件 = condition_space 四槽同源（require_full=False）
+  ok   元条件行不被误判为旧口径单槽冒充
+  ok   合成区用到的 CCG 字段名 = 其余五要素（排除生效条件）
+  ok   合成区非 CCG 字段名 = 索引元条件 + 位置
+
+【4】condition_space（四槽/全时窗）不回归
+  ok   四槽齐备
+  ok   时间槽用全时窗哨兵（不把写入时刻伪造成条件）
+  ok   弱提取在方法槽诚实降级（不冒充编译器）
+
+【5】extract 分派 / 幂等 / node_id / region_hash
+  ok   Python → AST 精确（precise=True / basis=compiler）
+  ok   JS → 弱提取（precise=False / basis=other）
+  ok   无提取器后缀显式报错（不静默降级成 Python 解析）
+  ok   render 幂等（两次逐字节相同）
+  ok   node_id 稳定（path::name 短哈希，重复索引幂等）
+  ok   region_hash 为 12 位十六进制（索引/回读共用口径）
+
+【6】index_dir：确定性排序 + 截断显式上报（基线护栏）
+  ok   两次运行条目序逐项一致（walk/文件名确定性排序）
+  ok   相同输入 stats 一致（幂等）
+  ok   未越限 → truncated=False
+  ok   skipped_suffixes 上报（无提取器后缀可见）
+  ok   越限 → truncated=True 且原因非空（显式上报，不静默）
+  ok   越限时仍返回已索引条目（不丢已有产出）
+  ok   截断计数可复算：hit_files/indexed_items 就位且与条目数一致
+  ok   越限快照同样带 hit_files/indexed_items（与 files 同源）
+  ok   嵌套目录：两次运行条目路径序逐项一致（dirnames 已排序）
+  ok   嵌套目录：a_sub 先于 z_sub（与文件系统返回序无关）
+  ok   嵌套目录 stats 幂等（同输入两次一致）
+
+【7】注释载体两窗口：leading + body（裁决 A · 索引侧收口）
+  ok   codeindex._body_comments 存在（历史悬空引用由此坐实）
+  ok   两窗口按物理行序合并（leading 在前、body 在后）
+  ok   body 窗口的 CCG 注释在正文可见（不再是索引盲区）
+  ok   冲突时靠前者胜出（_ccg_field 取首匹配 = 物理序）
+  ok   补了 body 注释 → 五要素齐备（complete=True）
+  ok   body 窗口产物逐字固定（期望值写死，非自证）
+  ok   体首语句【之后】的注释不入声明头窗口（边界不越界）
+  ok   verifier 已收敛为委托唯一真源（_ci_body_comments 可达）
+  ok   verifier 窗口与 codeindex._body_comments 逐字等价
+  ok   verifier 窗口只收 body 窗口（不误收 leading）
+
+PASS 47 / FAIL 0 / SKIP 0
+
+[12/117] md_cg.test_comment_gate
+====================================================================
+md_cg comment_gate 验收（代码符号条件化注释抽样闸门）
+====================================================================
+索引条目=4 节点=4 错误=0
+  ok   阈值唯一真源=refine.GATE_MIN_PASS_RATE
+  ok   候选判据机械：缺生效条件者入池、已注释者不入池
+  ok   候选池状态如实上报（pool/candidates 与实取一致）
+  ok   同 seed 工单确定性（sample 与 sha 一致）
+  ok   工单只读（dry_run=True，不改节点）
+  ok   工单带源码落点坐标（path/lineno/end）
+  ok   工单带落点规则（两窗口，契约 §三.2）
+  ok   工单缺项口径=缺生效条件
+  ok   SPEC 四项核对清单与 0.90 闸门口径在案
+  ok   apply 落留痕且通过率=1.0
+  ok   apply 之后放行（>=0.90）
+  ok   apply 不改节点（内容逐字相同）
+  ok   留痕文件已落盘
+  ok   gate 复算通过率=1.0 且放行
+  ok   低通过率（0/3）不放行且给原因
+  ok   gate(batch=low) 复算为不放行
+  ok   无批次 → no_batch 不放行
+  ok   run(comment_gate) 走只读工单
+  ok   经 maintain 分派可达（op 面接线）
+  ok   经 maintain 分派可取闸门（comment_gate_gate）
+  ok   apply 需管理权（闸门自持在模块内，分发面不漏挂）
+  ok   经 maintain 分派可取闸门（别名 comment_gate_verdict）
+  ok   run(comment_gate_verdict) 走闸门
+  ok   未知 action fail-closed
+  ok   源级枚举可见未注释符号（不依赖认知图）
+  ok   源级工单排除已注释符号（no_cond 在、with_cond 不在）
+  ok   源级工单带源码坐标（path/lineno/end）
+  ok   源级抽样确定性（同 seed 同工单）
+  ok   源级工单只读且声明模式
+  ok   源级枚举经 run 分派可达
+
+PASS 30 / FAIL 0
+
+[13/117] md_cg.test_cond_compose_anchors
+  [PASS] 并集：compose 与 behavior_anchors 同时在
+  [PASS] 并集：无冲突标记
+  [PASS] 并集：compose 的生效条件注释未丢
+  [PASS] doc 取 doc_head 并去空白
+  [PASS] guards 只留 early 且标识符合规者（走 explained_guards）
+  [PASS] returns 只留含 allowed 标识符者
+  [PASS] allowed 含模块常量时其返回表达式入选（调用方负责传 入参∪常量）
+  [PASS] 无形为锚点时返回空三元组
+  [PASS] 缺失 doc_head/returns 键不抛异常
+  [PASS] compose 未回归（非空且以「。」结尾）
+
+test_cond_compose_anchors: 10 通过 / 0 失败
+
+[14/117] md_cg.test_cond_match
+
+cond_match: 17 passed, 0 failed
+
+[15/117] md_cg.test_condition_anchor
+====================================================================
+md_cg condition_anchor 验收（候选生效条件的锚点机械判据）
+====================================================================
+  ok   A1 锚定必需参数 → ANCHORED 且 ok
+  ok   A2 锚点清单含 root（不含 patterns）
+  ok   A3 默认值参数归入 optional
+  ok   A4 kwonly 无默认值算必需参数
+  ok   A5 class 内方法：self 被跳过、锚定 x
+  ok   A6 体内外部引用（常量）可作锚点
+  ok   A7 无锚点 → WEAK 且 ok=False（不默认通过）
+  ok   A8 索引元条件话术 → REJECT_META
+  ok   A9 无参数且无引用 → BLINDSPOT（不猜测）
+  ok   A10 源码不可解析 → BLINDSPOT
+  ok   A11 判定确定性（同输入同结果）
+  ok   A12 prefix/suffix 仅回显、不参与判定
+  ok   A13 批量统计正确（ANCHORED/WEAK/REJECT_META 各 1）
+  ok   A14 无 __init__ 的类不崩溃并给出裁决
+  ok   A15 有 __init__ 的类按其形参锚定
+
+PASS 15 / FAIL 0
+
+[16/117] md_cg.test_d_meta
+
+d_meta: 66 passed, 0 failed
+
+[17/117] md_cg.test_datapath_root
+test_default_data_root_outside_package (__main__.DatapathRootTest.test_default_data_root_outside_package) ... ok
+test_describe_exposes_sources (__main__.DatapathRootTest.test_describe_exposes_sources) ... ok
+test_migrate_copies_legacy_data (__main__.DatapathRootTest.test_migrate_copies_legacy_data) ... ok
+test_migrate_reports_missing_legacy (__main__.DatapathRootTest.test_migrate_reports_missing_legacy) ... ok
+test_migrate_skips_when_root_explicit (__main__.DatapathRootTest.test_migrate_skips_when_root_explicit) ... ok
+test_paths_file_priority (__main__.DatapathRootTest.test_paths_file_priority) ... ok
+test_set_user_root_writes_user_level (__main__.DatapathRootTest.test_set_user_root_writes_user_level) ... ok
+test_state_root_priority (__main__.DatapathRootTest.test_state_root_priority) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.060s
+
+OK
+
+[18/117] md_cg.test_en_pipeline
+en_pipeline: 47 assertions all green
+
+[19/117] md_cg.test_gain_gate
+
+gain_gate: 21 passed, 0 failed
+
+[20/117] md_cg.test_health_scale
+
+health_scale: 12 pass / 0 fail
+
+[21/117] md_cg.test_hot_cold
+--- ① 热缓存 LRU
+--- ② query 缓存 TTL
+--- ③ 写入失效
+--- ④ search_rrf 缓存命中
+--- ⑤ 写入后缓存失效
+--- ⑥ 温路径早停
+--- ⑦ 冷路径入队 + drain
+--- ⑧ 冷路径 reverify 时效过期
+--- ⑨ 冷路径状态透出
+--- ⑩ 冷路径崩溃恢复
+--- ⑪ 冷队列回执诚实（ok 由内层决定）
+--- 回归确认
+
+PASS=33 FAIL=0
+
+[22/117] md_cg.test_hyperedge
+
+【T1】注册面 4 处对齐 + register 注入
+  ok   ① audit.CONTENT_KINDS 注册 hyperedge（回放比对语义）
+  ok   ② audit.KIND_BASIS[hyperedge]=test
+  ok   ③ mcp_server content_kind 描述含 hyperedge
+  ok   ④ test_p2_mcp 对齐清单含 hyperedge
+  ok   register(audit_mod) 注入幂等可回调
+
+【T2】schema 往返（row→payload→node→payload）
+  ok   载荷三键齐备
+  ok   fm 键集齐备（EXTRA_FM_KEYS 全在）
+  ok   fm 值映射正确（零编造）
+  ok   节点回放重建 ACCEPT
+  ok   detail 带幂等 id
+  ok   六列逐字段一致
+  ok   稀疏行（空列占位）往返一致
+  ok   稀疏行正文空字段为事实陈述（非编造占位）
+  ok   幂等键稳定且区分不同行
+  ok   正文四段标记齐备
+  ok   build_content 决定论（同 fm 恒同正文）
+
+【T3】audit 三态（未注入 DEFER / 注入后 ACCEPT、REJECT）
+  ok   未注入验证器 → DEFER（诚实不假装通过）
+  ok   注入后一致载荷 ACCEPT
+  ok   锚与结构不一致 REJECT（点名差异列）
+  ok   缺 ledger_row 锚 REJECT（fail-closed）
+  ok   无 fm 键载荷 REJECT（不猜测）
+
+【T4】fail-closed 与 writepipe 链端到端
+  ok   缺列显式报错（不猜测补值）
+  ok   participants 非定长二元显式报错
+  ok   corrections 迁移期恒空
+  ok   _hyperedge_extra 非 hyperedge 返回空
+  ok   _hyperedge_extra 只收非 None 超边键
+  ok   writepipe 落盘 committed
+  ok   超边 fm 落盘完整（锚 + 结构键）
+  ok   落库节点回放 ACCEPT（写读同进程）
+
+hyperedge 验收：29 通过
+
+[23/117] md_cg.test_identity_attribution
+[PASS] ①写入自动归属 writer/session
+[PASS] ①b harness 归属落盘
+[PASS] ②索引带归属
+[PASS] ③显式覆盖尊重调用方
+[PASS] ④更新刷新 writer/session
+[PASS] ⑤检索透出归属
+[PASS] ⑥search 会话过滤
+[PASS] ⑦recall 会话过滤
+[PASS] ⑧审计带 session
+[PASS] ⑨提案入队带 session
+[PASS] ⑩旧节点默认检索不受影响
+[PASS] ⑩b 旧节点被会话过滤排除（不炸）
+[PASS] ⑪负记忆归属
+[PASS] ⑫未解清单归属
+
+通过 14 / 失败 0
+
+[24/117] md_cg.test_index_durability
+
+【①】库层进程退出兜底：子进程不显式收尾
+  [PASS] 子进程正常退出
+  [PASS] 兜底生效：新进程索引可见
+
+【④】反证组：清空兜底登记 → 复现缺陷
+  [PASS] 反证子进程正常退出
+  [PASS] 反证：索引不可见（缺陷可复现，证明兜底是有效变量）
+
+【③】显式收尾对照：close() 仍是正路
+  [PASS] 显式 close 子进程正常退出
+  [PASS] 显式 close：新进程索引可见
+
+【②】审核裁决通路：目标节点 + 审计记录节点双落盘
+  [PASS] accept 裁决成功  · {'pid': 'prop_d32bff1b80b8', 'decision': 'accept', 'round': 1, 'redteam': 'absent', 'ok': True, 'node_id': 'n_acc', 'record_node_id': 'rev_d32bff1b80b8_r1', 're
+  [PASS] accept：目标节点索引可见（新实例）  · n_acc
+  [PASS] accept：审计记录节点索引可见（新实例）  · rev_d32bff1b80b8_r1
+  [PASS] accept：review_records 可列出（复核面不空）
+  [PASS] reject 裁决成功  · {'pid': 'prop_c188186aec85', 'decision': 'reject', 'round': 1, 'redteam': 'absent', 'ok': True, 'record_node_id': 'rev_c188186aec85_r1', 'record_hash': '08d2c33
+  [PASS] reject：审计记录节点索引可见（该路径只写它）  · rev_c188186aec85_r1
+
+【③】review_cli 端到端（一次性 CLI 裁决）
+  [PASS] review_cli 退出码 0  · {"decision": "accept", "node_id": "n_cli", "ok": true, "pid": "prop_07dc36bf71b4", "record_hash": "c57f416eb13484f16cc753ba1bfb09776bf3d690", "record_node_id": "rev_07dc36bf71b4_r1", "redteam": "absen
+  [PASS] review_cli：目标节点索引可见（新进程）
+  [PASS] review_cli：审计记录节点索引可见  · ['rev_07dc36bf71b4_r1']
+
+================================================================
+PASS=15  FAIL=0
+
+[25/117] md_cg.test_lifecycle
+[ok] ①1 缺字段 / 未知值 / 非 dict → active（存量兼容，不猜测）
+[ok] ①2 状态集内值原样返回
+[ok] ①3 合法迁移对可通行（逐级降级 + 逐级回升）
+[ok] ①4 跳级迁移一律不通
+[ok] ①5 同状态幂等可通行
+[ok] ①6 check 未知状态 → unknown_state
+[ok] ①7 check 同状态 → noop
+[ok] ①8 check 跳级 → illegal_transition
+[ok] ①9 check 受保护降级 → protected；override 放行
+[ok] ①10 is_downgrade 方向正确（回升不算降级）
+[ok] ②1 新节点**显式**落 active（不再依赖缺省约定）
+[ok] ②2 索引快照带状态（内存）
+[ok] ②3 增量日志（_index_log）带状态
+[ok] ②4 磁盘 _index.json 快照带状态（免读文件即可回答「这节点什么状态」）
+[ok] ③1 active→converged 通过且落盘
+[ok] ③2 索引同步到 converged
+[ok] ③3 converged→demoted→archived 逐级通过
+[ok] ③4 迁移历史逐条留痕（from/to/reason/actor）
+[ok] ③5 审计 _lifecycle.jsonl 留痕 3 条
+[ok] ③6 永不删除：archived 后节点文件仍在且可读
+[ok] ④1 跳级 active→archived 被拒（负路由，不抛）
+[ok] ④2 拒绝后 frontmatter 未被改动（不留痕）
+[ok] ④3 拒绝后索引未被改动
+[ok] ④4 未知状态被拒
+[ok] ④5 节点不存在如实上报（不静默创建）
+[ok] ④6 require_transition 硬拒（写路径抛异常）
+[ok] ④7 add 覆写显式非法状态 → 硬拒
+[ok] ④8 硬拒后磁盘内容未被改写（校验先于写盘）
+[ok] ⑤1 同状态幂等（noop / changed=False）
+[ok] ⑤2 幂等不刷历史
+[ok] ⑤3 幂等不写审计
+[ok] ⑥0 新建即自动受保护（importance≥0.7）
+[ok] ⑥1 受保护节点降级被拒 → protected 码
+[ok] ⑥2 拒绝后状态未变（保护 = 不可遗忘）
+[ok] ⑥3 override=True 放行降级
+[ok] ⑥4 回升不受保护限制（无需 override）
+[ok] ⑦1 裸 add 覆写**继承**旧状态（不静默打回 active）
+[ok] ⑦2 继承后索引仍是 converged
+[ok] ⑦3 显式合法迁移放行（converged→active）
+[ok] ⑦4 新节点显式状态从 active 起算（active→converged 合法）
+[ok] ⑧0 旧库形态成立（字段已摘除）
+[ok] ⑧1 dry-run 盘点缺失且不改盘
+[ok] ⑧2 apply 回填为显式 active
+[ok] ⑧3 回填幂等（第二次无缺失）
+[ok] ⑧4 缺字段节点在回填前也按 active 工作（state_of 缺省）
+[ok] ⑨1 tidy 降权 → lifecycle_state=converged
+[ok] ⑨2 兼容别名 tidy:converged tag 保留（历史数据不破）
+[ok] ⑨3 降权后索引同步 converged
+[ok] ⑨4 MERGE 强化 → 逐级回升 active
+[ok] ⑨5 回升与 importance 强化同批落盘（+delta）
+[ok] ⑨6 两处收口共用同一迁移历史（active→converged→active 两条，同一 actor 面）
+[ok] ⑨7 强化 active 节点：状态幂等（不刷历史、不误降）
+[ok] ⑩1 状态字段名与裁决四态 state 不撞名（消歧）
+[ok] ⑩2 set_state 返回体恒带 from/to/code（可审计）
+[ok] ⑩3 迁移历史滚动上限（不无界膨胀）
+==========================================================
+test_lifecycle: 55 通过 / 0 失败
+
+[26/117] md_cg.test_linkref
+  ok   裸id命中
+  ok   去重保序
+  ok   排除自身
+  ok   白名单过滤未知id(防幽灵边)
+  ok   known=None按形态放行
+  ok   真实前缀域命中(kp/note/vpipe/arc)
+  ok   非库内id被白名单拦截(rev/prop/sess)
+  ok   YAML式键名被白名单拦截
+  ok   id紧邻汉字仍命中(非词边界误判)
+  ok   形态近似但更长的id不误命中
+  ok   形态判据放行规范id
+  ok   形态判据排除脏键(None/中文标题式/含中文混合id)
+  ok   空文本
+  ok   边形态
+  ok   边权重=0.50
+  ok   reference已登记权重表
+  ok   reference不入因果链默认集
+  ok   reference不入因果类型集
+  ok   self层不作源
+  ok   记忆本体层可作源
+  ok   脏键id不作源
+  ok   self层排除常量
+  ok   known_ids按读隔离过滤
+  ok   known_ids无读面时不过滤(非安全库MdCG)
+  ok   known_ids读面抛异常则fail-closed
+  ok   known_ids无索引回退空集
+  ok   live_targets保留实读可得目标、剔除密钥隔离目标
+  ok   live_targets夹带抛异常目标fail-closed
+  ok   live_targets缓存复用(同id只实读一次)
+  ok   live_targets空输入
+  ok   目标节点落盘
+  ok   源节点落盘
+  ok   端到端建reference边
+  ok   重复写入幂等
+  ok   未入库目标不建边
+  ok   正文自引用被排除
+  ok   linkref=False显式关闭
+  ok   覆写后边跟随新正文
+  ok   REJECT路径不落盘不建边
+  ok   DEFER路径不落盘不建边
+  ok   gated走替代执行路径(短路→after不执行)
+  ok   建链失败不阻断写入
+  ok   目标实读不出(密钥隔离)不建边——免生悬空边
+  ok   append_edge自身幂等
+
+linkref 验收：44 通过
+
+[27/117] md_cg.test_lock
+期望 300，实际 300 → 互斥正常
+
+[28/117] md_cg.test_md_access_parity
+SKIP test_md_access_parity：md 语料根不存在：E:\New Documents\资料\活动\一般\Deeptalk\tools\MCP\Alpha-Memory\engine\_md_cg_wisdom_graph（.gitignore 忽略，需本地生成）
+
+[29/117] md_cg.test_md_writepath
+md 真源根: C:\Users\32203\AppData\Local\Temp\wbwp_md_3lxr_g6c
+== [1] mdcg 边域三原语 ==
+  PASS  append_edge 首次追加 True
+  PASS  落盘 fm.edges 含新边
+  PASS  索引 entry.edges 同步
+  PASS  append_edge 同 target 同关系去重 False
+  PASS  append_edge 不存在节点 False
+  PASS  append_subgraph_node 首次 True
+  PASS  append_subgraph_node 去重 False
+  PASS  落盘 subgraph.nodes 正确
+  PASS  索引 entry.subgraph 同步
+  PASS  set_edge_condition 匹配 True
+  PASS  condition_space 已更新
+  PASS  set_edge_condition 无匹配 False
+== [2] knowledge_points md 真源模式 ==
+  PASS  split_card 拆出 2 知识点（{'card': '物理基础', 'points': 2, 'added': 2, 'skipped': 0}）
+  PASS  kp 节点已入索引
+  PASS  kp state_attributes 落盘
+  PASS  kp tags 含 card 前缀关联
+  PASS  kp importance=卡×0.9（0.63）
+  PASS  kp verification_basis=textbook
+  PASS  kp condition_space 落盘
+  PASS  卡 subgraph.nodes 含 2 kp（['kp_6414352928_1790056409628', 'kp_6074723630_1790056409628']）
+  PASS  幂等重跑 added=0 skipped=2（{'card': '物理基础', 'points': 2, 'added': 0, 'skipped': 2}）
+  PASS  find_points('浮力') 命中（['浮力']）
+== [3] MdConn 边域访问器 ==
+  PASS  children_of 经 subgraph 落点读到 2 kp
+  PASS  has_edge 层级边不在 fm.edges（落点=subgraph）如实 False
+  PASS  has_edge 经 fm.edges 读到 causal 边
+  PASS  has_edge 未命中 False
+  PASS  top_content_match 高 importance 优先（('n_b',)）
+  PASS  top_content_match exclude 生效（('n_a',)）
+== [5] pattern_separation md 真源模式 ==
+  PASS  纯 md 模式构造（无 engine）
+  PASS  scan 建一条分离边（{'created': 1, 'updated': 0, 'scanned': 1}）
+  PASS  edges_between 读到 similar 边
+  PASS  分离边 observation_position=模式分离
+  PASS  差异注记含标签区分维度
+  PASS  边形态对齐引擎默认（inferred/未验证）
+  PASS  edges_between 反向无命中（边是 a→b 出边）
+  PASS  幂等重跑走更新支路（{'created': 0, 'updated': 1, 'scanned': 1}）
+== [6] causal_discover md 真源模式 ==
+  PASS  update_tags 增删 True
+  PASS  update_tags 无实质变更 False（幂等）
+  PASS  update_tags 不存在节点 False
+  PASS  update_tags 落盘保序（['b', 'c']）
+  PASS  discover 产出候选（1）
+  PASS  候选节点入 md contextual 层（id=cc_77332214）
+  PASS  候选 tags 含 causal_candidate/open
+  PASS  重复 discover 幂等不重建（1）
+  PASS  verify 因果确认 resolved=1（{'tracked': 1, 'resolved': 1, 'still_open': 0, 'note': '验证闭环（md 真源）：被拒路径 consumed=因果确认（causal 边 verified 入 md）；仍 open=候选成立待修复'}）
+  PASS  tag 状态迁移（open→confirmed）
+  PASS  causal 边落盘（cc→target，「沸点」词命中）
+  PASS  边形态 verified=0.6/extracted（对齐引擎语义）
+  PASS  幂等重跑 resolved=0（{'tracked': 1, 'resolved': 0, 'still_open': 0, 'note': '验证闭环（md 真源）：被拒路径 consumed=因果确认（causal 边 verified 入 md）；仍 open=候选成立待修复'}）
+  PASS  flush 后重开实例 subgraph 持久化
+== [4] sqlite 旧路（兜底）不破坏 ==
+  PASS  sqlite 模式 split_card added=2（{'card': '化学基础', 'points': 2, 'added': 2, 'skipped': 0}）
+  PASS  sqlite 落库 nodes=2 edges=2
+
+==== 写路径收口测试: PASS 52 / FAIL 0 ====
+
+[30/117] md_cg.test_mr_m2
+[A] spec 构造
+[B] 意见解析与格式校验
+[C] 落库通道（verify 令牌 + 结构性拒绝）
+[D] 真单元池端到端
+  SKIP pool 二进制不存在（）→ D 组跳过（外部 clone 同此路径）
+[E] 边界与负例
+
+M2 自测：50 通过 / 0 失败 / 1 跳过
+
+[31/117] md_cg.test_mr_m3
+需要 --root 或环境变量 MDCG_ROOT
+需要 --node <id>（可多次）
+[A] 基础工具（纯函数）
+[B] 六类定位器
+[C] 提示过滤与 blindspot
+[D] 契约与确定性
+[E] 批量与包
+{
+  "nodes": 1,
+  "hits": [
+    {
+      "node_id": "n1",
+      "field": "role",
+      "span": null,
+      "issue_kind": "missing_field",
+      "evidence": "字段 role 为空（索引与文件两处皆空）",
+      "rule": "field_absent",
+      "line": null,
+      "sentence": null,
+      "snippet": null,
+      "peer": null,
+      "cause": null,
+      "status": "located",
+      "severity": null
+    }
+  ],
+  "by_kind": {
+    "missing_field": 1
+  },
+  "by_field": {
+    "role": 1
+  },
+  "by_rule": {
+    "field_absent": 1
+  },
+  "clean": [],
+  "missing": []
+}
+| # | node_id | issue_kind | field | span | line | 片段 | evidence | 人工判定 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | n1 | missing_field | role | — | — | — | 字段 role 为空（索引与文件两处皆空） |  |
+[F] 零写入
+n1             content_hash         contradiction  索引声明指纹 833ca54274b8 ≠ 正文实算 bcf58012d89e（节点文件不晚于索引快照（差 -0.00s）——非快照滞后，索引声明与文件真源相抵触）
+n1             evidence_count       missing_field  evidence_count=0（无验证证据计数）
+n1             role                 missing_field  字段 role 为空（索引与文件两处皆空）
+n1             content              template_flow  同模板流水（与 n2 第 0 句去数字骨架相同、仅字面数值不同）：#功能名：批次收官
+n1             content              template_flow  同模板流水（与 n2 第 9 句去数字骨架相同、仅字面数值不同）：处理条。
+n1             verification_basis   weak_source    verification_basis 为空——无验证基底的断言不可裁决
+n2             content_hash         contradiction  索引声明指纹 10fa5fb19bd7 ≠ 正文实算 c2c0e75159bb（节点文件不晚于索引快照（差 -0.00s）——非快照滞后，索引声明与文件真源相抵触）
+n2             content              template_flow  同模板流水（与 n1 第 0 句去数字骨架相同、仅字面数值不同）：#功能名：批次收官
+n2             content              template_flow  同模板流水（与 n1 第 9 句去数字骨架相同、仅字面数值不同）：处理条。
+n2             verification_basis   weak_source    verification_basis 为空——无验证基底的断言不可裁决
+-- 命中 10 条｜干净 0 条｜缺项 0 条
+
+M3 自测：109 通过 / 0 失败 / 0 跳过
+
+[32/117] md_cg.test_mr_m4
+[A] 靶子定位（规则库是靶子唯一真源，引擎不写死）
+[B] 取值推导（只搬运已声明证据，绝不编造）
+[C] 预演（零写入）
+[D] 执行（写前重查 / 留痕 / 幂等 / 零删除）
+[E] 回滚（还原 / 删键 / 冲突）
+[F] CLI（fail-closed）
+[G] 对照口径（复用 conformance，不复刻判据）
+
+PASS 88  FAIL 0  SKIP 0
+
+[33/117] md_cg.test_p0
+====================================================================
+md 认知图 P0 验收 · 四风险逐条验证
+====================================================================
+
+【风险1】分桶键退化 —— 归一化路由键 vs 文档原方案
+  自建语料：14 域 × 4 侧面 → 写入 336 节点，索引 336 节点
+  [PASS] 自建 md 语料完整落盘（节点数一致）  336 == 336
+  [PASS] 节点是 md 文档形态（CCG 五要素齐备）  缺要素 0 个 []
+  归一化路由键：14 桶 / 336 节点，最大桶 7.1%，单例桶率 0.0%，期望扫描 7.1%
+  [PASS] 分区健康度自检通过  []
+  [PASS] 期望扫描占比 < 10%（条件路由确实非全量）  7.1%
+  对照·原四元组哈希：336 桶，单例桶率 100.0%
+  [PASS] 原方案确被判定为退化（自检能抓到）  ['碎片化：单例桶占 100.0%（>50% 说明键含实例级字段）']
+
+【风险2】检索情境入参 —— 有/无 context 的行为都必须是显式定义的
+  [PASS] 无 context 时不做条件路由（bucket=None）
+  [PASS] 无 context 时走全量阶梯  T2_global_like
+  [PASS] 有 context 时命中路由桶  cond_计算机科学_36855ea8
+  [PASS] 有 context 时扫描量远小于全库  扫 24 / 全库 336 = 7.1%
+  [PASS] 写入侧与查询侧路由键同构（桶内确实有节点）  候选 24
+
+【风险3】回退阶梯 —— 桶内落空不得返回空，且必须自报命中层级
+  [PASS] 桶内落空后仍有结果（未被条件分区误杀）  5 条 @ T3_global_scan
+  [PASS] 回退结果自报层级  T3_global_scan
+  [PASS] 不存在的路由桶 → 落到全量阶梯而非返回空  5 条 @ T2_global_like
+  层级分布：{"能量守恒": "T2_global_like", "二分查找": "T0_bucket_like", "贝塞尔不等式": "T2_global_like", "不存在词zzz999": "T3_global_scan", "细胞呼吸": "T2_global_like"}
+
+【风险4】检索不得变成写操作
+  [PASS] 检索未修改任何节点 .md（mtime 全不变）  变动 0 个
+  [PASS] 检索未重写索引快照
+  [PASS] 检索未写索引日志
+  [PASS] 访问计数写入了 append-only 日志  1196 → 1954 字节
+  [PASS] 日志可聚合出访问计数  30 个节点有计数
+  [PASS] compact 后计数落盘到 frontmatter  kp_00_00_3 access_count=8，共合并 30 节点
+  [PASS] compact 后日志被截断
+
+【附加】索引可重建（单点风险）与多进程写
+  [PASS] 删掉 _index.json 后能从 md 目录完整重建  336 == 336
+  [PASS] 索引损坏能自愈重建  336
+  [PASS] 多进程写：磁盘文件无丢失（3 轮 × 6 进程 × 40 条）
+  [PASS] 多进程写：索引无覆盖丢失（3 轮 × 6 进程 × 40 条）
+
+【基线】条件路由不得丢召回：无 context 全量阶梯 vs 有 context 桶路由
+  query           域             全量   桶内   交集  recall@10  tier
+  能量守恒            物理学            8    8    8      100%  T0_bucket_like
+  牛顿第二定律          物理学            4    4    4      100%  T0_bucket_like
+  熵增              物理学            4    4    4      100%  T0_bucket_like
+  二分查找            计算机科学          4    4    4      100%  T0_bucket_like
+  事务隔离            计算机科学          4    4    4      100%  T0_bucket_like
+  细胞呼吸            生物学            4    4    4      100%  T0_bucket_like
+  光合作用            生物学            4    4    4      100%  T0_bucket_like
+  贝塞尔不等式          数学             4    4    4      100%  T0_bucket_like
+  内力与截面法          机械工程           4    4    4      100%  T0_bucket_like
+  机会成本            经济学            4    4    4      100%  T0_bucket_like
+  [PASS] 桶路由平均 recall@10 ≥ 0.9（加 context 不丢召回）  avg=100.0%
+
+====================================================================
+通过 25 / 失败 0
+====================================================================
+
+[34/117] md_cg.test_p1
+====================================================================
+md 认知图 P1 验收 · 白箱认知架构 9 维度
+====================================================================
+自建 md 语料：336 节点（纯叙述正文，模拟旧库迁移节点）
+
+【维度1】MARKS 5 要素 + 验证基底 + 不适用条件（白箱第 1 篇第 17 章）
+  [PASS] frontmatter 含 verification_basis（枚举内）
+  [PASS] frontmatter 含 non_applicable_conditions
+  [PASS] 完整 CCG 正文 → complete=True   · required_present=['功能名', '生效条件', '子功能', '执行', '验证方式', '不适用条件']
+  [PASS] 非法 verification_basis 被拒（枚举约束）
+
+【维度2】负记忆目录（白箱第 5 篇 L2/L5）
+  [PASS] add_rejected 幂等（同假设不重复）
+  [PASS] rejected/ 目录存在且有节点
+  [PASS] unresolved/ 目录存在且有节点
+  [PASS] rejected 节点用自身 MARKS（假设/否决原因）
+
+【维度3】资格判定四态（与性能 tier 正交）
+  [PASS] CCG 完整+基底+情境未确认条件 → DEFER（v2：不冒充接受）   · DEFER
+  [PASS] CCG 完整但无验证基底 → DEFER   · DEFER
+  [PASS] CCG 要素不全 → BLINDSPOT   · BLINDSPOT
+  [PASS] 不适用条件命中 → REJECT   · REJECT
+  [PASS] 被 REJECT 的节点仍被召回（资格≠性能）   · tier=T0_bucket_like
+
+【维度4】Top-1 / Top-5 / 盲区触发率（第 1 篇第 9 章 CCG 指标）
+  query             真值集    召回  Top-1
+  能量守恒                5     5      是
+  二分查找                4     4      是
+  细胞呼吸                4     4      是
+  贝塞尔不等式              4     4      是
+  牛顿第二定律              4     4      是
+  光合作用                4     4      是
+  事务隔离                4     4      是
+  内力与截面法              4     4      是
+  熵增                  4     4      是
+  机会成本                4     4      是
+  Top-1 = 100%（md Top-1 落在客观真值集内）
+  Top-5 = 100%，无真值（盲区）查询 = []
+  [PASS] Top-1 ≥ 0.7（最强证据放在最前）   · 100%
+  [PASS] Top-5 ≥ 0.9（不漏召回）   · 100%
+  [PASS] 无盲区（每个查询在语料中都有真值）   · []
+
+【维度5】两阶段并行收敛路由（第 2 篇第 5 章 + 第 3 篇第 4 章）
+  [PASS] 物理词收敛到物理大域
+  [PASS] 数学词收敛到数学大域
+  [PASS] 生物词收敛到生物大域
+  [PASS] 无命中词 → None（不做错误收敛）
+  [PASS] search meta 报告大域收敛   · big_domain=物理
+  [PASS] 大域打分明细可审计   · scores[物理]=2
+
+【维度6】信息差 D(t,C) 与 d²D/dt²（第 3/4 篇）
+  [PASS] 无结果查询 → D=1.0（信息差空白）   · D=1.00
+  [PASS] 有效命中 → D 显著回落（D=D(t,C) 演化）   · D=0.00
+  [PASS] d_delta（一阶变化）被记录
+  [PASS] d2 = d²D/dt² 被计算   · d2=-2.0
+  [PASS] 反思日志追加落盘
+
+【维度7】知识飞轮（第 2 篇第 8 章：误差→找条件→更新）
+  [PASS] 飞轮产出 unresolved 条目
+  [PASS] 飞轮幂等（同问题不重复产条目）
+
+【维度8】验证单元（第 3 篇第 13 章）
+  [PASS] confirmed → confidence 上调   · 0.6 → 0.65
+  [PASS] weakened → confidence 下调   · 0.65 → 0.5
+  [PASS] falsified → 节点负记忆化（rejected/ 出现对应条目）   · rejected 节点数=2
+  [PASS] falsified 后原 knowledge 节点被移除   · p1_verify 已不在 knowledge
+
+【维度9】CCG 完整度 + 验证基底覆盖率（health 自检）
+  [PASS] 重跑 ≡ 首跑：knowledge 层节点数不多不少（无残留污染）   · 341 == 336 + 5
+  [PASS] health 报告 knowledge 层 CCG 完整度统计   · total=341
+  [PASS] health 报告负记忆密度（rejected/unresolved 均 >0）   · rejected=2, unresolved=2
+  [PASS] 所有完整 CCG 测试节点均被 health 计入   · expected>= 4, got=4
+  [PASS] 叙述节点完整度不虚报（完整数远小于总数）   · complete=4/341
+
+====================================================================
+通过 38 / 失败 0
+====================================================================
+
+[35/117] md_cg.test_p10_identity
+
+[A] 位置效应推断（智能论 v3.4 §十三 五大单元）
+  [PASS] 记录单元（全）：command/tool-output → record  · record/1.0
+  [PASS] 位置携带职责与效应  · 全/保存观测、过程、结果和误差
+  [PASS] votes / evidence_count 可审计  · {'record': 2}
+  [PASS] 输出单元（通）：user 协作表达 → output  · output/1.0
+  [PASS] 反思单元（新）：发现差异/遗漏条件 → reflect  · reflect
+  [PASS] 验证单元（稳）：判断有效性 → verify  · verify
+  [PASS] 维生系统（存）：维护存在/预算/回滚 → sustain  · sustain
+  [PASS] 证据不足 → unknown（不假装确定）  · unknown
+  [PASS] 平票时置 tie 提示歧义（不假装唯一）  · record/['record', 'verify']
+
+[B] 身份锚点（anchor 接口 / 扮演论边界）
+  [PASS] self 锚点落 self 层（智能体自身）  · {'ok': True, 'node_id': 'identity_self_alpha', 'subject_id': 'self:alpha', 'kind': 'self', 'layer': 
+  [PASS] 锚点不可遗忘（protect 判定）  · identity_self_alpha
+  [PASS] 锚点覆盖被拒（不可覆盖）  · ProtectionError
+  [PASS] override 后锚点可修订
+  [PASS] role 锚点落 anchor 层（不占用 self 层）  · anchor
+  [PASS] 扮演论边界：role 不得写入 self 层  · ValueError
+
+[C] 条件特征（values 接口：条件空间=触发时机）
+  [PASS] 特征落结构层（特化价值观）  · structural
+  [PASS] 特征携带条件空间（触发时机）  · {'trigger': 'permission_error', 'subject': 'self:alpha', 'kind': 'self'}
+  [PASS] 画像汇总特征条目  · 1
+  [PASS] 特征保留条件空间  · {'node_id': 'identity_trait_self_alpha_3c67953a7c', 'layer': 'structural', 'content': '遇到权限问题时先查写保护清单\n', 'condition_spa
+
+[D] 位置分布 / 自描述
+  [PASS] positions 覆盖多主体多位置  · ['output', 'record', 'reflect', 'sustain', 'unknown', 'verify']
+  [PASS] catalog 五单元齐备  · ['record', 'reflect', 'verify', 'output', 'sustain']
+  [PASS] catalog 三接口齐备（memory/anchor/values）  · ['memory', 'anchor', 'values']
+
+[E] 留痕 / 写保护联动
+  [PASS] 身份操作留痕可查  · ['anchor', 'observe', 'trait']
+  [PASS] 受保护锚点 forget 被拒  · ProtectionError
+
+==== P10 结果：24 通过 / 0 失败 ====
+
+[36/117] md_cg.test_p11_consistency
+
+[A] L0 情绪通道（信息差二阶变化 d²D/dt²，§十一）
+  [PASS] 低冲突 → approaching（信息差收敛）  · {'bias': 'approaching', 'conflict_strength': 0.1, 'd2': 0.0, 'note': '情绪通道独立，不参与信任/资格计算（智能论 §十一）'}
+  [PASS] 高冲突 → avoiding（信息差扩大）
+  [PASS] 二阶差分：冲突强度上升 → avoiding  · {'bias': 'avoiding', 'conflict_strength': 0.5, 'd2': 0.3, 'note': '情绪通道独立，不参与信任/资格计算（智能论 §十一）'}
+  [PASS] 二阶差分：冲突强度回落 → 非 avoiding
+  [PASS] 情绪通道独立，不参与信任计算（§十一 强制）  · 情绪通道独立，不参与信任/资格计算（智能论 §十一）
+
+[B] L1 反思（反题检测 → 四态路由）
+  [PASS] B1 无冲突 → ACCEPT  · 无冲突
+  [PASS] B2 违反纪律 → REJECT（正文命中 negative.reject）  · 命中纪律节点的不适用条件（negative.reject）
+  [PASS] B3 自否定 → REJECT（自己的负条件排除自己的正条件）  · 不适用条件命中自身生效条件/正文：条件自相矛盾
+  [PASS] B4 条件互斥 → DEFER（新适用条件落在既有不适用区）  · DEFER/1.0
+  [PASS] B5 无可比对条件 → BLINDSPOT（不假装确定）  · 既有节点均未声明条件：无法建立比对路径
+
+[C] L2 递归反思（:273 深度/节点/循环/增益门槛）
+  [PASS] C1 沿关系边两跳找到区分条件 → resolved  · {'resolved_by': ['s_disc'], 'depth': 2, 'nodes_visited': 2, 'gain': 1.0, 'stopped_by': 'resolved', 'trace': [{'depth': 1, 'frontier': 1, 'fresh': 1, 'gain': 1.0}]}
+  [PASS] C2 增益门槛：候选空间不减少即停搜（:273）  · {'resolved_by': [], 'depth': 1, 'nodes_visited': 1, 'gain': 0.0, 'stopped_by': 'gain_below_threshold', 'trace': [{'depth': 1, 'frontier': 1, 'fresh': 0, 'gain': 0.0}]}
+  [PASS] C3 深度上限受约束（depth=1 不越界）  · {'resolved_by': [], 'depth': 1, 'nodes_visited': 1, 'gain': 1.0, 'stopped_by': 'depth_exceeded', 'trace': [{'depth': 1, 'frontier': 1, 'fresh': 1, 'gain': 1.0}]}
+  [PASS] C4 循环检测：环不导致无限展开  · {'resolved_by': [], 'depth': 2, 'nodes_visited': 4, 'gain': 0.0, 'stopped_by': 'gain_below_threshold', 'trace': [{'depth': 1, 'frontier': 3, 'fresh': 1, 'gain': 0.3333}, {'depth': 2, 'frontier': 1, 'fresh': 0, 'gain': 0.0}]}
+
+[D] 冲突自动触发飞轮（误差 → 补条件 → 结构更新，:725）
+  [PASS] D1 冲突自动投递飞轮并返回 unresolved_id  · unr_dc503e991f
+  [PASS] D2 飞轮落 unresolved 条目  · ['unr_dc503e991f']
+
+[E] 写入接入（信息的修改必须与已有规则校验）
+  [PASS] E1 无冲突写入成功且留痕判定  · {'verdict': 'ACCEPT', 'reason': '无冲突', 'strength': 0.0, 'emotional': 'approaching', 'unresolved_id': None}
+  [PASS] E2 违反纪律写入被拒（ConsistencyError）  · 命中纪律节点的不适用条件（negative.reject）
+  [PASS] E3 on_conflict=defer 不落盘  · None
+  [PASS] E4 on_conflict=record 记录后放行  · {'verdict': 'REJECT', 'reason': '命中纪律节点的不适用条件（negative.reject）', 'strength': 1.0, 'emotional': 'avoiding', 'unresolved_id': 'unr_afc0dab342'}
+  [PASS] E5 遗忘闸门叠加冲突检测：冲突内容不落盘  · None
+
+[F] 留痕 / 统计 / 自描述
+  [PASS] F1 留痕覆盖四态  · ['ACCEPT', 'BLINDSPOT', 'DEFER', 'REJECT']
+  [PASS] F2 统计按判定/情绪分布  · {'ACCEPT': 2, 'REJECT': 5, 'DEFER': 6, 'BLINDSPOT': 1}
+  [PASS] F3 自描述三级 + 四态  · ['L0_emotion', 'L1_reflect', 'L2_recursive_reflect']
+  [PASS] F4 自描述标注情绪通道不参与信任
+  [PASS] F5 诚实边界声明（非语义蕴含证明）  · 条件级（结构化）冲突检测，非语义蕴含证明；无法比对时 BLINDSPOT
+  [PASS] F6 health 报告 consistency 面  · {'records': 14, 'by_verdict': {'ACCEPT': 2, 'REJECT': 5, 'DEFER': 6, 'BLINDSPOT': 1}, 'by_
+
+==== P11 结果：27 通过 / 0 失败 ====
+
+[37/117] md_cg.test_p12_metacognition
+
+[A] 信息差轨迹（D / dD / d²D → 情绪，§十一）
+  [PASS] A1 无留痕 → insufficient_data（不编造数值）  · {'ok': False, 'reason': 'insufficient_data', 'n': 0, 'note': '无反思留痕：先调用 reflect() 才有轨迹'}
+  [PASS] A2 命中 → D 收敛到 0  · 0.0
+  [PASS] A3 四态分布可读  · {'ACCEPT': 2}
+  [PASS] A4 二阶差分识别收敛 → approaching  · emotion=approaching d2=-2.0
+  [PASS] A5 一阶方向 dD/dt 可算  · 0.0
+
+[B] 自信校准（期望正确率 vs 实际验证通过率）
+  [PASS] B1 无证据 → insufficient_data  · {'ok': False, 'reason': 'insufficient_data', 'n_nodes': 0, 'note': '无带证据的节点：先 verify() 积累验证记录'}
+  [PASS] B2 期望/实际/gap 自洽  · {'expected_accuracy': 0.575, 'actual_accuracy': 0.6667, 'gap': -0.0917}
+  [PASS] B3 ECE 非负  · 0.1167
+  [PASS] B4 分箱覆盖已观测区间  · [{'bin': '0.4-0.6', 'n_nodes': 3, 'n_evidence': 6, 'confidence': 0.5, 'accuracy': 0.5}, {'bin': '0.6-0.8', 'n_nodes': 3, 'n_evidence': 3, 'confidence': 0.65, 'accuracy': 1.0}]
+  [PASS] B5 判定 ∈ 四类  · calibrated
+  [PASS] B6 过度自信 → 建议抽查复核  · [{'code': 'overconfident', 'why': '期望正确率 0.8 > 实际 0.5（gap 0.3）', 'action': '对高 confidence 节点抽查复核；verify(weakened) 会触发降级'}]
+  [PASS] B7 无轨迹 → 提示先积累留痕  · [{'code': 'no_trace', 'why': '无反思留痕，无法评估认知轨迹', 'action': '先调用 reflect() 积累轨迹'}]
+
+[C] 盲区地图（推论三：局部不可知）
+  [PASS] C1 盲区按邻域聚合  · {'query': '量子纠缠退相干时间', 'blindspot': 2, 'defer': 0, 'samples': 2, 'last_t': 1790056419.7118642}
+  [PASS] C2 返回 unresolved 计数  · 0
+
+[D] 信任（P_gap / P_trust / 情感 d²T/dt²）
+  [PASS] D1 P_gap 可算  · 0.4286
+  [PASS] D2 P_trust 来自验证留痕  · 0.6667
+  [PASS] D3 情感取自二阶差分  · approaching
+
+[E] 元认知报告（四观测面 + 建议）
+  [PASS] E1 四观测面齐全  · ['ok', 'trace', 'calibration', 'blindspots', 'trust', 'advice', 'independent', 'note']
+  [PASS] E2 建议带 why/action（可复核）  · ['blindspot_dense']
+  [PASS] E3 独立性声明  · 元认知只观察不改事实：confidence / 资格 / 召回打分均未被本模块修
+
+[F] 元认知闸门 self_check
+  [PASS] F1 相似历史命中 → 建议声明盲区  · {'prior_attempts': 2, 'recommendation': 'declare_blindspot', 'warning': 'blindspot_likely'}
+  [PASS] F2 无相似历史 → no_prior  · search_then_decide
+  [PASS] F3 空查询被拒
+
+[G] 独立性（不参与裁决）
+  [PASS] G1 元认知不改节点 frontmatter
+  [PASS] G2 独立性在自描述中声明  · ['只读留痕与索引，不写 confidence / 资格 / 召回打分', '独立留痕 _metacognition.jsonl（append-only）', '建议为确定性模板，非 LLM 生成，每条带证据']
+
+[H] 留痕 / 自描述 / health 面
+  [PASS] H1 留痕写入 _metacognition.jsonl  · 5
+  [PASS] H2 留痕含 report 与 self_check  · {'self_check', 'report'}
+  [PASS] H3 自描述含四观测面 + 闸门  · ['trace', 'calibration', 'blindspots', 'trust', 'report', 'self_check', 'd_meta']
+  [PASS] H4 health 报告 metacognition 面  · {'n_reflections': 7, 'd_current': 1.0, 'emotion': 'stable', 'calibration': 'calibrated', 'p_trust': 0.6667, 'p_gap': 0.4286}
+  [PASS] H5 MCP 注册 mdcg_metacognition
+  [PASS] H6 cg op=metacognition 路由
+  [PASS] H7 mdcg_metacognition dispatch
+
+==== P12 结果：32 通过 / 0 失败 ====
+
+[38/117] md_cg.test_p13_encryption
+
+[A] ChaCha20-Poly1305 内核（RFC 8439 官方向量）
+  [PASS] A1 AEAD 加密匹配 RFC 8439 §2.8.2 密文  · len=114
+  [PASS] A2 AEAD 标签匹配 RFC 8439 §2.8.2  · 1ae10b594f09e26a7e902ecbd0600691
+  [PASS] A3 AEAD 解密回环
+  [PASS] A4 篡改密文 → 拒绝
+  [PASS] A5 AAD 不符 → 拒绝
+  [PASS] A6 Poly1305 匹配 RFC 8439 §2.5.2
+
+[B] KDF / 主密钥（KEK）
+  [PASS] B1 scrypt 确定性且 32 字节
+  [PASS] B2 不同盐 → 不同密钥
+  [PASS] B3 主密钥文件自动生成 32B
+  [PASS] B4 再次读取一致
+  [PASS] B5 环境变量 hex 优先
+  [PASS] B6 环境变量 base64 支持
+  [PASS] B7 无来源且 create=False → None
+  [PASS] B8 KEK 指纹稳定且不泄露密钥
+
+[C] DEK 信封 + 身份一致性识别
+  [PASS] C1 DEK 32 字节
+  [PASS] C2 同身份取回同一 DEK
+  [PASS] C3 信封文件不落明文密钥
+  [PASS] C4 无 KEK → 拒绝签发
+  [PASS] C5 身份不符（actor）→ 拒绝
+  [PASS] C6 身份不符（tenant）→ 拒绝
+  [PASS] C7 KEK 不对 → 拒绝
+  [PASS] C8 身份指纹不含明文身份
+  [PASS] C9 信封清单可审计
+  [PASS] C10 rotate 换新密钥
+
+[D] 节点正文封装（跨节点 / 跨身份挪用防护）
+  [PASS] D1 密文标记块可识别
+  [PASS] D2 密文不含明文
+  [PASS] D3 解密回环
+  [PASS] D4 跨节点挪用 → 拒绝
+  [PASS] D5 跨身份密钥 → 拒绝
+  [PASS] D6 明文原样返回
+  [PASS] D7 每次加密 nonce 不同（同明文密文不同）
+  [PASS] D8 跨块（>64B 密钥流）正确
+
+[E] MdCGSecure 端到端（私有加密范围 + 密钥即访问权 + 身份一致性）
+  [PASS] E1 私有正文落盘为密文
+  [PASS] E2 私有节点文件不含明文
+  [PASS] E3 公开正文保持明文
+  [PASS] E4 同身份可解密读回
+  [PASS] E5 同身份重开实例可读
+  [PASS] E6 同租户不同 actor 不可读（身份一致性）
+  [PASS] E7 不同租户不可读
+  [PASS] E8 低密级读隔离
+  [PASS] E9 无密钥 fail-closed
+  [PASS] E10 payload-free 审计留痕
+
+==== P13 结果：42 通过 / 0 失败 ====
+
+[39/117] md_cg.test_p14_sustain
+
+[A] 心跳与分级判定
+  [PASS] A1 心跳戳落盘
+  [PASS] A2 字段完整
+  [PASS] A3 age 近零
+  [PASS] A4 新戳=ok
+  [PASS] A5 2×间隔内仍 ok
+  [PASS] A6 3.3×=warning
+  [PASS] A7 5×=dead
+  [PASS] A8 无戳=absent
+  [PASS] A9 任务中阈值放宽（4000s→warning）
+  [PASS] A10 peers 可见
+  [PASS] A11 清戳后 absent
+
+[B] 诊断（只读）
+  [PASS] B1 健康库 ok
+  [PASS] B2 索引与磁盘一致
+  [PASS] B3 孤儿索引被发现（warning）
+  [PASS] B4 索引漂移被发现
+  [PASS] B5 陈旧临时文件被发现（info 不降 ok）
+  [PASS] B6 半截日志行被发现（warning）
+  [PASS] B7 索引增量积压被发现
+  [PASS] B8 诊断不改动文件
+  [PASS] B9 缺密钥私有节点被报告（fix=None，不自愈）
+
+[C] 自愈（只碰派生物，永不删节点）
+  [PASS] C1 dry-run 只列动作不改动
+  [PASS] C2 孤儿索引被重建
+  [PASS] C3 自愈后 ok
+  [PASS] C4 陈旧临时文件被清理
+  [PASS] C5 半截日志行被修补
+  [PASS] C6 节点文件数不变（永不删节点）
+  [PASS] C7 自愈留审计
+
+[D] 会话水位（重启续接）
+  [PASS] D1 水位可续接
+  [PASS] D2 未知会话无续接点
+  [PASS] D3 重启后仍可读
+  [PASS] D4 summary 统计
+  [PASS] D5 源水位可读
+
+[E] 常驻循环与 MCP 接入
+  [PASS] E0 起点健康
+  [PASS] E1 start 后运行中且有戳
+  [PASS] E2 自动补心跳  · beats=5
+  [PASS] E3 自动自愈（孤儿索引被重建）  · heals=[{'t': 1790056421.6577995, 'actions': ['rebuild_index', 'consolidate_run', 'importance']}]
+  [PASS] E4 stop 后清戳
+  [PASS] E5 ensure_loop 复用同一实例
+  [PASS] E6 MCP status
+  [PASS] E7 MCP catalog
+  [PASS] E8 MCP heal dry-run
+  [PASS] E9 MCP note→resume
+  [PASS] E10 MCP diagnose
+  [PASS] E11 MCP beat 写戳
+
+==== P14 结果：44 通过 / 0 失败 ====
+
+[40/117] md_cg.test_p15_scrub
+
+[A] 记忆抽查（分层 + 可复现）
+  [PASS] A1 抽样返回条数
+  [PASS] A2 分层标签合法
+  [PASS] A3 同 seed 同样本（可复现）
+  [PASS] A4 不同 seed 仍返回满额
+  [PASS] A5 陈旧节点入 stale 层
+  [PASS] A6 高频节点入 hot 层（对照组）
+  [PASS] A7 random 策略只取随机层
+  [PASS] A8 risk 策略不含对照层
+  [PASS] A9 未知策略报错
+  [PASS] A10 抽查只读（节点数不变）
+
+[B] 联想（关系链 / 子图 / 词法）
+  [PASS] B1 关系链命中（带条件）
+  [PASS] B2 词法近邻命中（无边也联得上）
+  [PASS] B3 子图层级命中
+  [PASS] B4 权重降序
+  [PASS] B5 by_via 统计
+  [PASS] B6 不含自身
+
+[C] 去污染（体检 / dry-run / 可逆处置）
+  [PASS] C1 同键不同值 → contradiction（high）
+  [PASS] C2 时效过期 → expired
+  [PASS] C3 孤立噪音 → orphan_noise
+  [PASS] C4 长期未验证 → unverified
+  [PASS] C5 高冗余 → duplicate
+  [PASS] C6 体检只读（节点数不变）
+  [PASS] C7 每条判据都可解释
+  [PASS] C8 dry-run 不改动
+  [PASS] C9 dry-run 给出计划动作
+  [PASS] C10 实修 weaken：置信下调 + 记反例
+  [PASS] C11 实修 demote：降级到情境层
+  [PASS] C12 永不删除节点
+  [PASS] C13 幂等：重复处置被跳过
+  [PASS] C14 冗余只给建议不代劳
+  [PASS] C15 审计留痕
+  [PASS] C16 受保护节点跳过（importance≥0.7）
+
+[D] 校准偏差（gap → 偏置 → 可选写回）
+  [PASS] D1 无证据 → 数据不足
+  [PASS] D2 有证据 → 可校准
+  [PASS] D3 过度自信 → gap>0  · gap=0.1417
+  [PASS] D4 建议负偏置（下调置信）
+  [PASS] D5 apply=False 不写回
+  [PASS] D6 apply=True 写回偏置
+  [PASS] D7 保护节点跳过
+  [PASS] D8 分桶偏差按幅值降序
+
+[E] 挂载自维持循环与 MCP 接入
+  [PASS] E1 常驻循环周期自净
+  [PASS] E2 默认只巡检（不改节点）
+  [PASS] E3 status 暴露自净字段
+  [PASS] E4 sustain.summary 含自净摘要
+  [PASS] E5 MCP sample
+  [PASS] E6 MCP audit
+  [PASS] E7 MCP decontaminate 默认 dry-run
+  [PASS] E8 MCP calibrate
+  [PASS] E9 MCP sweep 默认只读
+  [PASS] E10 MCP catalog
+  [PASS] E11 MCP history
+  [PASS] E12 MCP summary
+  [PASS] E13 MCP associate
+
+==== P15 结果：53 通过 / 0 失败 ====
+
+[41/117] md_cg.test_p16_self_state
+
+[A] 薄自我：九项自我信息 → 当前值 + 指针（无数据不编造）
+  [PASS] A1 状态卡单例建立  · self_state_self_alpha
+  [PASS] A2 无反思留痕 → 情绪 unknown（不编造）  · emotion=unknown
+  [PASS] A3 无验证留痕 → 情感 unknown（不编造）  · affect=unknown
+  [PASS] A4 短期记忆只存摘要 + 指针  · {'n': 0, 'span': None, 'roles': {}, 'ptr': '_recent.jsonl'}
+  [PASS] A5 九项自我信息字段齐备  · ['affect', 'emotion', 'identity_ref', 'importance_self', 'information_gap', 'prediction', 'relations', 'short_term', 'trust']
+  [PASS] A6 首次刷新 version=1  · 1
+
+[B] 幂等刷新（状态未变不写盘）
+  [PASS] B1 无新信息 → changed=False（幂等）  · 状态未变化，跳过写入（幂等）
+  [PASS] B2 再次刷新仍幂等  · 状态未变化，跳过写入（幂等）
+  [PASS] B3 幂等时不推进版本  · 1
+
+[C] 版本链：version +1 / prev_state_hash / 留痕对齐
+  [PASS] C1 状态变化 → version+1  · 2
+  [PASS] C2 prev_state_hash == 上一版 hash  · 61cb31ce39ca233e vs 61cb31ce39ca233e
+  [PASS] C3 留痕末条 hash == 卡 hash  · 55fd7127fefe50cb vs 55fd7127fefe50cb
+  [PASS] C4 留痕版本递增  · [2, 1]
+
+[D] 派生自洽：情绪 = d^2D/dt^2（与 metacognition 同口径）
+  [PASS] D1 d2 有值 → emotion 非 unknown  · d2=1.0 emotion=avoiding
+  [PASS] D2 卡上 emotion == metacognition.trace().emotion  · avoiding vs avoiding
+
+[E] 信任面：verify 留痕 → P_trust / 情感 d^2T/dt^2
+  [PASS] E1 P_trust 由验证留痕算出  · p_trust=1.0
+  [PASS] E2 信任档入索引（low|mid|high）  · high
+  [PASS] E3 情感由 d^2T/dt^2 推出  · d2t=0.0 affect=stable
+
+[F] 五维索引：具体任务/人物/会话/时间/信任 → 反查详情
+  [PASS] F1 任务维度命中状态卡  · 1
+  [PASS] F2 会话维度命中  · 1
+  [PASS] F3 认知图连接：详情节点被同一索引反查到  · ['self_state_self_alpha', 'detail_task_1']
+  [PASS] F4 时间维度自动登记  · ['2026-09-22']
+  [PASS] F5 未知维度被拒  · {'ok': False, 'error': 'unknown_dimension', 'allowed': ['task', 'person', 'session', 'time', 'trust']}
+
+[G] 关系：有向 / 双向 / 自环拒绝
+  [PASS] G1 写有向关系  · {'ok': True, 'written': ['self_relation_self_alpha__user_alice'], 'from': 'self:alpha', 'to': 'user:alice', 'relation_type': 'collaborator', 'strength': 0.8, 'reciprocal': False}
+  [PASS] G2 自环被拒  · {'ok': False, 'error': 'self_loop', 'detail': '关系两端不能是同一主体（自环）'}
+  [PASS] G3 reciprocal 写双向  · {'ok': True, 'written': ['self_relation_user_alice__agent_reviewer', 'self_relation_agent_reviewer__user_alice'], 'from': 'user:alice', 'to': 'agent:reviewer', 'relation_type': 'collaborator', 'strength': 0.5, 'reciprocal': True}
+  [PASS] G4 出度统计正确  · [('self_alpha', 'user_alice')]
+  [PASS] G5 关系度入薄卡  · {'out': 1, 'in': 0}
+
+[H] 保护一致：状态卡可覆盖但不可遗忘；身份锚点两者皆禁
+  [PASS] H1 状态卡可覆盖（自我状态能演化）
+  [PASS] H2 状态卡不可遗忘
+  [PASS] H3 身份锚点两者皆禁  · identity_self_alpha
+  [PASS] H4 identity_ref 指向锚点  · identity_self_alpha vs identity_self_alpha
+
+[I] 一致性审计：可重算，能抓到绕过 refresh 的改动
+  [PASS] I1 健康态 verdict=consistent  · verdict=consistent issues=[]
+  [PASS] I2 篡改被检出 log_tail_mismatch  · ['log_tail_mismatch', 'drift', 'drift', 'drift', 'drift', 'identity_missing', 'stale']
+  [PASS] I3 篡改 → verdict=broken  · broken
+  [PASS] I4 refresh 后恢复一致  · []
+
+[J] 跨会话加载（bootstrap）
+  [PASS] J1 加载状态卡 + 关系 + 索引  · rels=1 dims=['task', 'person', 'session', 'trust', 'time']
+  [PASS] J2 最近留痕可读  · 5
+
+[K] MCP 入口（mdcg_self_state + cg op + health 面）
+  [PASS] K1 summary 一句话  · [self:alpha] D=0.0 情绪=avoiding P_trust=1.0 情感=stable 短期=0条 v7
+  [PASS] K2 index 按人物反查  · 3
+  [PASS] K3 audit 可调用  · consistent
+  [PASS] K4 MCP 注册 mdcg_self_state
+  [PASS] K5 cg op=self_state 路由
+  [PASS] K6 health 报告 self_state 面  · {'ok': True, 'subject': 'self:alpha', 'version': 7, 'updated_at': '2026-09-22 13:53:44', 'd_current': 0.0, 'd2': 1.0, 'emotion': 'avoiding', 'p_trust': 1.0, 'd2t': 0.0, 'affect': 'stable', 'trust_band': 'high', 'recent_n': 0, 'relations': {'out': 1, 'in': 0}, 'identity_ref': 'identity_self_alpha', 'hit_rate': None, 'prediction_reflect': False, 'text': '[self:alpha] D=0.0 情绪=avoiding P_trust=1.0 情感=stable 短期=0条 v7'}
+
+[L] 自描述
+  [PASS] L1 九项自我信息齐全  · ['affect', 'emotion', 'identity', 'importance', 'information_gap', 'prediction', 'relations', 'short_term', 'trust']
+  [PASS] L2 五维索引齐全  · ['task', 'person', 'session', 'time', 'trust']
+
+[M] 预测校准面（预测 → 事实 → 误差 → 自我更新）
+  [PASS] M1 自描述含 prediction 项  · ['affect', 'emotion', 'identity', 'importance', 'information_gap', 'prediction', 'relations', 'short_term', 'trust']
+  [PASS] M2 无预测留痕时诚实 unknown（不编造）  · None
+  [PASS] M3 feedback 回执含自我模型刷新  · {'ok': True, 'changed': True, 'subject': 'self:alpha', 'node_id': 'self_state_self_alpha', 'state_version': 8, 'state_hash': '9cf1da75094c4c2c', 'prev_state_hash': '0e88f99a0105278d', 'state': {'subject': 'self:alpha', 'information_gap': {'ok': True, 'n': 2, 'd_current': 0.0, 'd1': 0.0, 'd2': 1.0, 'trend': 'flat'}, 'trust': {'ok': True, 'n_events': 6, 'p_gap': 1.0, 'p_trust': 1.0, 'd1': 0.0, 'd2t': 0.0, 'band': 'high'}, 'emotion': 'avoiding', 'affect': 'stable', 'short_term': {'n': 0, 'span': None, 'roles': {}, 'ptr': '_recent.jsonl'}, 'importance_self': 1.0, 'important_refs': [], 'identity_ref': 'identity_self_alpha', 'identity_anchors': 1, 'relations': {'out': 1, 'in': 0}, 'prediction': {'ok': True, 'samples': 1, 'hit_rate': 1.0, 'beta_mean': 0.4286, 'beta_ci95': [0.2218, 0.6354], 'threshold': 0.4, 'reflect': False, 'ece': 0.35, 'calibration': 'underconfident', 'd_meta_trend': 0.0, 'note': '命中率正常'}, 'dimensions': {'task': ['自我层一致性'], 'person': ['user:alice'], 'session': ['s-20260909'], 'trust': ['high'], 'time': ['2026-09-22']}, 'state_links': [], 'state_version': 8, 'prev_state_hash': '0e88f99a0105278d', 'state_ts': 1790056424.2568982, 'state_hash': '9cf1da75094c4c2c'}, 'issue': None}
+  [PASS] M4 命中率已回写自我模型（1.0）  · 1.0
+  [PASS] M5 闭环后无 prediction_drift（自我模型跟上预测表现）  · []
+
+============================================================
+通过 51 / 51
+
+[42/117] md_cg.test_p17_predict
+
+[A] D-001 局部路径生成 + uncertainty_bound
+  [PASS] A1 生成成功  · ok
+  [PASS] A2 三条局部路线（a→b / a→b→c / a→b→d）  · [['a', 'b'], ['a', 'b', 'c'], ['a', 'b', 'd']]
+  [PASS] A3 置信度为边置信度连乘（0.8×0.9=0.72）  · 0.72
+  [PASS] A4 uncertainty_bound 字段齐备  · ['confidence', 'lower', 'method', 'upper']
+  [PASS] A5 不确定带上下界 = conf ± (1-conf)/2  · {'confidence': 0.72, 'lower': 0.58, 'upper': 0.86, 'method': 'linear_local_approx'}
+  [PASS] A6 明示「候选未来，非必然未来」  · 候选未来，非必然未来（D-001）
+  [PASS] A7 horizon 硬上限裁剪  · 16
+  [PASS] A8 起点不存在 → start_not_found  · start_not_found
+
+[B] D-002 伪因果过滤门（语义邻近须能说清关系）
+  [PASS] B1 因果/时序边直通  · causal_link
+  [PASS] B2 共同父节点 → 结构模式豁免  · structural_pattern
+  [PASS] B3 纯语义邻近 → 拒绝（伪因果）  · rejected_semantic_only
+  [PASS] B4 无策略时语义候选不进路线  · [['a', 'b']]
+
+[C] D-003 局部线性近似 + extrapolation_validity
+  [PASS] C1 单跳 → unknown
+  [PASS] C2 平滑衰减 → smooth
+  [PASS] C3 跳变 → jump
+  [PASS] C4 路线带 extrapolation_validity 字段  · unknown
+
+[D] D-004 T_pred 四维评分
+  [PASS] D1 四维 + composite 齐备  · ['balance', 'boundary', 'composite', 'trend', 'verification', 'weights']
+  [PASS] D2 权重 = 0.40/0.20/0.25/0.15  · {'trend': 0.4, 'boundary': 0.2, 'verification': 0.25, 'balance': 0.15}
+  [PASS] D3 composite 可由四维复算  · 0.4922 vs 0.4922
+  [PASS] D4 排序键 composite 单调不增  · [0.5575, 0.4922, 0.4657]
+
+[E] D-005 AttentionPolicy 适配器 + 降级
+  [PASS] E1 无策略 → 偏好权重 0.0（降级）  · 0.0
+  [PASS] E2 偏好权重 > 0.5 → 准入  · preference_weight
+  [PASS] E3 有策略时语义候选进路线（source=semantic_induced）  · [(['a', 'b'], 'causal'), (['a', 'x'], 'semantic_induced')]
+
+[F] D-006 命中 → 边置信度 +0.05；未命中 → rejected
+  [PASS] F1 命中 → 因果边置信度 +0.05  · 0.8 → 0.85
+  [PASS] F2 boosted 报告被提升的源节点  · ['a', 'p1']
+  [PASS] F3 未命中 → 登记负记忆 rejected  · rej_84a26230c1
+  [PASS] F4 样本 < 50 → 不触发反思，阈值 = 基线  · samples=2 threshold=0.4
+  [PASS] F5 stats 统计调用/反馈/命中率  · calls=4 fb=2 hits=1
+
+[G] 盲区驱动（unresolved / 不可预测声明）
+  [PASS] G1 find_blindspot 命中 unresolved  · unresolved
+  [PASS] G2 predictability 解析为 unknowable  · unknowable
+  [PASS] G3 不可预测 → 拒绝生成路线（不编造）  · unpredictable
+  [PASS] G4 可预测 → 由锚点生成路线  · status=ok anchor=a
+  [PASS] G5 盲区不存在 → blindspot_not_found
+
+[H] 因果路径推理（可达性 = 伪因果防护的完整语义）
+  [PASS] H1 a→c 可达，路径 [a,b,c]  · ['a', 'b', 'c']
+  [PASS] H2 每跳带条件（链 = 条件序列）  · ['需要 A 成立', '需要 B 成立']
+  [PASS] H3 方向性：c→a 不可达  · None
+  [PASS] H4 a→x 不可达（纯语义邻近不是因果）  · 无因果路径：两者最多只是语义邻近（伪因果防护）
+  [PASS] H5 缺参 → ok=False  · missing_node
+  [PASS] H6 causal_chain 沿因果链展开  · list
+
+[I] MCP 入口（mdcg_predict / mdcg_causal / cg op）
+  [PASS] I1 注册 mdcg_predict
+  [PASS] I2 注册 mdcg_causal
+  [PASS] I3 mdcg_predict routes
+  [PASS] I4 mdcg_predict catalog
+  [PASS] I5 mdcg_causal path  · ['a', 'b', 'c']
+  [PASS] I6 mdcg_causal gate  · causal_link
+  [PASS] I7 cg op=predict
+  [PASS] I8 cg op=causal  · ['causal']
+  [PASS] I9 mdcg_predict feedback
+
+[J] 自描述
+  [PASS] J1 六条决策齐备  · ['D-001', 'D-002', 'D-003', 'D-004', 'D-005', 'D-006', 'P-T-73/74']
+  [PASS] J2 标注与 AEIS 的三处差异  · ['语义邻近回退中文二元组 Jaccard（AEIS 优先语义坐标）', '命中历史持久化在 _prediction.jsonl（AEIS 在内存）', 'DFS 增加 path 防环（AEIS 仅靠 horizon 截断）']
+  [PASS] J3 四维权重和 = 1.0  · {'trend': 0.4, 'boundary': 0.2, 'verification': 0.25, 'balance': 0.15}
+  [PASS] J4 校准参数对齐 D-006  · {'min_samples': 50, 'base_hit_rate': 0.4, 'edge_boost': 0.05, 'hit_history_max': 200}
+
+[K] D-006 命中回写保留原 frontmatter（密级/模态/证据计数）
+  [PASS] K1 密级不被降级（public 保持）  · public
+  [PASS] K2 模态不被重置为 text  · image
+  [PASS] K3 边置信度确已 +0.05（0.5→0.55）  · 0.55
+
+[L] 闭环：predict_feedback → self_state 预测校准面
+  [PASS] L1 feedback 回执含自我模型刷新回执  · {'ok': True, 'changed': True, 'subject': 'self:alpha', 'node_id': 'self_state_self_alpha', 'state_version': 5, 'state_hash': '77be802722bcc60c', 'prev_state_hash': 'f41d4c6a86241f60', 'state': {'subject': 'self:alpha', 'information_gap': {'ok': False, 'n': 0, 'd_current': None, 'd1': None, 'd2': None, 'trend': None}, 'trust': {'ok': True, 'n_events': 0, 'p_gap': None, 'p_trust': None, 'd1': None, 'd2t': None, 'band': None}, 'emotion': 'unknown', 'affect': 'unknown', 'short_term': {'n': 0, 'span': None, 'roles': {}, 'ptr': '_recent.jsonl'}, 'importance_self': 1.0, 'important_refs': [], 'identity_ref': None, 'identity_anchors': 0, 'relations': {'out': 0, 'in': 0}, 'prediction': {'ok': True, 'samples': 5, 'hit_rate': 0.8, 'beta_mean': 0.48, 'beta_ci95': [0.288, 0.672], 'threshold': 0.4, 'reflect': False, 'ece': None, 'calibration': None, 'd_meta_trend': 0.015, 'note': '命中率正常'}, 'dimensions': {'time': ['2026-09-22']}, 'state_links': [], 'state_version': 5, 'prev_state_hash': 'f41d4c6a86241f60', 'state_ts': 1790056424.5357664, 'state_hash': '77be802722bcc60c'}, 'issue': None}
+  [PASS] L2 预测命中率已写入自我模型  · hit_rate=0.8
+  [PASS] L3 自我模型状态卡已更新（版本 ≥ 1）  · 5
+
+============================================================
+通过 58 / 58
+
+[43/117] md_cg.test_p18_whitebox
+
+[A] 客户端协议与结果归一化
+  [PASS] A1 启动命令可用环境变量覆盖
+  [PASS] A2 route 解析
+  [PASS] A3 reply 多键解析
+  [PASS] A4 reply 嵌套解析
+  [PASS] A5 缺字段回落
+
+[B] 验证「编码能力」（remember → 追问命中）
+  [PASS] B1 编码成功且追问命中 → ok  · self
+  [PASS] B2 编码后写入留痕节点
+  [PASS] B3 追问未命中 → 失败
+  [PASS] B4 白箱不可用 → 如实失败且不抛
+
+[C] 验证「已有知识回答能力」（route=self 且非空）
+  [PASS] C1 route=self 且非空 → ok
+  [PASS] C2 route=llm → 未通过（非白箱自答）
+  [PASS] C3 空回答 → 未通过
+
+[D] 验证结论留痕 + 报告
+  [PASS] D1 结论写入 self 层
+  [PASS] D2 留痕带 whitebox:verify 标签
+  [PASS] D3 报告可读回验证留痕
+  [PASS] D4 无 cg 时报告不抛
+
+[E] cg(op=whitebox) 分发
+  [PASS] E1 action=ping
+  [PASS] E2 action=ask
+  [PASS] E3 action=verify_encoding
+  [PASS] E4 未知 action → 抛错
+
+==== P18 结果：20 通过 / 0 失败 ====
+
+[44/117] md_cg.test_p19_migrate_roleplay
+
+[A] 源数据读取与归一化
+  [PASS] A1 角色字典
+  [PASS] A2 转录逐行读取
+  [PASS] A3 互维任务/裁决配对
+
+[B] 迁移落图 + 回读等价
+  [PASS] B1 计划节点数  · 9
+  [PASS] B2 无字段失配  · []
+  [PASS] B3 角色节点落 knowledge 层
+  [PASS] B4 三导入映射到 knowledge/self/structural
+  [PASS] B5 转录落 contextual 层且保留 turn 标签
+  [PASS] B6 互维裁决落图且 basis=test（强依据）
+  [PASS] B7 无裁决任务标记 pending
+
+[C] 幂等（重复迁移不产生重复节点）
+  [PASS] C1 重复迁移节点总数不变  · 9 → 9
+  [PASS] C2 重复迁移仍无失配
+
+[D] dry-run 不落盘
+  [PASS] D1 dry-run 报告计划数但不写入
+
+==== P19 结果：13 通过 / 0 失败 ====
+
+[45/117] md_cg.test_p2
+
+【0】观测时间（条件论）
+  [PASS] 写入自动补 time_window  · [1790056425.179979, 1790060025.179979]
+  [PASS] time_window 锚定写入时刻  · tw[0]=1790056425.179979 created_at=1790056425.179979
+  [PASS] 默认观测窗口为 1 小时  · 跨度=3600.0
+  [PASS] 显式 time_window 被保留  · [1000.0, 2000.0]
+  [PASS] created_at 回填时 time_window 同步锚定  · [1700000000.0, 1700003600.0]
+
+【2】role 分层索引
+  [PASS] 默认检索剔除 work 角色  · 默认=['k1']
+  [PASS] include_work=True 时可见 work 角色  · 含work=['k1', 'w1', 'w2']
+  [PASS] 按 roles 精确过滤  · ['w1']
+
+【3】RRF 并行多路召回
+  [PASS] search_rrf 返回结果  · 4 条
+  [PASS] meta 自报各路候选数  · {"lexical": 1, "bucket": 4, "entity": 0, "graph": 0}
+  [PASS] 结果带 provenance（可审计）  · 元素长度=[4, 4, 4, 4]
+
+【7】budget-driven pack
+  [PASS] recall 遵守 token 预算  · used=194/200
+  [PASS] 超大条目截断纳入而非丢弃  · pack=[('big1', True)]
+  [PASS] 预算放不下时小条目显式跳过（不静默丢失）  · skipped=['small1']
+  [PASS] max_item_tokens=0 回旧行为（超大跳过+小条目装入）  · skipped=['big1'] pack=['small1']
+
+【1】Fix pairs 自动挖掘
+  [PASS] 挖掘出错误→修复对  · [{"error": "跑测试报错了", "fix": "pip install foo"}, {"error": "Traceback (most recent call last):", "fix": "pip install foo"
+  [PASS] 产出可路由修复知识  · ['fix_9007b7f071fa', 'fix_2e35c77f5e0c']
+  [PASS] 产出负记忆（不必深挖根因）  · ['rej_8236071a33', 'rej_787a3f93d7']
+  [PASS] 修复知识可被检索命中  · ['fix_2e35c77f5e0c', 'fix_9007b7f071fa', 'ts1', 'ts2', 'big1']
+  [PASS] 重复挖掘幂等（不重复建节点）  · 第二次=['rej_8236071a33', 'rej_787a3f93d7']
+
+【4】审核队列 edit/merge
+  [PASS] propose 进入 inbox  · pending=1
+  [PASS] accept 落库  · {'pid': 'prop_79d6dada932b', 'decision': 'accept', 'round': 1, 'redteam': 'absent', 'ok': True, 'node_id': 'p1', 'record_node_id': 'rev_79d6dada932b_r1', 'record_hash': '3575dfff66ad4abc7f67d6a4004778833624b6a5'}
+  [PASS] 已裁决项从 inbox 移除
+  [PASS] edit 用修改后内容落库  · {'pid': 'prop_4910c39599a3', 'decision': 'edit', 'round': 1, 'redteam': 'absent', 'ok': True, 'node_id': 'p2', 'record_node_id': 'rev_4910c39599a3_r1', 'record_hash': '89e72d2f45f75294835b5ffa67d8654ba0bee210'}
+  [PASS] merge 内容追加进目标节点  · ok=True
+  [PASS] reject 不落节点  · {'pid': 'prop_94e19f1eb4ed', 'decision': 'reject', 'round': 1, 'redteam': 'absent', 'ok': True, 'record_node_id': 'rev_94e19f1eb4ed_r1', 'record_hash': '81d95080cb1e0f35934077c830be775fdfe0cca5'}
+  [PASS] decisions 日志有 4 条裁决  · 4
+
+【5】tombstone + 恢复时删除检查
+  [PASS] forget 软删除成功  · {'ok': True, 'id': 't1', 'tombstone': '0fac7afd47d6122e'}
+  [PASS] 节点文件移入 trash/
+  [PASS] 删除清单记录墓碑  · [{'t': 1790056425.3331106, 'id': 't1', 'hash': '0fac7afd47d6122e', 'reason': '测试删除', 'actor': 'test', 'trash': 'trash/t1.md'}]
+  [PASS] 恢复被删除检查拦截  · {'ok': False, 'error': 'tombstoned', 'reason': '测试删除', 't': 1790056425.3331106}
+  [PASS] force=True 可恢复  · {'ok': True, 'id': 't1', 'forced': True}
+
+【6】payload-free 审计
+  [PASS] 审计有记录  · 33 条
+  [PASS] 审计不含内容（payload-free）  · 泄漏=[]
+  [PASS] 审计含载荷哈希  · 样例={'t': 1790056425.1814883, 'op': 'add', 'id': 'ts1', 'actor': 'test', 'session': None, 'layer': 'knowledge', 'role': None, 'payload_hash': '5b6f4ae6ea39'}
+
+【8】OS 健康度
+  [PASS] health_os 报告 role 分布  · {"knowledge": 4, "(none)": 10, "tool-output": 5, "command": 1}
+  [PASS] health_os 报告审核/墓碑/审计计数  · {"review_pending": 0, "tombstones": 1, "audit_events": 33}
+
+====================================================================
+通过 37 / 失败 0
+====================================================================
+
+[46/117] md_cg.test_p20_evolution
+
+[A] 载体与格式（md 人类可读 · 状态内嵌可解析 · append-only）
+  [PASS] A1 缺「规律」被拒（没有规律就没有可复用认知）
+  [PASS] A2 未知演化类型被拒
+  [PASS] A3 账本落在 _evolution/ledger.md  · C:\Users\32203\AppData\Local\Temp\mdcg_p20_9zvvm6rw\_evolution\ledger.md
+  [PASS] A4 正文是人类可读中文标签
+  [PASS] A5 规律原文入账
+  [PASS] A6 状态差异人可读  · ['> 记录的是**认知规律**与**状态**，不是实现细节（实现属于 git）。']
+  [PASS] A7 状态快照内嵌 json 块且可解析  · {'after': {'confidence': 0.55, 'importance': 0.5}, 'before': {'confidence': 0.6,
+  [PASS] A8 append-only：旧条目不被覆盖
+  [PASS] A9 账本头部说明只出现一次
+  [PASS] A10 entries 倒序（最新在前）
+  [PASS] A11 entries limit 生效
+  [PASS] A12 show 取单条
+
+[B] 规律统计（认知功能记录规律：看清反复缺什么）
+  [PASS] B1 按缺失条件维度聚类  · {'conditions.time_window': 2, 'execution': 1}
+  [PASS] B2 top_patterns 计数重复规律  · [{'pattern': '缺时间窗口的条件在跨季度查询里被误召回', 'count': 2, 'last_at': '2026-09-22 13:53:45'}]
+  [PASS] B3 来源统计  · {'consolidate': 1, 'manual': 2}
+  [PASS] B4 evolution 与 rollback 分账（此时无回滚）  · 3
+
+[C] 回滚（撤回补充 · 撤销留痕 · 拒绝条件）
+  [PASS] C1 dry_run 预演列出将删除的字段  · ['non_applicable_conditions']
+  [PASS] C2 dry_run 不落盘
+  [PASS] C3 dry_run 不写条目
+  [PASS] C4 回滚把状态撤回 before  · 0.6
+  [PASS] C5 回滚删除「改动后才出现」的字段（真的撤回补充）  · None
+  [PASS] C6 回滚本身记一条条目且不可静默  · evo-20260922-135345-07b7
+  [PASS] C7 回滚计入 rollbacks 分账  · {'total': 5, 'evolutions': 4, 'rollbacks': 1, 'by_missing': {'non_applicable_conditions': 1, 'conditions.time_window': 2, 'execution': 1}, 'by_kind': {'condition_gap': 4}, 'by_source': {'manual': 3, 'consolidate': 1}, 'top_patterns': [{'pattern': '缺时间窗口的条件在跨季度查询里被误召回', 'count': 2, 'last_at': '2026-09-22 13:53:45'}, {'pattern': '缺执行维的节点无法判定适用性', 'count': 1, 'last_at': '2026-09-22 13:53:45'}, {'pattern': '补负条件以防误召回', 'count': 1, 'last_at': '2026-09-22 13:53:45'}]}
+  [PASS] C8 不能回滚一条回滚记录  · 不能回滚一条回滚记录；请指定被回滚的原条目
+  [PASS] C9 无 before 的条目拒绝回滚  · 该条目未记录可回滚状态（before 缺失）
+  [PASS] C10 不存在的条目拒绝回滚  · 未找到条目：evo-19700101-000000-dead
+  [PASS] C11 回滚层迁移（contextual → knowledge）  · ['layer']
+
+[D] 与 consolidate 联动（每一次固化 = 补一条缺失条件）
+  [PASS] D1 固化前账本为空  · 0
+  [PASS] D2 固化后自动落账 1 条  · entries=1 written=1
+  [PASS] D3 来源标记 consolidate  · consolidate
+  [PASS] D4 缺失条件记全（含执行维）  · 生效条件、子功能、执行、不适用条件
+  [PASS] D5 状态快照记下补充后的负条件  · {'condition_space': {'time_window': [1790056425.7480202, 1790060025.7480202]}, 'confidence': 0.6, 'edges': [], 'importance': 0.5, 'layer': 'knowledge', 'non_applicable_conditions': ['边界条件缺失'], 'verification_basis': 'other'}
+  [PASS] D6 规律可读且非空  · 缺「生效条件、子功能、执行、不适用条件」的节点条件不可判；补齐后四要素完整、可路由
+  [PASS] D7 consolidate 的补充可回滚（负条件被撤回）  · []
+
+[E] 自描述与 MCP（可发现 · 可路由 · 管理权）
+  [PASS] E1 原则含「每一次修改 = 对一条缺失条件的补充」  · ['每一次修改 = 对一条缺失条件的补充']
+  [PASS] E2 自描述写清回滚范围与未覆盖项  · 正文 CCG 行文本、边权重、加密内容
+  [PASS] E3 自描述列出状态字段与条件维度
+  [PASS] E4 summary 一句话 + 最近条目  · 演化 6 次 / 回滚 2 次；最常缺：conditions.time_window
+  [PASS] E5 health_os 并入 evolution 面  · ['roles', 'review_pending', 'review_records', 'tombstones', 
+  [PASS] E6 MCP 注册 mdcg_evolution
+  [PASS] E7 cg op=evolution 路由到账本  · evolution
+  [PASS] E8 细粒度入口与 cg op 同源  · ['total', 'evolutions', 'rollbacks', 'by_missing', 'by_kind', 'by_source', 'top_patterns']
+  [PASS] E9 回滚需 can_admin（直接 API 亦拦截）
+
+[F] 幂等与并发（append-only 不丢）
+  [PASS] F1 连续 10 次追加全部保留  · got=10
+  [PASS] F2 history 按节点过滤  · 10
+  [PASS] F3 账本可被重新解析（幂等读取）
+
+结果：PASS=46  FAIL=0
+
+[47/117] md_cg.test_p21_tokens
+
+[1] 设计者权限载体（外部用户指定）
+  [PASS] 签发设计者令牌  · mdcg1.designer.tk_0e7118…
+  [PASS] 设计者身份可校验  · role=designer admin=True clearance=secret
+  [PASS] 设计者可写 anchor 保护层
+  [PASS] 设计者可写核心私有内容
+
+[2] 派生受限子令牌（子代理权职分离）
+  [PASS] 派生 verifier 子令牌  · parent=tk_0e7118f64a67 clamped=[]
+  [PASS] 子令牌权限已收窄  · layers=('rejected', 'contextual') clearance=internal
+  [PASS] 验证单元写 knowledge 层被拒  · 角色 verify 无权写入 knowledge 层（可写层 ['rejected', 'contextual']）
+  [PASS] 验证单元写 self 层被拒  · 角色 verify 无权写入 self 层（可写层 ['rejected', 'contextual']）
+  [PASS] 验证单元写 private 密级被拒（核心私有内容）  · 写入敏感度 private 超出 clearance internal
+  [PASS] 验证单元可写 rejected 层（职责内）
+  [PASS] 验证单元无审核裁决权  · actor=verifier-actor 无管理权限（review_decide）
+  [PASS] 子令牌不可再派生（委派链封口）  · 令牌 tk_7f049bee3856 不可派生（role=verify）
+  [PASS] 篡改令牌密钥被拒  · 令牌密钥不匹配
+
+[3] 各单元职责边界
+  [PASS] 记录单元可写 knowledge 层
+  [PASS] 记录单元写 anchor 层被拒  · 角色 record 无权写入 anchor 层（可写层 ['knowledge', 'contextual', 'structural', 
+  [PASS] 输出单元写入被拒  · actor=viewer 无写权限
+  [PASS] 输出单元执行 write op 被拒  · 角色 output 无权执行 op=write（作用域 ['info', 'route', 'read', 'recent', 'white
+  [PASS] 输出单元可读
+  [PASS] 访客只读且不可管理
+
+[4] 生命周期
+  [PASS] 过期令牌被拒  · 令牌已过期
+  [PASS] 吊销父令牌级联失效子令牌  · 父与子均不可用
+  [PASS] 清单默认不含已吊销
+
+[5] 与 identity.POSITIONS 同源校验
+  [PASS] 五大单元命名与职责与 identity 同源  · record/reflect/verify/output/sustain
+  [PASS] 别名解析可用
+
+[6] MCP 进程层（令牌优先 / fail-closed）
+  [PASS] 坏令牌降级为只读访客（不再拒绝启动）  · role=guest can_write=False
+  [PASS] 令牌身份注入进程  · role=verify admin=False
+  [PASS] 验证单元经 MCP 写事实层被拒  · AccessDenied: 角色 verify 无权写入 knowledge 层（可写层 ['rejected', 'contextual'
+  [PASS] 验证单元经 MCP 调用 review op 被拒  · AccessDenied: 角色 verify 无权执行 op=review（作用域 ['info', 'route', 'read', '
+  [PASS] 验证单元经 MCP 写 rejected 层放行  · {'ok': True, 'id': 'mcp_rej', 'committed': True, 'verdict': {'state': 
+  [PASS] 设计者令牌经 MCP 获得管理权  · role=designer admin=True
+  [PASS] 设计者可经 MCP 写核心私有内容  · {'ok': True, 'id': 'mcp_priv', 'committed': True, 'verdict': {'state':
+
+通过 31 / 失败 0
+
+[48/117] md_cg.test_p22_theory
+  [PASS] 未声明 → 按默认版本放行  · 未声明版本层（按默认版本 3.4 运行）
+  [PASS] 未声明 reason 可归因  · 未声明版本层（按默认版本 3.4 运行）
+  [PASS] ensure → 落盘声明
+  [PASS] ensure → theory_ok=True  · ok
+  [PASS] ensure 幂等（不覆盖已有声明）
+  [PASS] declare → ok
+  [PASS] declare → theory_ok=True  · ok
+  [PASS] 声明含自身版本  · ['3.4', '3.3']
+  [PASS] 声明文件已落盘
+  [PASS] 声明含封缄字段
+  [PASS] 篡改版本号 → 校验失败  · 声明被篡改（declaration_hash 不匹配）
+  [PASS] 篡改 reason 指向封缄  · 声明被篡改（declaration_hash 不匹配）
+  [PASS] 重新声明 → 恢复
+  [PASS] 版本不在认可集合 → 失败  · 版本 9.9 不在认可集合 ['3.4']
+  [PASS] 集合 reason 可归因  · 版本 9.9 不在认可集合 ['3.4']
+  [PASS] schema 不符 → 失败  · 声明 schema 不符：99（期望 1）
+  [PASS] schema reason 可归因  · 声明 schema 不符：99（期望 1）
+  [PASS] audit 记录版本跃迁  · [{'at': 1790056427.50764, 'from': '3.4', 'to': '3.4', 'by': 'designer'}, {'at': 1790056427.514686, 'from': '9.9', 'to': '3.4', 'by': 'designer'}, {'at': 1790056427.5198183, 'from': '3.4', 'to': '3.5', 'by': 'designer'}, {'at': 1790056427.523064, 'from': '3.5', 'to': '3.6', 'by': 'designer'}]
+  [PASS] audit 末条指向当前版本  · [{'at': 1790056427.523064, 'from': '3.5', 'to': '3.6', 'by': 'designer'}]
+  [PASS] theory_ok=False → 写被拒  · 版本层校验未通过（theory_ok=False）：全部写操作被拒，仅保留 theory 修复入口
+  [PASS] 写拒绝原因指向版本层  · 版本层校验未通过（theory_ok=False）：全部写操作被拒，仅保留 theory 修复入口
+  [PASS] theory_ok=False → 管理被拒  · 版本层校验未通过（theory_ok=False）：管理操作 scrub 被拒
+  [PASS] 管理拒绝原因指向版本层  · 版本层校验未通过（theory_ok=False）：管理操作 scrub 被拒
+  [PASS] theory_ok=True → 写放行
+  [PASS] theory_ok=True → 管理放行
+  [PASS] ALL_OPS 含 theory
+  [PASS] designer 可执行 theory  · ['*']
+  [PASS] record 的 ops_allow 不含 theory  · ['info', 'route', 'read', 'write', 'goal', 'task', 'recent', 'session', 'ingest', 'maintain', 'insight', 'ccg', 'status', 'edges']
+  [PASS] record 执行 theory 被拒  · 角色 record 无权执行 op=theory（作用域 ['info', 'route', 'read', 'write', 'goal', 'task', 'recent', 'session', 'ingest', 'maintain', 'insight', 'ccg', 'status', 'edges']）
+  [PASS] reflect 的 ops_allow 不含 theory  · ['info', 'route', 'read', 'write', 'recent', 'metacognition', 'session', 'maintain', 'insight', 'status', 'edges']
+  [PASS] reflect 执行 theory 被拒  · 角色 reflect 无权执行 op=theory（作用域 ['info', 'route', 'read', 'write', 'recent', 'metacognition', 'session', 'maintain', 'insight', 'status', 'edges']）
+  [PASS] verify 的 ops_allow 不含 theory  · ['info', 'route', 'read', 'write', 'verify', 'insight', 'status', 'edges']
+  [PASS] verify 执行 theory 被拒  · 角色 verify 无权执行 op=theory（作用域 ['info', 'route', 'read', 'write', 'verify', 'insight', 'status', 'edges']）
+  [PASS] output 的 ops_allow 不含 theory  · ['info', 'route', 'read', 'recent', 'whitebox', 'session', 'insight', 'status', 'edges']
+  [PASS] output 执行 theory 被拒  · 角色 output 无权执行 op=theory（作用域 ['info', 'route', 'read', 'recent', 'whitebox', 'session', 'insight', 'status', 'edges']）
+  [PASS] sustain 的 ops_allow 不含 theory  · ['info', 'read', 'write', 'sustain', 'scrub', 'evolution', 'self_state', 'metacognition', 'link', 'session', 'maintain', 'insight', 'status', 'edges']
+  [PASS] sustain 执行 theory 被拒  · 角色 sustain 无权执行 op=theory（作用域 ['info', 'read', 'write', 'sustain', 'scrub', 'evolution', 'self_state', 'metacognition', 'link', 'session', 'maintain', 'insight', 'status', 'edges']）
+  [PASS] guest 的 ops_allow 不含 theory  · ['info', 'route', 'read', 'recent', 'whitebox', 'status', 'edges']
+  [PASS] guest 执行 theory 被拒  · 角色 guest 无权执行 op=theory（作用域 ['info', 'route', 'read', 'recent', 'whitebox', 'status', 'edges']）
+  [PASS] whoami 含 theory_ok  · True
+  [PASS] whoami 含 theory_version
+  [PASS] CLI check 退出码 0
+  [PASS] CLI 输出 theory_ok=True  · {
+ "source": "C:\\Users\\32203\\AppData\\Local\\Temp\\mdcg_theory_ddnjw546\\theory.json",
+ "theory_ok": true,
+ "version": "3.6",
+ "auto": false,
+ "accepted_versions": [
+  "3.6"
+ ],
+ "declared_by": "de
+
+P22 版本层：43 passed, 0 failed
+
+[49/117] md_cg.test_p23_links
+  [PASS] 注册表含内置签名器  · ['hmac-local', 'null']
+  [PASS] 默认签名器为 hmac-local
+  [PASS] 未注册签名器 → 拒绝（fail-closed，不静默降级）  · 签名器未注册：no-such-signer（已注册：['hmac-local', 'null']）；工程侧可用 register_signer() 或 MDCG_SIGNER_MODULE 注入
+  [PASS] hmac-local 签名往返
+  [PASS] 篡改 payload → 验签失败
+  [PASS] 篡改 ctx → 验签失败
+  [PASS] 签名不含密钥  · {'name': 'hmac-local', 'kind': 'hmac-sha256', 'key_id': 'f937f5b8c29544d7'}
+  [PASS] null 签名器空签名通过
+  [PASS] 工程侧可注册自定义签名器
+  [PASS] 自定义签名器往返
+  [PASS] 内置签名器不可注销
+  [PASS] 未声明子系统 → 默认策略  · {'signer': 'hmac-local', 'sign_on': ['handshake'], 'require_peer_signature': False, 'on_verify_fail': 'degrade', 'subsystem': 'erp.approval'}
+  [PASS] set_policy 落盘生效  · {'signer': 'hmac-local', 'sign_on': ['handshake', 'evidence'], 'require_peer_signature': True, 'on_verify_fail': 'isolate', 'subsystem': 'erp.approval'}
+  [PASS] 策略未列 action → 不签名  · 子系统 erp.approval 策略未对 withdrawal 要求签名
+  [PASS] 策略列入 action → 签名
+  [PASS] 验签失败 → 返回处置档位  · {'ok': False, 'required': True, 'missing': False, 'action': 'handshake', 'signer': 'hmac-local', 'on_fail': 'isolate', 'require_peer_signature': True, 'reason': '验签失败'}
+  [PASS] 握手建档 → probation
+  [PASS] 初始 P_trust = 0.8  · 0.8
+  [PASS] 版本对齐 → cap=0.8
+  [PASS] 主体 id 规范化  · agent:node-b
+  [PASS] 握手留痕（宪章第二十八条）
+  [PASS] 版本不在认可集合 → cap=0.3  · 0.3
+  [PASS] 版本不符 → 保持观察期
+  [PASS] 未声明单元映射 → cap≤0.6  · 0.6
+  [PASS] 未声明宪章 → 观察期翻倍
+  [PASS] 观察期未满 → 拒绝转正  · 观察期未满（剩余 604799s）
+  [PASS] 正证据累积  · 10
+  [PASS] 不可自放大：P_trust 不超 cap  · 0.8 <= 0.8
+  [PASS] cap=0.6 的连接刷不过 0.6  · 0.6
+  [PASS] 负证据降幅大于正证据升幅（降快于升）  · 0.8 -> 0.6
+  [PASS] 反例击穿：跌破阈值即降级  · 0.4 / degraded
+  [PASS] 降级留痕含条款
+  [PASS] 衰减产生变更  · 1
+  [PASS] 衰减向初值回归（两侧都靠拢）  · [{'link_id': 'lk_e6242170394f', 'peer_node_id': 'agent:node-b', 'from': 0.4, 'to': 0.6, 'decay': -0.2}]
+  [PASS] isolate → P_trust 归零
+  [PASS] isolate → cap 归零
+  [PASS] withdraw → 状态迁移
+  [PASS] 已退出连接不可再观测  · 连接已退出：node-e
+  [PASS] 非 probation 不可转正  · 仅 probation 可转正，当前 degraded
+  [PASS] 降级状态保持
+  [PASS] 要求对端签名而缺失 → 握手被拒  · 对端签名校验失败（策略=reject）：策略要求对端签名，但对端未提供
+  [PASS] 提供合法对端签名 → 握手通过  · {'required': True, 'ok': True, 'on_fail': None}
+  [PASS] 连接记录留存双方签名
+  [PASS] 验签失败 + isolate 策略 → 接入即隔离  · isolated
+  [PASS] 验签失败 + degrade 策略 → 接入但降级  · degraded
+  [PASS] 验签失败留痕
+  [PASS] catalog 声明数值未标定  · 数值未标定（占位）；方向性约束：降快于升
+  [PASS] catalog 指向 D-4
+  [PASS] ls 可按状态过滤
+  [PASS] ALL_OPS 含 link
+  [PASS] sustain 可执行 link（§3.3 维生职责派生）
+  [PASS] designer 覆盖 link
+  [PASS] record 无 link 权限  · ['info', 'route', 'read', 'write', 'goal', 'task', 'recent', 'session', 'ingest', 'maintain', 'insight', 'ccg', 'status', 'edges']
+  [PASS] reflect 无 link 权限  · ['info', 'route', 'read', 'write', 'recent', 'metacognition', 'session', 'maintain', 'insight', 'status', 'edges']
+  [PASS] verify 无 link 权限  · ['info', 'route', 'read', 'write', 'verify', 'insight', 'status', 'edges']
+  [PASS] output 无 link 权限  · ['info', 'route', 'read', 'recent', 'whitebox', 'session', 'insight', 'status', 'edges']
+  [PASS] guest 无 link 权限  · ['info', 'route', 'read', 'recent', 'whitebox', 'status', 'edges']
+
+P23 连接层：57 passed, 0 failed
+
+[50/117] md_cg.test_p24_evidence
+  [PASS] 两节点身份不同（根派生）  · node-40c31f71778b / node-35111aa9bb31
+  [PASS] 发布名片成功  · C:\Users\32203\AppData\Local\Temp\mdcg_evidence_f2_wn1rh\swarm\peers\node-40c31f71778b.json
+  [PASS] 对端能发现本节点名片  · ['node-40c31f71778b']
+  [PASS] 名片发现排除自身
+  [PASS] 导出含本地观测  · count=1
+  [PASS] 证据包已签名
+  [PASS] 签名不含密钥
+  [PASS] 包来源为本节点
+  [PASS] 拒绝自导入（来源即本节点）  · 证据包来源即本节点（拒绝自导入）
+  [PASS] 篡改证据 → 拒收  · 验签失败：验签失败
+  [PASS] 缺签名 → 拒收  · 证据包缺少签名（跨节点证据必须可溯源）
+  [PASS] 结构非法 → 拒收  · 不是证据包（kind='not.a.pack'）
+  [PASS] 未注册签名器 → 导出失败（fail-closed）  · 签名器未注册：no-such-signer（已注册：['hmac-local', 'null']）；工程侧可用 register_signer() 或 MDCG_SIGNER_MODULE 注入
+  [PASS] 策略未开 evidence 签名 → 拒绝产出无签名包  · 子系统 swarm 策略未对 evidence 签名，证据包不可溯源。请先声明：set_policy('swarm', sign_on=['handshake','evidence'])
+  [PASS] 拒收留痕落盘（自导入/篡改/缺签名/结构非法）  · C:\Users\32203\AppData\Local\Temp\mdcg_evidence_f2_wn1rh\swarm\inbox\_rejected.jsonl
+  [PASS] 验签通过 → 导入成功  · imported=1
+  [PASS] 落根本根并带 source 标签  · 1
+  [PASS] 来源标签正确  · {'node_id': 'xnode_node-40c31f71778b_identity_obs_agent_node-35111aa9bb31_4987c97f41', 'subject': 'agent:node-35111aa9bb31', 'source': 'node-40c31f71778b', 'layer': 'knowledge', 'content': 'B 在跨节点测试中执行了校验并给出裁决\n'}
+  [PASS] 跨节点证据参与位置推断（他证可见）  · {'position': 'verify', 'confidence': 1.0, 'votes': {'verify': 1}, 'evidence_count': 1, 'tie': []}
+  [PASS] 重开图后跨节点证据仍在（索引已落盘）  · count=1
+  [PASS] 重开后他证仍参与位置推断  · {'position': 'verify', 'confidence': 1.0, 'votes': {'verify': 1}, 'evidence_count': 1, 'tie': []}
+  [PASS] A 侧自身观测亦落盘（重开可见）  · {'position': 'verify', 'confidence': 1.0, 'votes': {'verify': 1}, 'evidence_count': 1, 'tie': []}
+  [PASS] 重复导入幂等（不新增节点）  · 1 -> 1
+  [PASS] 已导入的跨节点证据不参与再次导出（防洗证据）  · count=0
+  [PASS] B 侧导出自己的观测  · 1
+  [PASS] A 侧导入 B 的证据
+  [PASS] 双向互证：A 能看到 B 对 A 的观测  · {'position': 'verify', 'confidence': 1.0, 'votes': {'verify': 1}, 'evidence_count': 1, 'tie': []}
+  [PASS] 双节点隐式学习可复现（v0.3 验收）  · A 与 B 各自都能统计到对方的跨节点证据
+  [PASS] 自描述声明诚实边界  · §9.1 单根假设——对端观测对本节点不可见
+
+P24 跨节点证据：29 passed, 0 failed
+
+[51/117] md_cg.test_p25_weights
+  [PASS] designer 是认知视角（3 项都涉及，不设零）  · class/excluded=None
+  [PASS] reflect 是认知视角（3 项都涉及，不设零）  · class/excluded=None
+  [PASS] verify 是认知视角（3 项都涉及，不设零）  · class/excluded=None
+  [PASS] record 是功能单元（身份即排除）  · excluded=predictability
+  [PASS] output 是功能单元（身份即排除）  · excluded=consistency
+  [PASS] sustain 是功能单元（身份即排除）  · excluded=version_alignment
+  [PASS] 不变量：excluded_exactly_once  · {'version_alignment': {'participants': 5, 'excluded_by': ['sustain']}, 'predictability': {'participants': 5, 'excluded_by': ['record']}, 'consistency': {'participants': 5, 'excluded_by': ['output']}}
+  [PASS] 不变量：exclusion_functional_only_once_each  · {'version_alignment': ['sustain'], 'predictability': ['record'], 'consistency': ['output']}
+  [PASS] 不变量：viewpoint_dominant_pairs_unit_exclusion  · {'reflect': 'record', 'verify': 'output', 'designer': 'sustain'}
+  [PASS] 不变量：functional_excludes_exactly_one  · {'designer': None, 'record': 'predictability', 'reflect': None, 'verify': None, 'output': 'consistency', 'sustain': 'version_alignment'}
+  [PASS] 不变量：excluded_is_lowest  · 排除分量序秩 0，严格低于其余分量
+  [PASS] 全部不变量通过
+  [PASS] 分量 version_alignment 恰被 1 处排除、参与 5/6  · exc=1 part=5
+  [PASS] 分量 predictability 恰被 1 处排除、参与 5/6  · exc=1 part=5
+  [PASS] 分量 consistency 恰被 1 处排除、参与 5/6  · exc=1 part=5
+  [PASS] 配对：designer 主导 == sustain 排除  · version_alignment vs version_alignment
+  [PASS] 配对：reflect 主导 == record 排除  · predictability vs predictability
+  [PASS] 配对：verify 主导 == output 排除  · consistency vs consistency
+  [PASS] 记录不猜 → 排除 位置可预测性
+  [PASS] 输出不记 → 排除 一致性
+  [PASS] 维生不对外 → 排除 版本对齐度
+  [PASS] 记录：一致性 > 版本对齐度 > 可预测性(≈0)
+  [PASS] 输出：可预测性 > 版本对齐度 > 一致性(≈0)
+  [PASS] 维生：一致性 > 可预测性 > 版本对齐度(≈0)
+  [PASS] 反思：主导=可预测性，另两项并列
+  [PASS] 验证：主导=一致性，另两项并列
+  [PASS] 设计者不参与日常评估（元参照系）
+  [PASS] 其余五位置参与日常评估
+  [PASS] 日常评估集合恰 5 项
+  [PASS] 记录：抬高主导分量(一致性)增益 > 抬高被排除分量  · 0.8333 > 0.5
+  [PASS] blend 标注权重未标定
+  [PASS] 权重和 = 1（归一化）
+  [PASS] links.position_preference 暴露偏好序  · {'preferred': ['consistency', 'version_alignment'], 'excluded': ['predictability'], 'primary': 'consistency', 'secondary': 'version_alignment'}
+  [PASS] catalog 声明位置权重模块
+  [PASS] 既有 cap 行为不变（对齐+有映射 → 0.8）
+  [PASS] 既有 cap 行为不变（版本不符 → 0.3）
+
+P25 位置权重：36 passed, 0 failed
+
+[52/117] md_cg.test_p26_refindex
+====================================================================
+md 认知图 P26 验收 · 代码索引 + 回读（index_code / op=ref）
+====================================================================
+
+【1】后缀注册表 / op 注册
+  [PASS] tokens.ALL_OPS 收录 index_code 与 ref
+  [PASS] EXTRACTORS 覆盖常用代码后缀  · .cjs,.js,.mjs,.py,.ts,.tsx
+  [PASS] 无提取器后缀显式报错（不静默降级成 Python 解析）
+  [PASS] op=ref 受权限层约束（ops_allow 未含 ref 即拒）
+
+【2】index_code：索引结果与覆盖缺口
+  [PASS] 直接抽取无错误  · []
+  [PASS] stats.files 只计命中后缀的文件  · files=3
+  [PASS] skipped_suffixes 报出无提取器后缀（可审计）  · ['.txt']
+  [PASS] 未触上限 → truncated=False
+  [PASS] op=index_code ok  · {'ok': True, 'indexed': 11, 'error_count': 0, 'errors': [], 'ids': ['code_6e388ec5622c', 'code_3b4a174522e2', 'code_2bd0
+  [PASS] indexed == 直接抽取条目数（无丢项）  · 11 == 11
+  [PASS] error_count == 0
+  [PASS] 只读契约：索引一轮后源文件 mtime 全不变
+  [PASS] 条目带 lang/precise/hash  · 21ee876e4460
+
+【3】提取器分派：精确 vs 弱提取（诚实降级）
+  [PASS] Python → AST 精确（basis=compiler）
+  [PASS] JS → 弱提取（precise=False/basis=other）
+  [PASS] TS → 弱提取（precise=False/basis=other）
+  [PASS] 类方法带父类归属（parent=Reactor）  · Reactor
+
+【4】render 产出 CCG（R1 核心修复 + Phase 0 契约裁决）
+  [PASS] render 不复制实现正文
+  [PASS] 合成区不冒充生效条件（源码未声明 → 无该行）  · # 功能名：compute_energy（def）
+  [PASS] 缺生效条件被诚实判定（complete=False 且恰缺该要素）  · ['生效条件']
+  [PASS] 合成区其余 5 要素齐备（不因缺条件整体失效）  · ['功能名', '子功能', '执行', '验证方式', '不适用条件']
+  [PASS] condition_space 四槽齐备  · ['existence_constraint', 'observation_position', 'observation_tool', 'time_window']
+  [PASS] 四槽合成出非空条件声明（单槽冒充已废止）  · 载体/位置：本地源码仓（大域=alpha.py）；时间：全时窗（任意时刻成立）；方法：compiler（AST 精确提取，区间精确到 end_lineno）；约束：源文件 alpha.py 存在于本地仓且可读
+  [PASS] 索引元条件独立成行且非 CCG 字段名  · # 索引元条件：载体/位置：本地源码仓（大域=alpha.py）；时间：全时窗（任意时刻成立）；方法：compiler（AST 精确提取，区
+  [PASS] 索引元条件 = 四槽同源（与 frontmatter 同一纯函数）  · # 索引元条件：载体/位置：本地源码仓（大域=alpha.py）；时间：全时窗（任意时刻成立）；方法：compiler（AST 精确提取，区间精确到 end_lineno）；约束：
+  [PASS] 时间槽用全时窗哨兵（不把写入时刻伪造成条件）  · [0.0, 9999999999.0]
+  [PASS] 源码声明的生效条件置首且逐字保留（未被压制）  · # 生效条件：mass > 0 且 speed >= 0
+  [PASS] 源码区先于合成区（人工优先的确定性序）  · ['# 生效条件：mass > 0 且 speed >= 0', '# 功能名：compute_energy（def）', '# 子功能：计算动能。']
+  [PASS] 弱提取在方法槽诚实降级（不冒充编译器）  · other（正则弱提取，未过编译器；区间为**上界**，以 op=ref 回读为准）
+
+【5】检索资格判定（Phase 0：合成区不冒充生效条件 → 诚实 BLINDSPOT）
+  [PASS] 代码节点可被检索到（存得进→查得到）  · hits=1
+  [PASS] 源码未声明生效条件 → BLINDSPOT（不再用索引元条件冒充 DEFER）  · BLINDSPOT
+  [PASS] 弱提取节点同样诚实缺证据（state=BLINDSPOT）  · BLINDSPOT
+
+【6】frontmatter.code_ref（指回源文件，不复制代码）
+  [PASS] code_ref 字段齐全  · ['end', 'hash', 'kind', 'lang', 'lineno', 'name', 'path', 'precise', 'render_version', 'root']
+  [PASS] code_ref.path 是相对根路径  · alpha.py
+  [PASS] code_ref.root 与索引根一致  · C:\Users\32203\AppData\Local\Temp\mdcg_refidx_ty_98cav\pkg
+  [PASS] verification_basis 落 frontmatter（compiler）  · compiler
+  [PASS] tags 标记为代码节点  · ['code', 'code:def', 'domain:alpha.py']
+  [PASS] frontmatter.condition_space 四槽齐备（单槽冒充已废止）  · ['existence_constraint', 'observation_position', 'observation_tool', 'time_window']
+  [PASS] frontmatter 条件空间与正文生效条件同源（同一纯函数）  · {'observation_position': '本地源码仓（大域=alpha.py）', 'time_window': [0.0, 9999999999.0], 'observation_tool': 'compiler（AST 精确提取，区间精确到 end_lineno）', 'existence_constraint': '源文件 alpha.py 存在于本地仓且可读'}
+  [PASS] 路由域由 domain: 标签显式承担（分桶结果与改造前逐字相同）  · alpha.py
+
+【7】op=ref 回读 + 漂移检测
+  [PASS] ref 回读成功  · {'ref': {'path': 'alpha.py', 'name': 'compute_energy', 'kind': 'def', 'lineno': 5, 'end': 7, 'lang': 'py', 'precise': Tr
+  [PASS] 回读到被索引的函数区间
+  [PASS] 索引侧与回读侧哈希一致（hash_match=True）  · 21ee876e4460
+  [PASS] 未漂移 → stale=False
+  [PASS] ref 转达 precise 语义（Python 精确）
+  [PASS] 源被改动 → hash_match=False（漂移可检出）  · 4749496bb7c2
+  [PASS] 漂移 → stale=True
+  [PASS] 重跑 index_code → 漂移消除（hash_match 恢复 True）  · 4749496bb7c2
+
+【8】op=ref 边界（缺 root / 无 code_ref / 节点不存在）
+  [PASS] ref 无 root → 明确报错（而非静默读错位置）  · ref 未记录 root，请显式传 root 参数（索引里存的是相对 root 的 path）
+  [PASS] 非代码节点 → 报无 code_ref  · 该节点没有 code_ref/doc_ref（不是索引节点）
+  [PASS] 节点不存在 → 明确报错  · 节点不存在：p26_absent
+
+【9】截断必须显式上报（不静默不完整）
+  [PASS] 触上限 → truncated=True  · files=1>=max_files=1
+  [PASS] truncated_reason 可归因（max_files）  · files=1>=max_files=1
+  [PASS] 截断时 note 明确警告不完整  · ⚠ 索引被截断，结果不完整（files=1>=max_files=1），调大 max_files/max_items 后
+
+【10】语法错误文件进 errors（不吞错）
+  [PASS] 坏文件 error_count>=1  · ['bad.py: bad.py:1: invalid syntax']
+  [PASS] errors 指向具体文件  · ['bad.py: bad.py:1: invalid syntax']
+
+【11】幂等（重跑 ≡ 首跑）与 reset_root 不删目录
+  [PASS] 重跑 index_code：knowledge 节点数不变（原子覆盖）  · 12 == 12
+  [PASS] 代码节点数 == 直接抽取条目数  · 11 - 1(plain) == 11
+  [PASS] reset_root 默认不清空目录（重跑不变性靠等号断言守门）  · 58 == 58
+
+====================================================================
+通过 59 / 失败 0
+====================================================================
+
+[53/117] md_cg.test_p27_docindex
+====================================================================
+md 认知图 P27 验收 · 文档索引（index_doc / doc_ref / op=ref）
+====================================================================
+
+【1】注册一致性 / 切块纪律（level<=3 + 小节点合并）
+  [PASS] 工具 op 枚举 == tokens.ALL_OPS（§七-11 防漏改）  · only-schema=[] only-ops=[]
+  [PASS] index_doc 已进 ALL_OPS
+  [PASS] 无文档提取器后缀显式报错
+  [PASS] 切块只产出 3 个节点（小节点已合并）  · n=3 heads=['9. 分阶段实施', '代码示例', '总览']
+  [PASS] 围栏内的 # 不是标题（假标题零泄漏）  · ['9. 分阶段实施', '代码示例', '总览']
+  [PASS] 总览区间覆盖至文末（未被假标题截断）  · end=35
+  [PASS] YAML frontmatter 未被当正文（总览起始行=6）  · lineno=6
+  [PASS] 9. 章节区间正确（10-21）  · 10-21
+  [PASS] heading_path 反映嵌套  · ['总览', '9. 分阶段实施']
+  [PASS] anchor 生成正常  · 9-分阶段实施
+  [PASS] 小节点正文并入父节摘要（不丢内容）  · 表格与正文说明。 阶段 | 内容 | ---|---| R1 | 索引 |；一行小注。
+  [PASS] 文末小节点正文并入其父节摘要  · ```python 这不是标题 也不是标题 def f(): return 1 ```；收尾正文。
+  [PASS] 只切 level<=3（条目层级均 <=3）  · [1, 2, 2]
+
+【2】render 产出 CCG（否则恒定 BLINDSPOT）
+  [PASS] CCG 5 要素齐全  · ['功能名', '生效条件', '子功能', '执行', '验证方式', '不适用条件']
+  [PASS] CCG 6 行全在
+  [PASS] 不存全文（不逐字复制整节 + 摘要栏封顶）  · exec_len=48
+  [PASS] condition_space 四槽齐备  · ['existence_constraint', 'observation_position', 'observation_tool', 'time_window']
+  [PASS] 四槽合成出非空生效条件（单槽冒充已废止）  · 载体/位置：本地文档仓（大域=guide.md）；时间：全时窗（任意时刻成立）；方法：md（md 章节切分，level≤3；只存标题+摘要，正文留在源文件）；约束：源文档 guide.md 存在于本地仓且可读
+  [PASS] 正文生效条件 = 四槽合成结果（正文与 frontmatter 同源）  · 载体/位置：本地文档仓（大域=guide.md）；时间：全时窗（任意时刻成立）；方法：md（md 章节切分，level≤3；只存标题+摘要，正文留在源文件）；约束：源文档 guide.md 存在于本地仓且可读
+  [PASS] 时间槽用全时窗哨兵（不把索引时刻伪造成条件）  · [0.0, 9999999999.0]
+
+【3】index_doc：落盘 / 密级 / 层（§1.3-3 裁定）
+  [PASS] op=index_doc ok  · {'ok': True, 'indexed': 4, 'error_count': 0, 'errors': [], 'ids': ['doc_d7e04aac22d7', 'doc_01f6b1c10edc', 'doc_9b0fd479
+  [PASS] indexed == 4（guide 3 + secret 1）  · 4
+  [PASS] error_count == 0  · []
+  [PASS] files 只计 .md（2）  · 2
+  [PASS] skipped_suffixes 报出 .txt  · ['.txt']
+  [PASS] layer 默认 knowledge
+  [PASS] 密级默认 internal、私有目录降 private  · {'internal': 3, 'private': 1}
+  [PASS] guide 节点密级 frontmatter 显式 internal  · internal
+  [PASS] guide 节点 layer=knowledge
+  [PASS] verification_basis=data（文档以原文为准）
+  [PASS] frontmatter.condition_space 四槽齐备（单槽冒充已废止）  · ['existence_constraint', 'observation_position', 'observation_tool', 'time_window']
+  [PASS] frontmatter 条件空间与正文生效条件同源（同一纯函数）  · {'observation_position': '本地文档仓（大域=guide.md）', 'time_window': [0.0, 9999999999.0], 'observation_tool': 'md（md 章节切分，level≤3；只存标题+摘要，正文留在源文件）', 'existence_constraint': '源文档 guide.md 存在于本地仓且可读'}
+  [PASS] 路由域由 domain: 标签显式承担（分桶结果与改造前逐字相同）  · guide.md
+  [PASS] 私有目录文档密级=private（保守降级）  · private
+  [PASS] 只读契约：索引不触碰源文件
+
+【4】frontmatter.doc_ref（指回原文，不存全文）
+  [PASS] doc_ref 字段齐全  · ['anchor', 'end', 'hash', 'heading', 'heading_path', 'lang', 'level', 'lineno', 'path', 'precise', 'root']
+  [PASS] doc_ref 指向相对路径与源行号  · {'path': 'guide.md', 'lineno': 10, 'end': 21}
+  [PASS] 正文含 --- 未污染 frontmatter（doc_ref 可正常读回）  · ['总览', '9. 分阶段实施']
+
+【5】检索资格（文档节点不得是 BLINDSPOT）
+  [PASS] 文档节点可被检索到  · hits=1
+  [PASS] CCG 完整 → state=DEFER（v2：情境未确认条件不冒充接受，非 BLINDSPOT）  · DEFER
+
+【6】op=ref 回读文档区间 + 漂移
+  [PASS] ref 回读成功且识别为 doc_ref  · doc_ref
+  [PASS] 回读文本 = 源章节（含标题与表格行）
+  [PASS] hash_match=True（索引侧与回读侧同算法）  · 62ae6403673d
+  [PASS] 文档改动 → stale 可检出  · 1f83c85f51ba
+  [PASS] 重跑 index_doc → 漂移消除
+
+【7】显式覆盖与截断上报
+  [PASS] sensitivity 参数可覆盖默认  · {'public': 4}
+  [PASS] 覆盖后 frontmatter 密级=public
+  [PASS] 触 max_files → truncated=True  · files=1>=max_files=1
+  [PASS] 截断时 note 明确警告  · ⚠ 索引被截断，结果不完整（files=1>=max_files=1），调大 max_files/m
+
+【8】幂等（重跑 ≡ 首跑）
+  [PASS] 重跑节点数不变（按 id 原子覆盖，不清目录）  · 1127 vs 1127
+  [PASS] 重跑 id 集合稳定（幂等）  · ['doc_d7e04aac22d7', 'doc_01f6b1c10edc', 'doc_9b0fd479e707', 'doc_61a8bffa512c']
+
+【9】真实 docs/：章节可定位、行号与源一致、可检索
+  [PASS] docs/ 全部 md 被索引（无静默跳过）  · files=68/68 errs=0
+  [PASS] skip_dirs 实际排掉的目录被回报（排除不静默）  · ['experiments']
+  [PASS] §9 章节被切出（真实文档）  · 9. 分阶段实施（稳健）
+  [PASS] 行号与源文件一致（可定位）  · 491 == 491
+  [PASS] §9 表可被检索到且可判（state=DEFER，非 BLINDSPOT）  · DEFER
+  [PASS] 回读到 §9 表原文（给出行号区间）  · L491-L516
+
+【9b】skip_dirs：追加排除（只增不减）+ 结果可审计
+  [PASS] skip_dirs 缺省时判定器为空（默认行为与改造前逐字一致）  · None []
+  [PASS] 不给 skip_dirs：内置排除照旧（node_modules 不计入）  · files=4 skip=[]
+  [PASS] 不含 / 的规则按目录名匹配（各层级同名目录都排） · 且内置排除不可被关闭（node_modules 仍被排）  · files=1 skip=['docs/experiments', 'sub/experiments']
+  [PASS] 含 / 的规则按相对路径匹配（只排这一处）  · files=2 skip=['docs/experiments']
+  [PASS] 规则先归一（反斜杠/首尾斜杠）再匹配，不静默失配  · files=2 skip=['docs/experiments']
+
+【10】节点级对账：改标题 → 清退过期代（消除重复召回）
+  [PASS] 首轮：节点在库  · n=1
+  [PASS] 首轮无孤儿（清退计数 0）  · {'scanned': 1128, 'touched_files': 3, 'dry_run': False, 'ok': True, 'count': 0, 'pruned': [], 'skipped_protected': [], 'reason': '索引重建：本节点已不在同文档新代产出中（标题路径变更致 node_id 重算），清退过期代以消除重复召回'}
+  [PASS] 改标题后新代上台  · n=1
+  [PASS] 旧代被清退（新旧不并存）  · 残留=[]
+  [PASS] 清退数量上报  · {'scanned': 1129, 'touched_files': 3, 'dry_run': False, 'ok': True, 'count': 1, 'pruned': ['doc_b900e1294694'], 'skipped_protected': [], 'reason': '索引重建：本节点已不在同文档新代产出中（标题路径变更致 node_id 重算），清退过期代以消除重复召回'}
+  [PASS] prune_dry_run 只列不清（节点仍在库）  · {'scanned': 1129, 'touched_files': 3, 'dry_run': True, 'ok': True, 'count': 1, 'pruned': ['doc_3fcfa43bec82'], 'skipped_protected': [], 'reason': '索引重建：本节点已不在同文档新代产出中（标题路径变更致 node_id 重算），清退过期代以消除重复召回'}
+  [PASS] 随后实际清退 → 旧代消失
+  [PASS] prune=false 可关闭（不清退）  · None
+  [PASS] 截断时不清退（没扫完 ≠ 剩下都过期）  · truncated=True
+
+【10b】悬空清退：源文件删除 → op=ref action=prune 处置
+  [PASS] 删源后 check 报悬空  · 1→3
+  [PASS] prune_dry_run 列出待清退但不删  · {'scanned': 1129, 'candidates': 2, 'ghosts': 0, 'dry_run': True, 'truncated': False, 'max_nodes': 2000, 'ok': True, 'count': 2, 'p
+  [PASS] prune 清退悬空节点  · {'scanned': 1129, 'candidates': 2, 'ghosts': 0, 'dry_run': False, 'truncated': False, 'max_nodes': 2000, 'ok': True, 'count': 2, '
+  [PASS] 清退后悬空归零  · []
+  [PASS] 清退后重开不复活幽灵条目  · 复活=[]
+  [PASS] 幽灵条目被清退（索引有、文件无）  · {'scanned': 1128, 'candidates': 0, 'ghosts': 1, 'dry_run': False, 'truncated': False, 'max_nodes': 2000, 'ok': True, 'count': 0, '
+  [PASS] 清幽灵后悬空仍为零  · []
+
+【11】fence 往返列：形状 / 键不含行位 / 校验 / 漂移 / 反查
+  [PASS] 必需列齐全且无空值  · ['anchor', 'end', 'hash', 'lineno', 'path', 'root']
+  [PASS] 列面 = 必需列 + 附加列（无第二份列口径）  · []
+  [PASS] 必需列/附加列 ⊆ 写侧 doc_ref 列（读写同一列面）  · []
+  [PASS] binding_of 与直接读 frontmatter 同源（同一投影）
+  [PASS] binding_of 对非索引节点返回 None（不猜、不补默认值）
+  [PASS] validate_binding：本仓卡片列形状合法（ok + 零 issue）  · {'ok': True, 'issues': []}
+  [PASS] validate_binding：非 dict 如实报错且不抛
+  [PASS] validate_binding 逐类坏列均被点出（缺列/类型错/越界/区间倒置）
+  [PASS] 键不含行位：行位位移不改键（重排后仍是同一章节）  · guide.md#总览/9. 分阶段实施
+  [PASS] 漂移按固定列序报出变化项（lineno → end → hash）  · ['lineno', 'end']
+  [PASS] 同列零漂移（无变化不报 / 空值不炸）
+  [PASS] binding_key 缺 heading_path 回落 path#anchor · 非 dict 返空串
+  [PASS] binding_slug 与 render 正文「本条目属于」逐字同源  · guide.md#9-分阶段实施
+  [PASS] 反查取最内层（父节区间内的子节优先，不回落父节）  · 9. 分阶段实施
+  [PASS] 反查区间闭合（标题行与末行都算本节）
+  [PASS] 反查越界/非整数/空表 → None（fail-closed 不猜）
+
+【12】逐字节回放回归：render(条目) + 换行 == 卡片正文
+      取样 1127 卡：一致 1127 · 键未命中 0 · 源已移出 0 · 读不了 0
+  [PASS] 回放取样命中卡片（root 限定=本次索引的两个真源）  · 1127
+  [PASS] 可读卡 100% 逐字节回放一致（写侧 render 与读侧同源）  · 一致 1127/1127；
+  [PASS] 零键未命中 / 零源已移出 / 零读不了（源在库则必可重定位并读回）  · 键未命中=0 源已移出=0 读不了=0
+  [PASS] 回放账目闭合（一致 + 键未命中 + 源已移出 + 读不了 = 取样数）  · 1127+0+0+0 vs 1127
+
+【12b】历史抽样：外部认知图库 E:\New Documents\资料\活动\一般\Deeptalk\tools\MCP\Alpha-Memory\data\mdcg（只读身份）
+      抽样 0 卡：一致 0 · 键未命中 0 · 源已移出 0 · 读不了 0
+  [SKIP] 【12b】历史库目录存在但无可抽样文档卡——私密数据面不作为源码发布前置条件
+
+====================================================================
+通过 98 / 失败 0
+====================================================================
+
+[54/117] md_cg.test_p28_refcheck
+====================================================================
+md 认知图 P28 验收 · ref 增量索引 + 漂移/悬空巡检（R3）
+====================================================================
+
+【1】统一 ref 协议与提取器注册表
+  [PASS] tokens.ALL_OPS 仍收录 ref / index_code
+  [PASS] REF_KEYS = (code_ref, doc_ref)  · ('code_ref', 'doc_ref')
+  [PASS] 注册表覆盖 code_ref / doc_ref  · ['code_ref', 'doc_ref']
+  [PASS] kind_of_path 按后缀判 kind  · py=code_ref md=doc_ref
+  [PASS] 无提取器后缀显式报错（不静默）
+
+【2】index_code 全量 + _refindex.json 水位
+  [PASS] op=index_code ok  · {'ok': True, 'indexed': 6, 'error_count': 0, 'errors': [], 'ids': ['code_6e388ec5622c', 'code_3b4a174522e2', 'code_2bd0c
+  [PASS] files == 2（命中后缀）  · 2
+  [PASS] indexed > 0 且 error_count == 0
+  [PASS] _refindex.json 落盘  · E:\New Documents\资料\活动\一般\Deeptalk\tools\MCP\Alpha-Memory\engine\_md_cg_p28\_refindex.json
+  [PASS] 水位 files == 2  · 2
+  [PASS] 水位 nodes == 本轮 indexed  · 6 == 6
+
+【3】增量索引：未变文件不重切（修 F）
+  [PASS] incremental 跳过未变文件  · 2
+  [PASS] incremental 下 indexed == 0（没有重复条目）  · 0
+  [PASS] 增量后节点数不变（幂等）  · 6 == 6
+  [PASS] 默认（不传 incremental）仍是全量：不跳过  · 0
+  [PASS] 重跑 id 集合稳定  · 6 vs 6
+
+【4】op=ref 回读 + 检索结果带 ref / ref_kind
+  [PASS] op=ref read ok  · {'ref': {'path': 'alpha.py', 'name': 'alpha.py', 'kind': 'module', 'lineno': 1, 'end': 16, 'lang': 'py', 'precise': True
+  [PASS] ref_kind == code_ref  · code_ref
+  [PASS] 回读带 hash_match（源未动 → True）  · True
+  [PASS] 检索结果带 ref / ref_kind 字段  · hits=1
+  [PASS] 检索的 ref 指回源文件  · {'path': 'alpha.py', 'name': 'compute_energy', 'kind': 'def', 'lineno': 5, 'end': 7, 'lang': 'py', 'precise': True, 'hash': '21ee876e4460', 'root': 'C:\\Users\\32203\\AppData\\Local\\Temp\\mdcg_refcheck_wnecqw59\\pkg', 'render_version': 2}
+
+【5】漂移检测：改源一行 → stale（只读、不抛）
+  [PASS] action=check 返回 ok  · <class 'dict'>
+  [PASS] check 判定 ok=False（有漂移）  · False
+  [PASS] 报出 stale 且指向 alpha.py  · ['alpha.py', 'alpha.py']
+  [PASS] 巡检只读：源文件 mtime 不变
+  [PASS] 回读陈旧 ref → hash_match=False / stale=True  · False
+  [PASS] 重跑 index_code 后 stale 消除  · []
+
+【6】悬空检测：删源文件 → dangling
+  [PASS] 报出 dangling 且指向 beta.py  · ['beta.py', 'beta.py']
+  [PASS] dangling 时 ok=False
+  [PASS] 恢复源并重建后 dangling 消除  · []
+
+【7】截断显式上报 + 写进水位
+  [PASS] max_files=1 → truncated=True
+  [PASS] truncated_reason 指出 max_files  · files=1>=max_files=1
+  [PASS] action=stat 返回水位与 last_index  · {'path': 'E:\\New Documents\\资料\\活动\\一般\\Deeptalk\\tools\\MCP\\Alpha-Memory\\engine\\_md_cg_p28\\_refindex.json', 'schem
+  [PASS] 水位记下 last_index.truncated=True
+  [PASS] 重跑全量后 last_index.truncated 回 False
+
+【8】接入 sustain：diagnose 报 ref_stale，heal 的 rebuild_refs 修复
+  [PASS] diagnose issues 含 ref_stale  · ['heartbeat_absent', 'importance_drift', 'index_log_backlog', 'ref_stale']
+  [PASS] diagnose stats 报 ref_stale / ref_checked  · 2
+  [PASS] 巡检不改源文件（改动仍在）
+  [PASS] heal 动作含 rebuild_refs  · ['rebuild_refs', 'flush_index', 'importance']
+  [PASS] heal 后 ref_stale 消除  · ['heartbeat_absent', 'importance_drift', 'index_log_backlog']
+  [PASS] heal 不修改源文件
+
+【9】_refindex.json 不膨胀 / 未知 action 不静默
+  [PASS] _refindex.json 体积有界（< 20KB）  · 1488B
+  [PASS] 重跑 3 次不膨胀  · 1488 -> 1488
+  [PASS] 水位 files 仍 == 2（无幽灵条目）  · 2
+  [PASS] 未知 action 不静默成功
+
+====================================================================
+通过 45 / 失败 0
+====================================================================
+
+[55/117] md_cg.test_p29_session_ingest_export
+====================================================================
+md 认知图 P29 验收 · 会话层 / 摄取分派 / 全库导出（P0）
+====================================================================
+
+【1】op 契约链：ALL_OPS == 工具 schema == 分发
+  [PASS] 工具 op 枚举 == tokens.ALL_OPS（防漏改）  · only-schema=[] only-ops=[]
+  [PASS] session / ingest / export 已进 ALL_OPS
+  [PASS] ALL_OPS 数量 ≥ 28（25 + P0 三项；P1/P2 会继续递增）  · 36
+  [PASS] sources 注册表是分派唯一真源
+
+【2】session：note / recall / compact
+  [PASS] note 写入成功  · {'ok': True, 'id': 'sess_083e2308089e', 'session': 'S1', 'layer': 'contextual', 'basis': 'data', 'tokens': 72, 'status_h
+  [PASS] 节点 id 以 sess_ 开头  · sess_083e2308089e
+  [PASS] note 幂等：同要点重复写入同 id
+  [PASS] note 幂等：节点数不增  · 1 == 1
+  [PASS] note 节点 CCG 齐备（生效条件 + 验证方式）
+  [PASS] recall 返回 ok  · {'ok': True, 'session': 'S1', 'source': 'session_recall', 'notes': [{'id': 'sess_083e2308089e', 'session': '', 'created_
+  [PASS] recall 命中该会话要点  · ['sess_083e2308089e']
+  [PASS] recall 含 goals / recent / unresolved 字段  · ['budget_tokens', 'degraded', 'goals', 'hint', 'note', 'notes', 'ok', 'recent', 'self_state', 'session', 'source', 'status_head', 'status_heads', 'tasks', 'tasks_truncated', 'tokens', 'truncated', 'unresolved']
+  [PASS] recall 带预算字段且不超预算  · 139 <= 1200
+  [PASS] 小预算：受预算约束或显式 truncated  · tokens=139 truncated=False
+  [PASS] compact 返回 ok 且标记 heuristic
+  [PASS] compact 给出 summary 与 roles
+  [PASS] compact note=True 落盘会话要点  · sess_1a51d00dada6
+
+【3】ingest：file / dir / jsonl / stat
+  [PASS] stat 返回注册表与支持面  · ['code', 'doc', 'session']
+  [PASS] stat 带水位字段
+  [PASS] dir dry_run 只统计不写  · {'code': 1, 'doc': 1, 'session': 1}
+  [PASS] file 摄取 md 成功且有条目  · {'ok': True, 'kind': 'doc', 'path': 'C:\\Users\\32203\\AppData\\Local\\Temp\\mdcg_p29_mxzqb7m_\\src\\guide.md', 'items': 2, 'indexed': 2, 'i
+  [PASS] file 重复摄取幂等（节点数不增）  · 4 == 4
+  [PASS] 不支持后缀显式报错（不静默）  · 不支持的后缀：.xyz
+  [PASS] jsonl 会话摄取成功  · {'source': 'session:src', 'new_events': 2, 'written': 2, 'denied': 0, 'ids': ['src_716e05_837f04f2c0', 'src_716e05_d017d9a58d'], 'dry_run': 
+  [PASS] jsonl 识别为会话日志源  · SessionLogSource
+  [PASS] jsonl 实际写入会话事件  · 2
+  [PASS] jsonl 幂等：重摄取无新事件  · 0
+  [PASS] dir 摄取返回 doc / code / session 三链  · ['code', 'doc', 'session']
+  [PASS] dir 增量下文档链跳过未变文件
+
+【4】export：graph / slice / nodes / stat（流式 JSONL）
+  [PASS] stat 返回 ok 且 total == 节点数  · 8 vs 8
+  [PASS] stat 带层分布与时间范围
+  [PASS] graph 导出 ok  · {'ok': True, 'out': 'C:\\Users\\32203\\AppData\\Local\\Temp\\mdcg_p29_mxzqb7m_\\out\\dump.jsonl', 'written': 8, 'skipped_unreadable': 0, 'by
+  [PASS] 导出文件落盘
+  [PASS] 流式统计：written + skipped_unreadable == 可见节点  · 8+0 vs 8
+  [PASS] 导出行数 == written  · 8 vs 8
+  [PASS] 导出行含 id / layer / content
+  [PASS] 导出体积与字节数一致
+  [PASS] slice 只导出指定层  · {'contextual': 4}
+  [PASS] nodes 按 id 导出 1 条  · {'ok': True, 'out': 'C:\\Users\\32203\\AppData\\Local\\Temp\\mdcg_p29_mxzqb7m_\\out\\one.jsonl', 'written': 1, 'skipped_
+  [PASS] nodes 无缺失上报 missing=[]
+  [PASS] nodes 缺失 id 显式上报  · ['no_such_node']
+
+【5】权限：受限角色可 recall、不可 note；非 admin 不可 export
+  [PASS] 无写权角色可 recall（只读）
+  [PASS] 无写权 → session note 被拒（AccessDenied）
+  [PASS] 非 admin → export 被拒（AccessDenied）
+  [PASS] 无写权 → ingest 被拒（AccessDenied）
+
+【6】未知 action 不静默成功
+  [PASS] session 未知 action 不静默成功
+  [PASS] ingest 未知 action 不静默成功
+  [PASS] export 未知 action 不静默成功
+
+====================================================================
+通过 48 / 失败 0
+====================================================================
+
+[56/117] md_cg.test_p2_mcp
+
+【1】握手与工具发现
+  [PASS] initialize 返回协议版本  · {'jsonrpc': '2.0', 'id': 1, 'result': {'protocolVersion': '2024-11-05', 'capabilities': {'tools': {}
+  [PASS] tools/list 返回工具面  · 33 个
+  [PASS] 细粒度工具名以 mdcg_ 前缀  · cg,mdcg_causal,mdcg_consistency,mdcg_evolution,mdcg_flywheel,mdcg_forget ...
+
+【2】写 / 读
+  [PASS] mdcg_remember 成功  · {'ok': True, 'id': 'n1'}
+  [PASS] mdcg_get 读回内容  · {'id': 'n1', 'path': 'knowledge/orphan/n1.md', 'frontmatter': {'access_count': 0
+
+【3】检索 / 召回
+  [PASS] mdcg_search 有结果  · 2 条
+  [PASS] search 自报 tier  · {'tier': 'T2_global_like', 'scanned': 1, 'bucket': None, 'candidates': 1, 'pre_c
+  [PASS] mdcg_recall 返回记忆包  · used=40/500
+  [PASS] mdcg_recall 可启用第 6 路 semantic  · {'lexical': 1, 'bucket': 0, 'entity': 0, 'graph': 0, 'semantic': 1}
+  [PASS] semantic 路对 n1 有贡献（provenance 可审计）  · [{'path': 'lexical', 'rank': 1}, {'path': 'semantic', 'rank': 1}]
+
+【4】负记忆 / 未解 / 飞轮 / 反思
+  [PASS] mdcg_rejected 写入负记忆  · {'id': 'rej_f0d3867b40'}
+  [PASS] mdcg_unresolved 写入未解  · {'id': 'unr_5fd44d5be6'}
+  [PASS] mdcg_flywheel 产出 unresolved  · {'unresolved_id': 'unr_f70d363c27', 'question': '为何 红按钮 出现 BLINDSPOT 而期望 ACCEPT？
+  [PASS] mdcg_reflect 记录信息差 D  · {'d_curr': 1.0, 'd2': 0.0}
+
+【5】审核队列
+  [PASS] mdcg_propose 入队  · {'pid': 'prop_c14f0737b3cf', 'dedup': False}
+  [PASS] mdcg_review_list 列出待审  · 1 条
+  [PASS] mdcg_review_decide accept  · {'pid': 'prop_c14f0737b3cf', 'decision': 'accept', 'round': 1, 'redteam': 'absent', 'ok': True, 'node_id': 'p1', 'record_node_id': 'rev_c14f0737b3cf_r1', 'record_hash': 'e30f470756a3ea0c1ff0ad410a027c7d28486995'}
+
+【6】tombstone / 恢复
+  [PASS] mdcg_forget 软删除  · {'ok': True, 'id': 'n1', 'tombstone': '5fe5ea7ccb98d366'}
+  [PASS] mdcg_restore 被删除检查拦截  · {'ok': False, 'error': 'tombstoned', 'reason': 'mcp 测试', 't': 1790056445.026854}
+  [PASS] mdcg_restore force 成功  · {'ok': True, 'id': 'n1', 'forced': True}
+
+【7】fix pairs / health / service_info
+  [PASS] mdcg_mine_fix_pairs 产出修复知识  · {'pairs': [{'error': 'Traceback (most recent call last):', 'fix': 'pip install bar'}], 'rejected_ids
+  [PASS] mdcg_health 返回 OS 指标  · {'roles': {'(none)': 8, 'tool-output': 1}, 'review_pending': 0, 'review_records': 1, 'tombstones': 1
+  [PASS] mdcg_service_info 返回身份/工具数  · {'server': 'mdcg-mcp', 'version': '0.4.11', 'protocol': '2024-11-05', 'root': 'C:\\Users\\32203\\App
+
+【8】错误处理
+  [PASS] 未知工具返回 error 而非崩溃  · {'error': 'ValueError: 未知工具：mdcg_nonexistent_tool'}
+  [PASS] 错误后服务仍可用  · {'id': 'n1', 'path': 'knowledge/orphan/n1.md', 'frontmatter'
+
+【9】权限（无 can_admin 的管理操作被拒）
+  [PASS] 无 can_admin 的 forget 被拒  · {'error': 'AccessDenied: actor=readonly 无管理权限（forget）'}
+  [PASS] mdcg_whoami 报告权限  · {'tenant': 'default', 'actor': 'readonly', 'clearance': 'internal', 'can_write': True, 'can_admin': 
+
+【10】设备驱动（ingest / watermarks）
+  [PASS] mdcg_ingest 增量摄取  · {'source': 'jsonl:sess.jsonl', 'new_events': 3, 'written': 3, 'denied': 0, 'ids': ['src_412c81_77338a3809', 'src_412c81_013e25f6b4
+  [PASS] mdcg_ingest 幂等（重复无新增）  · {'source': 'jsonl:sess.jsonl', 'new_events': 0, 'written': 0, 'denied': 0, 'ids': [], 'dry
+  [PASS] mdcg_watermarks 记录水位  · {'watermarks': {'jsonl:sess.jsonl': {'t': 1780000002000.0, 'seq': 2, 'count': 3, 'updated_at': 1790056445.4229
+
+【10b】会话写入需 private clearance
+  [PASS] clearance 不足时写入被拒并报告  · {'source': 'jsonl:sess2.jsonl', 'new_events': 1, 'written': 0, 'denied': 1, 'ids': [], 'dry_run': False, 'sensitivity': 'private',
+
+【11】基元暴露面（kernel 默认）
+  [PASS] kernel 只暴露 2 个基元  · ['cg', 'stg']
+  [PASS] cg info 自描述审核体系  · ['code', 'image_desc', 'text', 'permission', 'work_done', 'work_wip', 'ccg_marks', 'hyperedge']
+  [PASS] cg info 自描述 CCG 契约角色（裁定 B）  · {'功能名': '签名 signature（可执行入口符号）', '生效条件': '前置条件 precondition', '子功能': '内部子功能分解 self_decomposition ／ 依赖 dependency（双语义，以 @
+  [PASS] 未验证的写入进审核队列  · {'ok': True, 'id': 'kw1', 'pid': 'prop_8d8989f7f2ed', 'committed': False, 'moved_to': 'review_queue', 'verdict': {'state': 'DEFER', 'kind': 
+  [PASS] cg route 返回知识与建议能力名  · []
+  [PASS] stg timeline 可查  · 13
+
+【12】主动遗忘闸门 / 写保护
+  [PASS] gated 首写 ACCEPT  · {'verdict': 'ACCEPT', 'node_id': 'g1', 'gate': {'verdict': 'ACCEPT', 'reason': '重要度 0.60≥0.3', 'redundancy': {
+  [PASS] gated 确定性内部冗余 → DROP（不落库）  · {'verdict': 'DROP', 'node_id': 'g2', 'gate': {'verdict': 'DROP', 'limiter': 'exact_dup', 'target': 'g1', 'reason': 'exact_dup_of:g
+  [PASS] DROP 未新增节点  · None
+  [PASS] importance_hint≥0.7 保护优先 → ACCEPT  · {'verdict': 'ACCEPT', 'node_id': 'g3', 'gate': {'verdict': 'ACCEPT', 'reason': '重要度 0.90≥0.7（触发不可遗忘保护）', 'redu
+  [PASS] mdcg_forgetting_history 四态留痕可查  · ['ACCEPT', 'DROP', 'ACCEPT']
+  [PASS] mdcg_protect stats 盘点保护面  · {'protected_count': 3, 'immutable_count': 1, 'by_layer': {'self': 1, 'knowledge': 1, 'contextual': 1}, 'auto_b
+  [PASS] mdcg_protect check：self 层不可遗忘且不可覆盖  · {'node_id': 'self_x', 'exists': True, 'protected': True, 'reason': '层保护：self（不可遗忘层）', 'immutable': True, 'immutable_reas
+  [PASS] 受保护节点 forget 被拒（不可遗忘）  · {'error': 'ProtectionError: 节点 self_x 不可遗忘（层保护：self（不可遗忘层））；删除需显式 override=True'}
+  [PASS] override 后 forget 放行（快照 + 留痕）  · {'ok': True, 'id': 'self_x', 'tombstone': 'cc765528ec59bbcc'}
+  [PASS] mdcg_protect mark 打保护标记  · {'node_id': 'markme', 'protected': True, 'reason': 'MCP 显式保护'}
+  [PASS] 标记后不可遗忘  · {'error': 'ProtectionError: 节点 markme 不可遗忘（MCP 显式保护）；删除需显式 override=True'}
+  [PASS] 标记保护不阻断幂等更新（不可遗忘≠不可覆盖）  · {'ok': True, 'id': 'markme'}
+  [PASS] cg op=protect 与 mdcg_protect 同源  · {'protected_count': 3, 'immutable_count': 1, 'by_layer': {'self': 1, 'knowledge': 1, 'cont
+  [PASS] cg op=write gated 落库并附闸门裁决  · {'ok': True, 'id': 'wg1', 'committed': True, 'gate': {'verdict': 'ACCEPT', 'node_id': 'wg1', 'gate': {'verdict': 'ACCEPT', 'reason': '重要度 0.
+  [PASS] cg op=write gated 冗余 → DROP  · {'ok': False, 'id': 'wg2', 'committed': False, 'gate': {'verdict': 'DROP', 'node_id': 'wg2', 'gate': {'verdict': 'DROP', 'limiter': 'exact_d
+  [PASS] cg op=write 冲突默认拦截 → 进审核队列  · {'ok': False, 'id': 'wc_bad', 'pid': 'prop_ee46faa59ce9', 'committed': False, 'moved_to': 'review_queue', 'consistency': {'t': 1790056445.9454353, 'la
+  [PASS] cg op=write on_conflict=reject 明确拒绝  · {'ok': False, 'id': 'wc_bad2', 'committed': False, 'moved_to': 'conflict_rejected', 'consistency': {'t': 1790056445.9536688, 'layer': 'knowledge', 've
+  [PASS] health 报告 protection / forgetting 面  · {'total': 5, 'by_verdict': {'ACCEPT': 3, 'DROP': 2}}
+
+【13】身份特征识别
+  [PASS] mdcg_identity observe 记行为证据（memory 接口）  · {'ok': True, 'node_id': 'identity_obs_agent_rec_75c40a0e62', 'subject_id': 'agent:rec', 'kind': 'age
+  [PASS] profile 推断位置效应=记录单元  · record/记录单元
+  [PASS] anchor 落锚点层且不可遗忘  · {'ok': True, 'node_id': 'identity_role_whale', 'subject_id': 'role:whale', 'kind': 'role', 'layer': 
+  [PASS] 扮演论边界：role 不得进 self 层  · {'error': 'ValueError: 扮演论边界：角色/用户锚点不得写入 self 层（self 层是Alpha自身锚点，需设计者验证）'}
+  [PASS] trait 写条件特征（values 接口，落结构层）  · {'ok': True, 'node_id': 'identity_trait_role_whale_b890b4a71d', 'subject_id': 'role:whale', 'kind': 
+  [PASS] positions 给出主体位置分布  · ['unknown', 'record']
+  [PASS] catalog 五单元 + 三接口自描述  · ['record', 'reflect', 'verify', 'output', 'sustain']
+  [PASS] cg op=identity 与 mdcg_identity 同源  · record
+  [PASS] health 报告 identity 面  · {'subjects': 2, 'by_position': {'unknown': 1, 'record': 1}, 'audit_records': 3}
+
+====================================================================
+通过 64 / 失败 0
+====================================================================
+
+[57/117] md_cg.test_p3
+
+【#2-1】Principal / 密级
+  [PASS] public 只能看 public  · clearance=public
+  [PASS] private 能看 internal 与 private
+
+【#2-2】写隔离
+  [PASS] public 可写 public
+  [PASS] public 写 internal 被拒  · 写入敏感度 internal 超出 clearance public
+  [PASS] clearance<secret 写 secret 被拒  · 写入敏感度 secret 超出 clearance private
+
+【#2-3】读隔离（search / get 一致）
+  [PASS] public 读不到 internal 节点
+  [PASS] public 读不到 private 节点
+  [PASS] public 检索结果全部 public  · ['pub1']
+  [PASS] private 检索能看到 private 节点  · ['int1', 'prv1']
+  [PASS] recall 同样受密级过滤  · ['pub1']
+
+【#2-4】管理隔离
+  [PASS] 无 can_admin 的 forget 被拒  · actor=web 无管理权限（forget）
+
+【#2-5】租户注册表（公开/私有物理隔离）
+  [PASS] 租户 root 注册
+  [PASS] 调用方 clearance 被租户上限夹紧  · public
+  [PASS] 公开根在仓库内 / 私有根在仓库外
+
+【#2-6】审计带 tenant/session
+  [PASS] 审计含 tenant  · {'t': 1790056446.178495, 'op': 'add', 'id': 'prv1', 'actor': 'owner', 'session': 'sess_a02
+  [PASS] 审计含 session  · {'t': 1790056446.178495, 'op': 'add', 'id': 'prv1', 'actor': 'owner', 'session': 'sess_a02
+  [PASS] whoami 报告可见/总节点数  · {"nodes_visible": 3, "nodes_total": 3}
+  [PASS] health_os 报告 security  · {"tenant": "private", "clearance": "private", "sensitivity_counts": {"public": 1, "internal": 1, "private": 1}
+
+【#3-1】JsonlSource
+  [PASS] JsonlSource 解析事件  · 4 条
+  [PASS] JsonlSource 保留 role/seq  · {"t": 1780000001000.0, "seq": 1, "role": "tool-output", "text": "Traceback (most
+
+【#3-2】SessionLogSource（会话日志格式）
+  [PASS] 会话源解析出 4 条消息事件  · 4 条 roles=['user', 'command', 'tool-output', 'assistant']
+  [PASS] 会话事件角色映射正确  · ['user', 'command', 'tool-output', 'assistant']
+  [PASS] 会话 reasoning 默认丢弃  · npm install --save-dev foo
+  [PASS] 会话 session/cwd 透传  · session-abc D:/proj
+
+【#3-3】Ingestor 增量摄取 + 幂等 + 自动 fix-pair
+  [PASS] 摄取写入节点  · {"new_events": 4, "written": 4}
+  [PASS] watermark 已记录  · {"t": 1780000004000.0, "seq": 4, "count": 4, "updated_at": 1790056446.242874, "path": "C:\\Users\\32203\\AppData\\Local\\Temp\\mdcg_p3_4sik_sso\\sess\\session.jsonl"}
+  [PASS] 自动 fix-pair 挖掘触发  · [{"error": "Error: boom", "fix": "npm install --save-dev foo"}]
+  [PASS] 重复摄取幂等（无新增）  · {"new_events": 0, "written": 0}
+  [PASS] 增量只摄取新事件  · {"new_events": 1, "written": 1}
+  [PASS] 会话节点默认敏感度 private  · private
+  [PASS] 会话节点落 contextual 层  · contextual
+  [PASS] public 调用方看不到私有会话记忆
+
+【#3-4】真实会话日志（可选：MDCG_SESSIONS_ROOT + zstandard 可用时）
+  [PASS] 真实会话日志可解析  · zstandard 不可用（优雅跳过）
+
+====================================================================
+通过 33 / 失败 0
+====================================================================
+
+[58/117] md_cg.test_p30_maintain
+====================================================================
+md 认知图 P30 验收 · 记忆维护 / 离线固化（P1）
+====================================================================
+
+【1】op 契约链与分级授权
+  [PASS] 工具 op 枚举 == ALL_OPS（防漏改）  · diff=[]
+  [PASS] maintain/consolidate 已进 ALL_OPS
+  [PASS] 写层三单元获 maintain 授权
+  [PASS] verify/output 未获 maintain
+  [PASS] consolidate 为 designer 专属
+  [PASS] MAINTAIN_ACTIONS 覆盖 P1 五项  · ('stat', 'history', 'importance', 'longterm', 'prefeed', 'separate', 'rollback', 'backfill', 'backfill_rollback', 'backfill_history', 'cap', 'cap_rollback', 'cap_history', 'exempt', 'exempt_rollback', 'exempt_history', 'vision_evidence', 'vision_evidence_rollback', 'vision_evidence_history', 'refine', 'refine_gate', 'refine_history', 'refine_calibrate')
+
+【2】maintain.stat / history（只读）
+  [PASS] stat 返回盘点字段  · {'ok': True, 'action': 'stat', 'op': 'maintain', 'actions': ['stat', 'history', 'importance', 'longt
+  [PASS] stat 对写层角色放行（只读）
+  [PASS] history 返回记录列表
+
+【3】maintain.importance：预演 → 改写 → 留痕 → 回滚
+  [PASS] 默认 dry-run 不改写  · changed=2
+  [PASS] 报表识别变动节点
+  [PASS] 报表含分量（可审计）
+  [PASS] apply 改写节点  · written=2
+  [PASS] 写入留痕 _maintain.jsonl
+  [PASS] 改写已落盘面
+  [PASS] rollback 反向应用  · {'ok': True, 'batch': '20260922-135406', 'reverted': 2, 'ids': ['w_fp', 'w_no']}
+  [PASS] rollback 复原为 0.5
+
+【4】maintain.longterm：预演 → 断面 → 幂等 → list/show
+  [PASS] dry-run 未写盘
+  [PASS] 报表含分层与孤岛
+  [PASS] apply 写出断面  · written=2
+  [PASS] 断面文件落盘
+  [PASS] 幂等：内容相同跳过重写
+  [PASS] list 返回 current 与历史
+  [PASS] show 聚合断面总数  · total=2
+
+【5】maintain.prefeed：预演 → ACCEPT 新增 → MERGE 不新增
+  [PASS] 默认只预演未写盘  · verdict=ACCEPT
+  [PASS] ACCEPT 落库新增  · decision=write
+  [PASS] 写入后节点 +1  · 2 → 3
+  [PASS] 重复内容判 MERGE 并入  · decision=reinforce
+  [PASS] MERGE 后节点数不变
+
+【6】maintain.separate：候选 → 对称边 → 幂等
+  [PASS] dry-run 给出候选且未写盘  · [('sep_a', 'sep_b')]
+  [PASS] 候选条件重合度低
+  [PASS] apply 写出分离边  · written_count=1
+  [PASS] sep_a → sep_b 对称边
+  [PASS] sep_b → sep_a 对称边
+  [PASS] 幂等：二次 apply 不重写  · 0
+
+【7】consolidate.promote：分流 → 迁移 → 追溯 → 回滚
+  [PASS] dry-run 未写盘
+  [PASS] 命中热节点  · targeted=1
+  [PASS] 剔除四要素不全
+  [PASS] 剔除不热节点
+  [PASS] apply 提升节点  · promoted=['promo_hot']
+  [PASS] 已迁到 knowledge 层
+  [PASS] 留下 promoted_from=contextual 追溯
+  [PASS] promo_bad 仍留 contextual
+  [PASS] promote_history 记录本次提升
+  [PASS] promote_rollback 迁回  · {'ok': True, 'reverted': 1, 'ids': ['promo_hot']}
+  [PASS] 迁回 contextual
+
+【8】权限分档
+  [PASS] record 可 importance dry-run（只读预演）
+  [PASS] record 不可 importance apply（需 admin）
+  [PASS] record 不可 separate apply
+  [PASS] record 不可 rollback
+  [PASS] record 不可 longterm apply
+  [PASS] output 整 op 被拒（未授权 maintain）
+  [PASS] verify 不可 consolidate（未授权）
+
+【9】未知 action 不静默成功
+  [PASS] maintain 未知 action 抛错  · ValueError
+  [PASS] consolidate 未知 action 抛错  · ValueError
+
+====================================================================
+结果：55 通过 / 0 失败
+====================================================================
+
+[59/117] md_cg.test_p31_insight
+====================================================================
+md 认知图 P31 验收 · 洞察/重构/归纳/盲区学习（P2）
+====================================================================
+
+【1】op 契约链与分级授权
+  [PASS] 工具 op 枚举 == ALL_OPS（防漏改）  · diff=[]
+  [PASS] insight 已进 ALL_OPS
+  [PASS] INSIGHT_ACTIONS 覆盖 P2  · ('window', 'record', 'verify', 'list', 'report', 'reconstruct', 'learn', 'outlook', 'catalog', 'fork', 'branch_rewrite', 'branch_search', 'branch_merge', 'branch_discard', 'branches', 'tickets')
+  [PASS] insight 已授权给写层/反思/校验/输出/维持
+  [PASS] guest 未获 insight
+  [PASS] catalog 自描述条件与证据类型  · ['window', 'record', 'verify', 'list', 'report', 'reconstruct', 'learn', 'outlook', 'catalog', 'fork', 'branch_rewrite', 'branch_search', 'branch_merge', 'branch_discard', 'branches', 'tickets']
+
+【2】consolidate.induce 归纳聚类
+  [PASS] induce 预演只出提案、不写盘  · ['concept_d65f704ed3']
+  [PASS] 共同条件的相似记忆成团  · clusters=1
+  [PASS] 提炼出共同生效条件  · ['单机离线且无外部依赖']
+  [PASS] 无共同条件默认拒绝生成（诚实纪律）  · skipped_no_condition=1
+  [PASS] induce 落盘生成概念节点  · concept_d65f704ed3
+  [PASS] 概念节点标 inferred（非事实断言）  · ['concept', 'induced']
+  [PASS] 概念节点记 induced_from 成员清单  · ['ind_1', 'ind_2', 'ind_3']
+  [PASS] 概念 → 成员写 generalizes 边  · ['ind_1', 'ind_2', 'ind_3']
+  [PASS] 成员 → 概念写 instance_of 边  · concept_d65f704ed3
+  [PASS] 成员侧记 consolidated_into（规范名·巩固进哪一条）  · concept_d65f704ed3
+  [PASS] 成员侧记 consolidated_at（何时巩固）  · 1790056446.8285208
+  [PASS] 概念侧记 consolidated_at（概念形成即巩固时刻）  · 1790056446.8248744 / 1790056446.8248744
+  [PASS] 前身可定位：概念侧 induced_from 与成员侧列互查一致
+  [PASS] 覆写后成员侧巩固留痕继承（consolidated_into/at 不丢）  · concept_d65f704ed3
+  [PASS] induce 留痕 _maintain.jsonl
+  [PASS] induce 幂等（重复 apply 不重写）  · written=0 skip=1
+  [PASS] 放宽 require_conditions 才允许无共同条件成团
+
+【3】insight.window 开窗条件
+  [PASS] C1≥0.6 ∧ 跨域 ∧ 低压力 → 开窗  · {'c1_retrievable': True, 'cross_domain': True, 'low_pressure': True}
+  [PASS] 条件不足 → 开窗被拒并给出阻塞项  · ['c1_retrievable', 'low_pressure']
+  [PASS] 开窗不宣称有效性（写进 note）
+
+【4】insight.reconstruct 情景重构
+  [PASS] 线索不足 → blindspot（不编造）  · status=blindspot
+  [PASS] 锚点齐 → 合成共同条件空间  · ['上下文接近上限且任务尚未完成']
+  [PASS] 重构声明为近似重建（非事件回放）  · 条件空间的近似重建（非事件回放）；common=共同生效条件，individual=个别条件，non_applicable=不适用条件
+  [PASS] apply 落 scene 节点（inferred，非事实层）  · sid=scene_0ec1ca0f2d tags=['scene', 'reconstructed']
+  [PASS] scene 记 reconstructed_from  · ['rec_a', 'rec_b']
+  [PASS] 重构幂等（同一批锚点不重写）  · sid=scene_0ec1ca0f2d
+
+【5】insight.learn 盲区学习闭环
+  [PASS] 盲区描述 → 锚点（检索打分）
+  [PASS] 未知盲区不编造  · 未找到盲区：no_such_blindspot
+  [PASS] 未解问题进入学习闭环  · ['bs_carried', 'bs_resolved', 'bs_unknowable']
+  [PASS] 终态五态可判定且不越集
+  [PASS] 可判定终点 → resolved  · resolved
+  [PASS] unknowable 不生成路线（拒绝编造）
+  [PASS] 未达可判定终点 → carried  · carried
+  [PASS] carried/unresolved 落 gap_hint 待补线索  · written=['gap_9008b435f1']
+  [PASS] gap_hint 是线索而非事实（contextual + 显式非事实标注）  · ['gap_hint', 'learn']
+  [PASS] 线索节点不劫持锚点解析（自我污染防护）
+  [PASS] 盲区学习落库幂等（重复 apply 不新增线索）  · []
+
+【6】insight.record / verify
+  [PASS] record 缺正文直接报错（不臆造）  · ValueError
+  [PASS] record 记为 pending 并快照条件  · ins_1790056447_74ed7765
+  [PASS] 条件快照含 C1–C8 且无缺失  · []
+  [PASS] record 同正文幂等
+  [PASS] 无证据不判定（保持 pending）  · 无外部证据：不判定，保持 pending（窗口开不等于有效）
+  [PASS] V1 不足门槛不判定
+  [PASS] V3 外部确证 → verified + 重要度保底 + 保护位  · V3 外部确证
+  [PASS] verified 后基底升为 data 且带 verified 标签
+  [PASS] 非法 verdict 报错
+  [PASS] 显式证伪 → falsified
+  [PASS] list 按状态过滤
+
+【7】insight.report CER（样本不足不判定）
+  [PASS] 样本不足 → insufficient 且不给结论  · 2
+  [PASS] 样本足 → CER = verified/(verified+falsified)  · cer=0.7727 decided=22
+  [PASS] 2×SE 显著性带  · two_se=0.1787
+  [PASS] 合格样本 → layer_state=reliable  · reliable
+
+【8】insight.outlook 结构洞察
+  [PASS] D1 结构判断含分层/分位/保护率  · 40
+  [PASS] D2 趋势含洞见 CER 与 unresolved  · {'recorded': 22, 'pending': 0, 'verified': 17, 'falsified': 5, 'cer': 0.7727, 'two_se': 0.1787, 'layer_state': 'reliable', 'sample_min': 20}
+  [PASS] 建议可执行（带证据与建议调用）  · n=5
+  [PASS] outlook 不判有效性（写进 note）
+
+【9】insight 按 action 分级授权
+  [PASS] output 可读洞察
+  [PASS] output 不可记洞见
+  [PASS] output 不可批量重构落库
+  [PASS] 写层可记可裁
+  [PASS] 写层不可批量学习落库
+  [PASS] guest 整 op 被拒
+
+【10】未知 action 不静默成功
+  [PASS] insight 未知 action 抛错  · ValueError
+  [PASS] consolidate 未知 action 抛错  · ValueError
+
+====================================================================
+结果：70 通过 / 0 失败
+====================================================================
+
+[60/117] md_cg.test_p32_backfill
+
+P32 结果：58 通过 / 0 失败
+
+[61/117] md_cg.test_p33_ccg_wiring
+
+PASS=58 FAIL=0
+全部通过：P33 四要素接线 + 检索键分区
+
+[62/117] md_cg.test_p33_resource_notify
+
+【1】能力声明与资源发现
+  [PASS] initialize 声明 resources 能力  · ['resources', 'tools']
+  [PASS] resources/list 返回知识图 URI  · ['memory://knowledge-graph']
+
+【2】资源读取与错误分支
+  [PASS] resources/read 返回该 uri 的内容
+  [PASS] 未知 uri 回 -32602
+  [PASS] 订阅未知 uri 回 -32602
+
+【3】未订阅时写入：不得广播
+  [PASS] 未订阅时写入不产生通知
+
+【4】订阅后写入：应广播
+  [PASS] 订阅后写入收到 resources/updated
+
+【5】只读与非写工具：不得广播
+  [PASS] 只读 op 不广播
+  [PASS] 非写工具不广播
+
+【6】落盘与读回（确认广播与实际写入一致）
+  [PASS] 此前写入的内容可被读回  · hits=2
+
+====================================================================
+通过 10 / 失败 0
+====================================================================
+
+[63/117] md_cg.test_p34_crosscheck
+
+PASS=51 FAIL=0
+全部通过：P34 批量核对管线（工单/来源执照/双单元/留痕/回滚）
+
+[64/117] md_cg.test_p35_conditioned_claim
+
+PASS=47 FAIL=0
+全部通过：P35 B 型断言条件化（识别/形态/三处来源位/审计/回滚）
+
+[65/117] md_cg.test_p36_kp_align
+
+PASS=34 FAIL=0
+全部通过：P36 kp_ 端到端（顺序/就绪闸门/分批/四态对比/回滚）
+
+[66/117] md_cg.test_p37_condition_space
+
+P37 结果：42 通过 / 0 失败
+
+[67/117] md_cg.test_p38_contextualize
+md 认知图 P38 验收 · 层归位（G4：情境性内容回迁 contextual）
+====================================================================
+
+【1】op 契约链（防漏改）
+
+【2】无白名单 → 拒绝对整层改写
+
+【3】预演不写盘
+
+【4】归位落盘（layer + 落点；正文不动）
+
+【5】可追溯（layer_shift）
+
+【6】可留痕（_maintain.jsonl）
+
+【7】保留可召回（不改层白名单）
+
+【8】幂等
+
+【9】权限分档（管理操作）
+
+【10】可回滚（按批次）
+
+【11】未知 action 不静默成功
+
+【12】定向 id 补迁（回滚的对称操作）
+
+====================================================================
+P38 结果：PASS 37 / FAIL 0
+
+[68/117] md_cg.test_p39_vision_evidence
+md 认知图 P39 验收 · 视觉证据回填（G5：库外只读归档 → 三档映射）
+====================================================================
+
+【1】op 契约链（防漏改）
+
+【2】预演不写盘 + 三档分流
+
+【3】白箱证据六字段（有源才落）
+
+【4】脱敏（目录名不进库）
+
+【5】落盘（只改 frontmatter 证据面 / 正文不动）
+
+【6】可留痕（_vision_evidence.jsonl）
+
+【7】幂等
+
+【8】权限分档（预演放行 / apply 走 require_admin）
+
+【9】可回滚（按批次反向删证据键）
+
+【10】未知 action 不静默成功
+
+====================================================================
+P39 结果：PASS 53 / FAIL 0
+
+[69/117] md_cg.test_p40_refine_worklist
+md 认知图 P40 验收 · G6 node_ 提炼抽检工单（只读预演 + 扩批闸门）
+======================================================================
+
+【1】op 契约链（防漏改）
+
+【2】plan 只读（不写盘 / 前缀内 20 条）
+
+【3】工单结构（原文 + 字段缺口 + 指纹 + 口径声明）
+
+【4】同源口径（不另起提炼器）
+
+【5】预演（grounded + 模板词标记）
+
+【6】样本不足不产候选（<min_cluster 不成簇）
+
+【7】确定性（同 seed 同样本）
+
+【8】闸门（未审不放行）
+
+【9】闸门放行（全审 / 全忠实 / 无新增）
+
+【10】闸门否决（新增信息 / 忠实率不足）
+
+【11】apply 不改任何节点
+
+【12】权限分档（写层可看 / apply 需管理）
+
+【13】样本量校准（只读爬坡，如实归因）
+
+【14】未知 action 不静默成功
+
+======================================================================
+P40 结果：PASS 46 / FAIL 0
+
+[70/117] md_cg.test_p41_evolve_patrol
+md 认知图 P41 验收 · G7 自主演化巡检（只读盘点 + 受控自愈）
+======================================================================
+
+【1】契约链（防「能力在、入口无」）
+  [PASS] ①sustain 契约描述含 evolve
+  [PASS] ①schema 声明 allow_evolve
+  [PASS] ①schema 声明 auto_evolve
+  [PASS] ①schema 声明 evolve_interval
+  [PASS] ①catalog 列出 evolve
+  [PASS] ①候补项→修复动作映射显式声明
+  [PASS] ①演化巡检间隔有默认值（不再靠人工想起来）
+
+【2】只读盘点（零写盘 / 零改节点 / 代理指标显式）
+  [PASS] ②标 readonly/dry_run
+  [PASS] ②节点逐字节不变
+  [PASS] ②固化候补标为索引代理指标
+  [PASS] ②3 条无验证基底/负条件（实测 3）
+  [PASS] ②重要性扫全库（索引级、不读文件）
+  [PASS] ②候补总量 = 各项之和
+  [PASS] ②按修复动作可归口
+
+【3】确定性（可复核）
+  [PASS] ③两次盘点候选数一致
+
+【4】诊断集成（候补多 ≠ 库有毛病）
+  [PASS] ④diagnose 带 evolve 段与 stats
+  [PASS] ④固化候补以 info 级呈现（不是故障）
+  [PASS] ④issue 带 fix 与代理标记
+  [PASS] ④重要性漂移 issue
+  [PASS] ④候补多不翻转 ok（无 warning）
+
+【5】自愈默认关闭（不显式放行就不动）
+  [PASS] ⑤固化候补不自动执行（需 LLM）
+  [PASS] ⑤重要性重算默认关闭
+  [PASS] ⑤heal 未改任何节点
+
+【6】受控放行（只放确定性动作，且漂移归零）
+  [PASS] ⑥制造漂移（n_a 手工置 0.99）
+  [PASS] ⑥重要性重算被放行且执行成功
+  [PASS] ⑥漂移归零（收敛）
+  [PASS] ⑦LLM 依赖的固化仍不自动跑
+
+【8】常驻循环挂载（默认只记账）
+  [PASS] ⑧演化巡检周期触发
+  [PASS] ⑧auto_evolve=False → 只记账不动库
+  [PASS] ⑧status 暴露演化字段
+  [PASS] ⑧summary 含演化摘要
+
+【9】巡检失败不拖垮常驻
+  [PASS] ⑨循环仍存活
+  [PASS] ⑨心跳照常（beats=3）
+  [PASS] ⑨失败巡检不写脏记录
+  [PASS] ⑨恢复后巡检可用
+
+【10】未知 action 不静默成功
+  [PASS] ⑩未知 action 报错
+
+======================================================================
+P41 结果：PASS 36 / FAIL 0
+
+[71/117] md_cg.test_p42_provenance
+md 认知图 P42 验收 · G8 派生溯源（新增即建链 + 失败不阻断 + 悬空可检出）
+======================================================================
+
+【1】契约链（防「能力在、入口无」）
+  [PASS] ①契约描述含派生溯源与 derive_dangling
+  [PASS] ①schema 声明 derived_from
+  [PASS] ①schema 声明 relation
+  [PASS] ①schema 声明 child
+  [PASS] ①schema 声明 parent
+  [PASS] ①schema 声明 ledger_only
+  [PASS] ①catalog 显式声明四条纪律
+  [PASS] ①关系名枚举 + 默认值
+  [PASS] ①与对端信任层显式区分
+
+【2】新增即建链（声明 → frontmatter + 台账 + 索引）
+  [PASS] ②建库初期无 _link.jsonl（缺口实测）
+  [PASS] ②frontmatter 落 derived_from（单一真相源）
+  [PASS] ②frontmatter 落关系名
+  [PASS] ②台账落边（child/parent/rel）
+  [PASS] ②台账留痕 batch/actor（可按批回溯）
+  [PASS] ②索引带声明（巡检零读文件）
+
+【3】多父 / 关系名 / 无意义边丢弃
+  [PASS] ③多父建 2 条边
+  [PASS] ③关系名落 split_from
+  [PASS] ③自环被丢弃（不产生无意义边）
+  [PASS] ③未声明来源 → 不建边
+
+【4】历史不回填（只重放声明，不发明边）
+  [PASS] ④历史节点（无声明）不建链
+  [PASS] ④按 frontmatter 重建 → 0 条（历史声明为空，不伪造血缘）
+  [PASS] ④重建落盘也不产生边（历史不回填）
+
+【5】定义边界（≠ 对端信任 P_trust）
+  [PASS] ⑤两台账落盘文件不同（_links.json 信任层 / _link.jsonl 血缘层）
+  [PASS] ⑤环境变量各自独立（不共享开关）
+  [PASS] ⑤显式 path 优先于默认
+
+【6】悬空可检出（只读、不删边）
+  [PASS] ⑥检出悬空（ok=False 仅表示有悬空）
+  [PASS] ⑥标只读
+  [PASS] ⑥父端点缺失可检出
+  [PASS] ⑥父节点被删后可检出
+  [PASS] ⑥悬空归因显式给出 missing 端点
+  [PASS] ⑥检出过程未删任何边（只报告）
+
+【7】诊断集成（报警不篡改）
+  [PASS] ⑦diagnose 报 provenance_dangling
+  [PASS] ⑦info 级 + 无自动修复（不自动删边）
+  [PASS] ⑦stats 与巡检口径一致
+  [PASS] ⑦悬空不翻转 ok（不触发自愈）
+  [PASS] ⑦summary 含派生溯源摘要
+
+【8】硬约束：建链失败不阻断写入
+  [PASS] ⑧节点照常落库（写入未被阻断）
+  [PASS] ⑧声明仍写进 frontmatter（不丢事实）
+  [PASS] ⑧降级写 .fail 留痕（可事后补链）
+  [PASS] ⑧台账确实没写上（如实反映）
+
+【9】非法关系名不阻断写入
+  [PASS] ⑨非法关系名回退默认值（不阻断、不落坏字段）
+
+【10】台账是派生物（可兜底、可重建）
+  [PASS] ⑩台账删除后仍由索引声明兜底（血缘不丢）
+  [PASS] ⑩rebuild 按声明恢复台账
+  [PASS] ⑩重建顺带救回「建链失败」的声明边（不发明关系）
+  [PASS] ⑩MCP rebuild 默认预演不动盘
+
+【11】MCP 接入
+  [PASS] (11)link derive 按 child 过滤
+  [PASS] (11)sustain provenance 与 link derive_dangling 同源
+  [PASS] (11)write 路径 derived_from='a,b' 拆分为 2 条边
+  [PASS] (11)MCP 关系名透传
+
+【12】巡检只读（不改节点、不动台账）
+  [PASS] (12)节点逐字节不变
+  [PASS] (12)台账未被巡检改动
+
+【13】未知 action 不静默成功
+  [PASS] (13)未知 action 报错
+
+======================================================================
+P42 结果：PASS 52 / FAIL 0
+
+[72/117] md_cg.test_p43_pooling
+md 认知图 P43 验收 · §七 召回分池与降权（不隐性提高上限）
+======================================================================
+
+(1) 契约与默认关闭
+  [PASS] (1) catalog 三池齐备
+  [PASS] (1) catalog 明示默认关闭
+  [PASS] (1) 内置表额度之和为 1.0
+  [PASS] (1) resolve(None/False) → 关闭
+  [PASS] (1) resolve(True) → 三池
+  [PASS] (1) 环境变量未设 → 关闭
+  [PASS] (1) 显式传表优先于环境变量
+  [PASS] (1) 环境变量=1 → 启用内置表
+
+(2) 硬约束一 · 额度之和不为一 → 拒绝
+  [PASS] (2) 5 类坏表全部 PoolError
+  [PASS] (2) 合法表原样通过
+  [PASS] (2) 内置表额度之和恰为 1.0
+
+(3) 额度守恒（总账恒 == total）
+  [PASS] (3) caps 各池之和恒等于 total（3/4/8/20/100/500）
+  [PASS] (3) plan.cap_sum 与 total 一致
+  [PASS] (3) allocate 不超额度
+  [PASS] (3) 候选不足时不凭空造条目
+
+(4) 默认关闭 ≡ 原行为
+  [PASS] (4) 关闭态逐位等于平截
+  [PASS] (4) 关闭态权重恒 1.0
+  [PASS] (4) 关闭态 meta 如实报 enabled=False
+  [PASS] (4) 关闭态不伪造池账 taken/cands/lost
+  [PASS] (4) 关闭态仍暴露 pre_cap/cap（口径不变）
+
+(5) 归池确定性
+  [PASS] (5) code_ 前缀 → 索引池
+  [PASS] (5) doc_ 前缀 → 索引池
+  [PASS] (5) 普通 id → 知识池
+  [PASS] (5) rejected 层 → 负记忆池（层优先于 id 前缀）
+  [PASS] (5) tags 标记 → 索引池
+  [PASS] (5) 层优先：code_ 落在 unresolved 仍归负池
+  [PASS] (5) 批量归池无抖动
+
+(6) 分池生效（小额度下不再被索引类吃满）
+  [PASS] (6) 索引类入榜数 6 → 2（实得 off=6 on=2）
+  [PASS] (6) 知识类入榜数 2 → 6（实得 6）
+  [PASS] (6) 总入榜条数不变（分池只重分配；实得 off=9 on=9 覆盖=1）
+  [PASS] (6) 截断前候选数前后一致
+  [PASS] (6) 计划额度可复算（实得 {'knowledge': 5, 'index': 2, 'negative': 1}）
+  [PASS] (6) 池账含被挤掉数 lost（实得 {'knowledge': 4, 'index': 4, 'negative': 0}）
+  [PASS] (6) 池账含各池候选数 cands（实得 {'knowledge': 10, 'index': 6, 'negative': 0}）
+  [PASS] (6) 结果构成口径对分池敏感（索引占比 0.67 → 0.22）
+
+(7) 空池回流（未用额度给前序池，总账不增）
+  [PASS] (7) 各池实取之和 == 8（实得 8）
+  [PASS] (7) 空池实取 0（负池无候选）
+  [PASS] (7) 负池未用额度回流给知识池
+  [PASS] (7) 回流不改计划总账
+  [PASS] (7) 单池候选充足时额度被用满
+
+(8) 硬约束二 · 降权显式可复算
+  [PASS] (8) 分池态含索引类条目（额度保底生效）
+  [PASS] (8) 索引类命中分 == 基础分 × 0.6（doc_0: base=0.800000 → 0.480000）
+  [PASS] (8) 知识类命中分不被削（权重 1.0；base=[0.6] → on=[0.6, 0.6]）
+  [PASS] (8) weight_of 与表内系数一致
+  [PASS] (8) 换表即换行为（code_0: base×0.3=0.240000 → 0.240000）
+  [PASS] (8) 换表额度同步可复算（实得 {'knowledge': 4, 'index': 4, 'negative': 2}）
+
+(9) 硬约束四 · 先冻结口径，再复测
+  [PASS] (9) 口径字段齐备：p95_scanned
+  [PASS] (9) 口径字段齐备：p50_scanned
+  [PASS] (9) 口径字段齐备：mean_candidates
+  [PASS] (9) 口径字段齐备：truncation_rate
+  [PASS] (9) 口径字段齐备：truncation_loss
+  [PASS] (9) 口径字段齐备：tiers
+  [PASS] (9) 明确标注 read-only
+  [PASS] (9) 查询集来自库内 → 标注 proxy
+  [PASS] (9) 复测在启用态下执行
+  [PASS] (10) 复测前后全库文件逐字节不变（只读）
+  [PASS] (11) compare 前为关闭态、后为启用态
+  [PASS] (11) delta 覆盖 P95/候选数/截断损失
+  [PASS] (11) 副作用有归因说明
+  [PASS] (11) 确定性取样 5 条
+  [PASS] (11) 取样可复现
+  [PASS] (9) 结果构成对分池敏感（0.67 → 0.22）
+  [PASS] (9) 池级截断损失仅启用态可算（关=None 开=0.5）
+  [PASS] (9) 自检把 index_share 归入敏感口径（实得 ['index_share', 'knowledge_share']）
+  [PASS] (9) 成本口径（全局截断率）不敏感被显式标出，不误读为无效
+
+(12) 坏表不静默降级
+  [PASS] (12) 非法权重表直接抛错（不当成关闭）
+  [PASS] (12) PoolError 兼容 ValueError
+
+(13) MCP 接入
+  [PASS] (13) sustain pooling 自描述可用
+  [PASS] (13) sustain pool_bench 只读 + proxy
+  [PASS] (13) sustain pool_compare 给 delta
+  [PASS] (13) sustain catalog 含 action=pooling
+  [PASS] (13) sustain catalog 含 action=pool_bench
+  [PASS] (13) sustain catalog 含 action=pool_compare
+  [PASS] (13) mdcg_search 透传 pools=True
+  [PASS] (13) mdcg_search 回报各池实取数
+  [PASS] (14) 不传 pools 的既有调用方零影响
+  [PASS] (13) schema 暴露 pools/queries
+  [PASS] (13) 描述含 pool_bench（防漂移）
+  [PASS] (14) MCP 路径同样拒绝坏表（不静默）
+  [PASS] (14) 未知 action 不静默成功
+
+======================================================================
+结果：PASS 80 / FAIL 0
+
+[73/117] md_cg.test_p44_md_whitebox
+SKIP test_p44_md_whitebox：md 语料根不存在：E:\New Documents\资料\活动\一般\Deeptalk\tools\MCP\Alpha-Memory\engine\_md_cg_wisdom_graph（.gitignore 忽略，需本地生成）
+
+[74/117] md_cg.test_p45_session_identity
+
+[A] Principal 归因字段（与授权正交）
+  [PASS] A1 默认会话是进程随机 id  · sess_f90c0d995d3a
+  [PASS] A2 harness/unit 默认为 None
+  [PASS] A3 as_dict 暴露 harness/unit/session
+  [PASS] A4 归因不影响授权（ops 仍按记录）
+
+[B] 会话 id 归一与轻校验
+  [PASS] B0 测试用 id 满足会话 id 形态（防断言落空）
+  [PASS] B1 形态相符 + 目录存在 → 采用
+  [PASS] B2 形态相符 + 目录不存在 → anonymous
+  [PASS] B3 不具形态 → 原样采用
+  [PASS] B4 空值 → anonymous
+  [PASS] B5 根不存在/不可读 → fail-soft（保留标记，不丢会话）  · 根不存在时不因环境差异丢弃会话标记
+  [PASS] B6 未设会话根 → 原样采用（内核不猜宿主路径）
+
+[C] 归因注入（MDCG_SESSION / HARNESS / UNIT）
+  [PASS] C1 MDCG_SESSION 生效  · dsl-web-main
+  [PASS] C2 harness/unit 注入
+  [PASS] C3 无 MDCG_SESSION 时保留自带 session  · local-uuid
+  [PASS] C4 无 MDCG_SESSION 时不改 session  · kept-uuid
+  [PASS] C5 无归因环境时保留进程随机 id
+
+[D] 薄卡 + 会话维度切片（单例语义不变）
+  [PASS] D1 refresh 缺省带会话维度  · True
+  [PASS] D2 单例卡 id 未因会话改变
+  [PASS] D3 summary 回报本会话已登记
+  [PASS] D4 其它会话未登记且指针为空
+  [PASS] D5 会话并入而不覆盖显式维度  · ['manual-x', 'dsl-web-main']
+  [PASS] D6 窄刷新仍以单例卡为准（同 subject 一张卡）
+
+[E] 会话要点：缺省会话 = Principal.session
+  [PASS] E1 session_note 缺省采用进程会话  · dsl-web-main
+  [PASS] E2 recall 命中本会话要点
+  [PASS] E3 recall 的自我状态带会话切片
+
+[F] 审计归因（harness/unit 只入审计）
+  [PASS] F1 审计条目带 harness  · session_note
+  [PASS] F2 审计条目带 unit
+  [PASS] F3 审计条目带会话
+
+[G] MCP 分发：会话缺省透传
+  [PASS] G1 summary 缺省取 Principal 会话
+  [PASS] G2 index 不传 dim → 按当前会话反查  · 1
+  [PASS] G3 refresh 经 MCP 缺省登记会话
+
+====================================================================
+通过 31 / 失败 0
+====================================================================
+
+[75/117] md_cg.test_p46_unit_scope
+====================================================================
+md_cg 第 46 篇 · 请求级单元收窄（as_unit）—— 单进程多身份
+====================================================================
+[A] narrowed_principal 单元收窄
+  PASS  A1 unit 与 role 均记为执行单元
+  PASS  A2 管理权被剥夺（单元永无管理权）
+  PASS  A3 写权保留（record 可写）
+  PASS  A4 层白名单 = record spec（含 contextual，不含 self）
+  PASS  A5 op 白名单 = record spec（含 write，不含 verify）
+  PASS  A6 密级被 spec 上限夹紧（secret -> internal）
+  PASS  A7 output 只读（can_write False）
+  PASS  A8 output 层白名单为空
+  PASS  A9 sustain 仅可写 self 层
+  PASS  A10 verify 可执行 verify op
+  PASS  A11 verify 可写但仅限 rejected/contextual（不得写 knowledge）
+  PASS  A14 reflect 仅可写 contextual（不得写 knowledge）
+  PASS  A15 record 可写 knowledge 但不得写 self 层
+  PASS  A12 归因维度继承（actor/session/tenant 不变）
+  PASS  A13 令牌溯源保留（token_id/parent 与 owner 一致）
+[B] 不放大不变量（核心安全论证）
+  PASS  B1.record 管理权恒 False
+  PASS  B2.record 密级 <= owner
+  PASS  B1.reflect 管理权恒 False
+  PASS  B2.reflect 密级 <= owner
+  PASS  B1.verify 管理权恒 False
+  PASS  B2.verify 密级 <= owner
+  PASS  B1.output 管理权恒 False
+  PASS  B2.output 密级 <= owner
+  PASS  B1.sustain 管理权恒 False
+  PASS  B2.sustain 密级 <= owner
+  PASS  B3.record 只读 owner 收不成可写
+  PASS  B3.reflect 只读 owner 收不成可写
+  PASS  B3.verify 只读 owner 收不成可写
+  PASS  B3.output 只读 owner 收不成可写
+  PASS  B3.sustain 只读 owner 收不成可写
+  PASS  B4 op 求交（owner 限 read -> 收窄后仍只有 read）
+  PASS  B5 层求交（owner 限 knowledge -> 不含 contextual）
+  PASS  B6 密级不会因单元而上浮
+  PASS  B7 收窄结果恒为 spec 与 owner 的并集下界（抽查 output/record 不相交扩张）
+[C] fail-closed 与归一
+  PASS  C1 未知单元 'root' 报错
+  PASS  C1 未知单元 'admin' 报错
+  PASS  C1 未知单元 'designer' 报错
+  PASS  C1 未知单元 '' 报错
+  PASS  C1 未知单元 '   ' 报错
+  PASS  C1 未知单元 'recorder2' 报错
+  PASS  C1 未知单元 'executor' 报错
+  PASS  C2 大小写归一（RECORD -> record）
+  PASS  C3 角色别名归一（recorder -> record）
+  PASS  C4 空白归一（' verify ' -> verify）
+  PASS  C5 verifier 别名归一（verifier -> verify）
+[D] call_tool 包装：生效 / 复原 / 拒绝
+  PASS  D1 as_unit 生效（返回身份为执行单元）
+  PASS  D2 收窄后管理权 False
+  PASS  D3 调用结束后 principal 复原（不泄漏到后续调用）
+  PASS  D4 缺省 as_unit 不改身份（等价改动前行为）
+  PASS  D5 非法 as_unit fail-closed
+  PASS  D6 非法 as_unit 不改变 principal
+  PASS  D7 空白 as_unit='' 视为缺省
+  PASS  D7 空白 as_unit='   ' 视为缺省
+[E] 真实权限闸门联动（收窄后确实拦得住）
+  PASS  E1 record 可写 contextual
+  PASS  E2 record 不可写 self 层
+  PASS  E3 record 无管理权
+  PASS  E4 record 不可执行 verify op
+  PASS  E5 output 不可写
+  PASS  E6 record 仍可读（未误伤读路径）
+  PASS  E7 sustain 可写 self（互维维护路径未被误伤）
+  PASS  E8 sustain 不可写 knowledge
+--------------------------------------------------------------------
+PASS 61 / FAIL 0
+
+[76/117] md_cg.test_p4_fuzzy
+
+【1】分级隶属度（手写隶属函数）
+  [PASS] 完全相同 → 隶属度 1.0
+  [PASS] term 包含 word → 长度比  · 0.3333333333333333
+  [PASS] word 包含 term → 长度比  · 0.5
+  [PASS] 无包含关系 → 0.0
+  [PASS] IDF：稀有词区分度 > 跨域通用词  · 贝塞尔=2.708 文明=2.079
+  [PASS] IDF 加权大域打分：贝塞尔 → 数学最高  · 数学=2.708 物理=0.000
+  [PASS] 加权打分为连续值（部分命中→非整数）  · 物理=0.903
+  [PASS] 加权收敛 top-1
+  [PASS] 老二值打分仍为整数计数  · 数学=1
+  [PASS] 老 big_domain_classify 结果不变
+  [PASS] 域相似度：包含 → 长度比  · 0.6
+  [PASS] 域相似度：无关 → 0
+
+【2】加权扩展 + LLM 查询侧扩展
+  [PASS] 加权同义词组与老表组数一致  · 10 vs 10
+  [PASS] 组内权重落在 0.3~1.0
+  [PASS] 每组恰有一个 1.0 组心
+  [PASS] 加权扩展：整句权重 1.0
+  [PASS] 加权扩展：同义词带权重（图片→图像 0.9）  · {'图片识别': 1.0, '视觉': 1.0, '图像': 0.9, '图片': 0.9, '画面': 0.8, '影像': 0.7, '视像': 0.6, '识别': 1.0, '检测': 0.9, '感知': 0.7, '探测': 0.7, '发现': 0.5}
+  [PASS] 加权扩展：弱相关低权（发现 0.5）  · {'图片识别': 1.0, '视觉': 1.0, '图像': 0.9, '图片': 0.9, '画面': 0.8, '影像': 0.7, '视像': 0.6, '识别': 1.0, '检测': 0.9, '感知': 0.7, '探测': 0.7, '发现': 0.5}
+  [PASS] 老扩展仍返回 list（未改语义）
+  [PASS] 整词命中 → 1.0
+  [PASS] 部分命中 → 长度比 × 0.5（贝塞尔不等式 vs 贝塞尔公式）  · 0.25
+  [PASS] 部分命中 < 整词命中（模糊路不压倒词法路）  · 共享后缀「按钮」=0.3333333333333333
+  [PASS] 完全未命中 → 0
+  [PASS] 加权覆盖率 ∈ [0,1]
+  [PASS] LLM 扩展：source=llm  · {'图片': 1.0, '视觉': 1.0, '图像': 0.9, '画面': 0.8, '影像': 0.7, '视像': 0.6, '视觉识别': 0.8, '__source__': 'llm'}
+  [PASS] LLM 扩展：合并 LLM 词
+  [PASS] LLM 扩展：不压低白箱精确命中  · 图片=1.0
+  [PASS] LLM 扩展：显式缓存下同 query 只调一次  · 调用=1
+  [PASS] LLM 失败 → 回退白箱  · {'图片': 1.0, '视觉': 1.0, '图像': 0.9, '画面': 0.8, '影像': 0.7, '视像': 0.6, '__source__':
+  [PASS] 无 llm_fn → 纯白箱
+  [PASS] LLM 输出非 JSON → 回退白箱
+
+【3】fuzzy 路径接入 RRF（默认不启用）
+  [PASS] 默认 RRF 路径不含 fuzzy  · ['lexical', 'bucket', 'entity', 'graph']
+  [PASS] 默认 RRF meta 仍有 expand_source 字段（值为 None）
+  [PASS] fuzzy 路径被记录进 meta  · {'lexical': 2, 'bucket': 0, 'entity': 0, 'graph': 0, 'fuzzy': 2}
+  [PASS] fuzzy 扩展来源标注（白箱）  · whitebox
+  [PASS] 结果 provenance 含 fuzzy 路  · {'img_strong': ['lexical', 'fuzzy'], 'img_weak': ['lexical', 'fuzzy']}
+  [PASS] fuzzy 分级：图像(0.9) > 视像(0.6)  · 图像=0.324 视像=0.288
+  [PASS] fuzzy 打分 ∈ (0,1]  · {'img_strong': 0.324, 'img_weak': 0.288}
+  [PASS] fuzzy 大域亲和命中数学节点  · {'math1'}
+  [PASS] 注入 LLM 扩展 → meta expand_source=llm  · llm
+  [PASS] LLM 扩展后仍有结果  · 2 条
+  [PASS] recall 可透传 paths 启用 fuzzy  · {'lexical': 2, 'bucket': 0, 'entity': 0, 'graph': 0, 'fuzzy': 2}
+  [PASS] recall 仍遵守预算  · used=74/400
+  [PASS] fuzzy 单路在无 context 下可运行  · 1 条
+
+====================================================================
+通过 44 / 失败 0
+====================================================================
+
+[77/117] md_cg.test_p5_semantic
+
+【1】条件证据提取（确定性、零依赖）
+  [PASS] _ccg_field：中文冒号提取生效条件  · 问微分方程应用 问微分方程
+  [PASS] _ccg_field：不适用条件
+  [PASS] _ccg_field：无该字段 → 空串
+  [PASS] _ccg_field：英文冒号亦可
+  [PASS] _declared_conditions：正文生效条件在列
+  [PASS] _declared_conditions：合并 state_attributes 生效条件  · ['问微分方程应用 问微分方程', '问微分方程']
+  [PASS] _declared_conditions：合并 frontmatter 负条件  · ['问数列极限 问函数极限', '问数列极限', '海拔 > 5000 米']
+  [PASS] _declared_conditions：去重保序
+  [PASS] _window_overlap：完全包含 → 1.0
+  [PASS] _window_overlap：半交叠 → 0.5  · 0.5
+  [PASS] _window_overlap：不相交 → 0.0
+  [PASS] _window_overlap：非法输入 → 0.0
+  [PASS] _neg_hit：整词命中 → True
+  [PASS] _neg_hit：低权词不触发
+  [PASS] _neg_hit：部分命中不触发
+  [PASS] _neg_hit：无负条件 → False
+  [PASS] _slot_overlap：域相似度（高等数学 vs 数学 → 0.5）  · 0.5
+  [PASS] _slot_overlap：未命中的槽进分母 → 分数被摊薄  · 0.3333333333333333
+  [PASS] _slot_overlap：无槽信息 → 0.0
+
+【2】semantic 路径：条件结构驱动
+  [PASS] 生效条件命中 → diff_eq 被召回  · {'diff_eq': 0.675}
+  [PASS] 不适用条件命中 → series 被条件级负路由剔除  · {'diff_eq': 0.675}
+  [PASS] 无任何条件证据 → noise 不进候选  · {'diff_eq': 0.675}
+  [PASS] semantic 打分 ∈ (0,1]  · {'diff_eq': 0.675}
+  [PASS] 对称性：查询「数列极限」→ series 召回、diff_eq 剔除  · {'series': 0.675}
+
+【3】与 fuzzy 正交（condition_space 槽位只有 semantic 读得到）
+  [PASS] semantic 命中 observation_tool 槽  · {'tool_node': 0.3}
+  [PASS] fuzzy 读不到 condition_space 字段（正交证据）  · set()
+  [PASS] fuzzy 不再召回「不适用条件」命中的节点（反例不作召回键）
+  [PASS] semantic 同样剔除「不适用条件」命中的节点（条件级负路由）
+  [PASS] 但正条件仍作召回键（生效条件命中照常召回）
+  [PASS] 迁移语料 state_attributes 生效条件被读取  · {'diff_eq': 0.675, 'mig': 0.675}
+
+【4】semantic 接入 RRF（默认不启用）
+  [PASS] 默认 RRF 路径不含 semantic  · ['lexical', 'bucket', 'entity', 'graph']
+  [PASS] 显式启用后 meta 记录 semantic 路  · {'lexical': 1, 'bucket': 0, 'entity': 0, 'graph': 0, 'fuzzy': 1, 'semantic': 2}
+  [PASS] provenance 含 semantic 路  · {'diff_eq': ['lexical', 'fuzzy', 'semantic'], 'mig': ['semantic']}
+  [PASS] 结果非空  · 2 条
+  [PASS] semantic 单路在无 context 下可运行  · 2 条
+  [PASS] recall 可透传 paths 启用 semantic  · {'lexical': 1, 'bucket': 0, 'entity': 0, 'graph': 0, 'fuzzy': 1, 'semantic': 2}
+  [PASS] recall 仍遵守预算  · used=98/400
+
+====================================================================
+通过 37 / 失败 0
+====================================================================
+
+[78/117] md_cg.test_p6_consolidate
+
+【1】候选解析（JSON 容错 + 字段别名）
+  [PASS] 解析带围栏的 JSON  · ['微分方程', '数值方法']
+  [PASS] 别名：子内容→子功能  · ['甲', '乙']
+  [PASS] 别名：如何执行→执行  · 先做甲
+  [PASS] 别名：适用条件→生效条件  · ['丙']
+  [PASS] 垃圾输入 → 空字典
+  [PASS] 超长候选被丢弃
+
+【2】grounding 支撑度（正文无据即幻觉）
+  [PASS] 有据短语支撑度 = 1.0  · 1.0
+  [PASS] 幻觉短语支撑度 = 0.0  · 0.0
+  [PASS] grounding 丢弃幻觉、保留有据  · ['微分方程']
+  [PASS] grounding 明细可审计  · {'微分方程': 1.0, '拉普拉斯变换': 0.0}
+  [PASS] 无据字段整体被丢弃
+  [PASS] body_text 剥离 CCG 声明行（声明不是正文）  · '丙丁\n'
+
+【3】replay 回放（正例召回 + 负例分离 + 无冲突）
+  [PASS] 合法候选 → replay 通过  · {'pos_recall': True, 'neg_separated': True, 'no_conflict': True, 'ok': True}
+  [PASS]   正例召回成立
+  [PASS]   负例分离成立
+  [PASS] 负条件与正文强相关 → 拒绝  · {'pos_recall': True, 'neg_separated': False, 'no_conflict': True, 'ok': False}
+  [PASS] 生效/不适用互相覆盖 → 拒绝  · {'pos_recall': False, 'neg_separated': False, 'no_conflict': False, 'ok': False}
+
+【4】验证单元裁决（只能否决、不能新增）
+  [PASS] 裁决解析：dict 形态  · {'keep': ['微分方程'], 'drop': ['数值方法'], 'has_keep': True, 'reason': '无据'}
+  [PASS] 裁决解析：数组形态 = 全 keep  · {'keep': ['建模'], 'drop': [], 'has_keep': True, 'reason': ''}
+  [PASS] 裁决解析：垃圾输入 → 空
+  [PASS] keep 取交集（无法新增 Z）  · {'生效条件': ['A'], '子功能': ['X'], '执行': 'E'}
+  [PASS] drop 生效  · {'生效条件': {'terms': ['B', 'C'], 'reason': 'r'}}
+  [PASS] 未表态字段保留（沉默≠否决）
+  [PASS] 只给 drop 时不误删  · {'生效条件': ['A']}
+  [PASS] 显式空 keep → 全部否决  · {}
+  [PASS] 验证单元凭空新增的条目不会落地
+
+【5】角色配置（反思=DeepSeek / 验证=GLM，凭证不跨厂商）
+  [PASS] 反思单元默认模型  · deepseek-v4.1-flash-expires-on-0910
+  [PASS] 验证单元默认模型  · glm-5.3-flash
+  [PASS] 反思单元可用 DeepSeek 凭证
+  [PASS] 验证单元**不**挪用 DeepSeek 凭证  · None
+  [PASS] 验证单元默认网关为智谱  · https://open.bigmodel.cn/api/paas/v4
+  [PASS] 验证单元识别 ZHIPU_API_KEY 别名
+  [PASS] 环境变量可覆盖默认模型
+
+【6】全链路（dry-run 不写盘 → apply 写盘）
+  [PASS] 初始节点四要素全缺
+  [PASS] dry-run 判定 ACCEPT  · 1
+  [PASS] dry-run 不写盘
+  [PASS] 报告记录双模型  · deepseek-v4.1-flash-expires-on-0910
+  [PASS] apply 写盘 1 个节点  · 1
+  [PASS] 生效条件落盘  · 微分方程；数值方法
+  [PASS] 子功能落盘  · 建模；求解
+  [PASS] 执行落盘  · 使用数值方法迭代求解
+  [PASS] 不适用条件落盘  · 边界条件缺失
+  [PASS] 正文写入 CCG 行
+  [PASS] 验证方式落盘  · 双模型交叉验证（反思单元=deepseek-v4.1-flash-expires-on-0910，验证单元=glm-5.3-flash）
+  [PASS] 验证方式写入正文
+  [PASS] frontmatter 枚举落到 other  · other
+  [PASS] frontmatter.non_applicable_conditions 同步  · ['边界条件缺失']
+  [PASS] provenance 记录双模型与哈希  · {'reflect': 'deepseek-v4.1-flash-expires-on-0910', 'verify': 'glm-5.3-flash'}
+  [PASS] provenance 不含正文载荷（只存哈希）
+  [PASS] CCG 完整度提升（含验证方式）  · ['功能名', '生效条件', '子功能', '执行', '验证方式', '不适用条件']
+
+【7】索引一致性（正文变更后重建）
+  [PASS] has_neg_conditions 已同步  · True
+  [PASS] content_hash 已更新  · 261148dd39e1
+
+【8】幂等与「不覆盖人工既有字段」
+  [PASS] 二次运行幂等（无新增）  · accepted=0 skipped=1
+  [PASS] 已写入的声明行不干扰 replay（回归）  · {}
+  [PASS] 人工字段不被覆盖  · 人工写的执行方式
+  [PASS] 缺失字段被补齐  · 建模；求解
+
+【9】一致性回归：固化结果驱动生产 _path_semantic
+  [PASS] 正例：生效条件 → 生产路召回本节点  · {'n1': 0.6}
+  [PASS] 负例：不适用条件 → 生产路条件级剔除  · set()
+  [PASS] 默认四路 RRF 仍可用（未受影响）  · <class 'tuple'>
+
+【10】验证单元不可用 → DEFER（纪律 5：未经验证不固化）
+  [PASS] 无验证单元 → 全部 DEFER  · {'verify_unavailable': 1}
+  [PASS] DEFER 原因为 verify_unavailable  · {'verify_unavailable': 1}
+  [PASS] DEFER 不写盘
+  [PASS] --no-verify 降级可跑通  · {}
+  [PASS] provenance 标记验证单元 skipped  · {'model': '', 'status': 'skipped'}
+
+【11】验证单元否决全部候选 → REJECT
+  [PASS] 全否 → REJECT  · {'verify_rejected': 1}
+  [PASS] REJECT 原因为 verify_rejected  · {'verify_rejected': 1}
+  [PASS] REJECT 不写盘
+
+【12】验证方式补全（零 LLM 成本）
+  [PASS] dry-run 只统计不写盘  · {'root': 'C:\\Users\\32203\\AppData\\Local\\Temp\\mdcg_p6_dpy7ihgl', 'layer': None, 'dry_run': True, 'basis': '双模型交叉验证（反思单元=deepseek-v4.1-flash-expires-on-0910，验证单元=glm-5.3-flash）', 'basis_enum': 'other', 'nodes_scanned': 2, 'targeted': 2, 'skipped_present': 0, 'skipped_locked': 0, 'written': 0}
+  [PASS] apply 补齐 2 个节点  · 2
+  [PASS] 验证方式写入正文与 comment
+  [PASS] 验证方式计入 CCG 完整度
+  [PASS] 已有验证方式 → 跳过（幂等）  · {'root': 'C:\\Users\\32203\\AppData\\Local\\Temp\\mdcg_p6_dpy7ihgl', 'layer': None, 'dry_run': False, 'basis': '双模型交叉验证（反思单元=deepseek-v4.1-flash-expires-on-0910，验证单元=glm-5.3-flash）', 'basis_enum': 'other', 'nodes_scanned': 2, 'targeted': 0, 'skipped_present': 2, 'skipped_locked': 0, 'written': 0}
+
+====================================================================
+通过 72 / 失败 0
+====================================================================
+
+[79/117] md_cg.test_p7_goals_recent
+
+[A] 目标槽（第 5 篇第 3 章「目标」）
+  [PASS] add_goal 落 goals 层  · goal_e7fa2bea64
+  [PASS] 目标文本可读回
+  [PASS] add_goal 幂等（同文本同 id）
+  [PASS] active_goals 按优先级排序  · ['修复登录超时', '降低内存占用']
+  [PASS] goal_text 拼接活跃目标  · 修复登录超时 降低内存占用
+  [PASS] done 目标退出 active
+  [PASS] list_goals 仍可见 done 目标
+  [PASS] 目标节点不参与正排（只是方向）
+
+[B] 目标定向路（goal 路，显式启用）
+  [PASS] 无活跃目标时 goal 路为空  · goal_used='' n=0
+  [PASS] 有目标时 goal 路召回目标相关记忆  · ['n_login']
+  [PASS] goal 路不混入与目标无关的记忆  · ['n_login']
+  [PASS] meta 暴露 goal_used（可审计）
+  [PASS] 未启用 goal 路时目标不生效（既有基线不变）
+
+[C] 近期事件滚动窗口（第 5 篇第 3 章「近期事件」）
+  [PASS] 近期事件最新在前  · pytest -k login
+  [PASS] 近期事件按角色过滤
+  [PASS] 滚动窗口截断到最近 N 条  · n=3
+  [PASS] 窗口保留最新事件  · 事件5
+  [PASS] recall 默认不带近期事件
+  [PASS] recall(include_recent=True) 附带近期事件  · 3
+  [PASS] 近期事件计入 token 预算（诚实口径）  · 39 → 45
+
+[D] 证据计数 + 可信度降级（第 5 篇第 4 章）
+  [PASS] confirmed 累加 evidence_count  · {'action': 'confirmed', 'confidence': 0.65, 'evidence_count': 1, 'demoted': None, 'verification': {'node_id': 'n_ev', 'from': 'unverified', 'to': 'verified', 'code': 'ok', 'ok': True, 'changed': True, 'reason': 'unverified→verified 合法', 'at': 1790056454.7328043}, 'propagation': {'ok': True, 'changed': 0, 'dependents': [], 'apply': True, 'reason': 'no_dependents'}}
+  [PASS] 正例计数  · pos=1 neg=0
+  [PASS] weakened 累加 evidence_count
+  [PASS] 反例计数
+  [PASS] 反例权重 > 正例（0.6 +0.05 -0.15 = 0.5）  · 0.5
+  [PASS] 跌破阈值后降级为 contextual  · contextual
+  [PASS] 降级留 demotion 审计  · {'t': 1790056454.7444427, 'from': 'knowledge', 'to': 'contextual', 'reason': 'confidence 0.05 < 0.2'}
+  [PASS] 降级后文件搬离 knowledge/
+  [PASS] 索引层同步更新
+
+[E] MCP 接口面（cg op=goal / op=recent + mdcg_recall）
+  [PASS] cg(op=goal,action=add) 可用  · {'ok': True, 'id': 'goal_577745482f', 'status_heads': {'goal_577745482f': '· 未验证'}, 'status_head': '· 未验证', 'hint': '· 未验证'}
+  [PASS] cg(op=goal,action=list) 返回目标  · {'goals': [{'id': 'goal_e7fa2bea64', 'goal': '修复登录超时', 'status': 'done', 'priority': 0.9, 'deadline': None, 'created_at'
+  [PASS] cg(op=recent,action=add) 可用  · {'event': {'t': 1790056454.7531874, 'role': 'user', 'text': 'MCP 追加的事件', 'tags': [], 'meta': {}}, 'dropped': 0}
+  [PASS] cg(op=recent,action=list) 返回事件  · {'events': [{'t': 1790056454.7531874, 'role': 'user', 'text': 'MCP 追加的事件', 'tags': [], 'meta': {}}]}
+  [PASS] mdcg_recall 支持 goal + include_recent  · goal_used='登录 超时' recent=4
+
+[F] 健康度覆盖
+  [PASS] health_os 报告 goals  · {'total': 3, 'active': 1}
+  [PASS] health_os 报告 recent_events  · 4
+
+=== PASS 36 / FAIL 0 ===
+
+[80/117] md_cg.test_p8_subgraph_chain
+
+[A] 嵌套子图（结构要素可递归化）
+  [PASS] subgraph 引用式写入并读回
+  [PASS] children 解析（声明式）  · ['a', 'b']
+  [PASS] 索引快照含 subgraph（免读文件）
+  [PASS] 递归展开 5 节点  · ['a', 'a1', 'a1x', 'b', 'r']
+  [PASS] 层级路径正确  · {'r': 'r', 'a': 'r/a', 'a1': 'r/a/a1', 'a1x': 'r/a/a1/a1x', 'b': 'r/b'}
+  [PASS] 父子边 part_of 方向 child→parent
+  [PASS] 自然耗尽不置 truncated
+  [PASS] max_depth=1 硬截断且置 truncated  · ['a', 'b', 'r']
+  [PASS] flatten 生成对称父子边（4 对 → 8 条）  · 8
+  [PASS] flatten 同时含 part_of / parent_of  · {'part_of', 'parent_of'}
+  [PASS] roots 识别根节点  · ['r']
+  [PASS] 检出 multi_parent  · ['cycle', 'dangling_child', 'multi_parent', 'self_loop']
+  [PASS] 检出 cycle  · ['cycle', 'dangling_child', 'multi_parent', 'self_loop']
+  [PASS] 检出 dangling_child  · ['cycle', 'dangling_child', 'multi_parent', 'self_loop']
+  [PASS] 检出 self_loop  · ['cycle', 'dangling_child', 'multi_parent', 'self_loop']
+
+[B] 关系链（causal = 条件依赖因果；链 = 条件序列）
+  [PASS] 多跳展开（db→svc→api 共 2 条链）  · [1, 2]
+  [PASS] 链节点序列正确  · ['db', 'svc', 'api']
+  [PASS] 累积权重 = Π(类型base × 置信度)  · 0.65025
+  [PASS] 条件序列逐跳标注  · ['数据库在运行', '服务在运行']
+  [PASS] 只走 causal（不含 sequential）
+  [PASS] relation_types 过滤生效  · [{'start': 'job', 'nodes': ['job', 'job2'], 'hops': [{'from': 'job', 'to': 'job2', 'relation_type': 'sequential', 'weight': 0.6, 'condition': '顺序执行'}], 'conditions': ['顺序执行'], 'weight': 0.6, 'depth': 1, 'avg_weight': 0.6}]
+  [PASS] causal 过滤下不含 sequential 边
+  [PASS] direction=in 反向可达
+  [PASS] visited 剪枝：环链不无限增长  · [1]
+  [PASS] explain 输出「条件→结果」步骤  · {'条件': '数据库在运行', '关系': 'causal', '置信': 0.765, '结果': 'svc'}
+  [PASS] 边无条件 → 回退节点生效条件  · ['午夜窗口']
+  [PASS] 种子扩散打分 = 种子 × 链权 × decay^跳  · 0.6885
+  [PASS] 层级 part_of 边参与链遍历  · [['r', 'a'], ['r', 'b'], ['r', 'a', 'a1']]
+
+[C] 检索接入（chain 路 + 可审计 provenance）
+  [PASS] chain 路召回链下游节点  · ['api', 'svc', 'db', 'job2', 'job']
+  [PASS] provenance 标注 chain 路  · ['svc', 'api', 'job2']
+  [PASS] provenance 带条件序列（可审计）  · [{'path': 'chain', 'rank': 2, 'chain': ['db', 'svc'], 'conditions': ['数据库在运行']}]
+  [PASS] 默认检索路不含 chain（不改变既有基线）  · ['graph', 'lexical']
+  [PASS] 公开 API：subgraph_expand/flatten/validate/roots
+  [PASS] 公开 API：causal_chain/explain_chain
+
+==== P8 结果：34 通过 / 0 失败 ====
+
+[81/117] md_cg.test_p9_forget_protect
+
+[A] 自我认知写保护（不可遗忘）
+  [PASS] self 层新建放行（保护的是已有认知，不是禁止产生）
+  [PASS] self 层覆盖被拒
+  [PASS] override 覆盖成功
+  [PASS] override 前自动快照旧版本  · ['_protected_history/self_identity/20260922-135415.md']
+  [PASS] 写保护动作留痕 _protected_audit.jsonl
+  [PASS] anchor 层受保护  · 层保护：anchor（不可遗忘层）
+  [PASS] importance≥0.7 自动打保护标记  · importance=0.90≥0.7
+  [PASS] 高重要性节点仍可更新（不可遗忘 ≠ 不可覆盖）
+  [PASS] 高重要性节点删除被拒（不可遗忘）
+  [PASS] 显式 immutable 节点覆盖被拒
+  [PASS] 普通节点可自由覆盖（保护不过度扩张）
+  [PASS] 受保护节点删除被拒
+  [PASS] override 删除放行  · {'ok': True, 'id': 'anc1', 'tombstone': '9f8d8aeffafe2172'}
+  [PASS] 受保护节点降级被拒
+  [PASS] 保护层之间搬迁放行  · {'id': 'anc2', 'from': 'anchor', 'to': 'self', 'path': 'self/anc2.md', 'reason': '保护层内搬迁'}
+  [PASS] 保护面盘点（受保护数 + 自动保护计数）  · {'protected_count': 3, 'by_layer': {'self': 2, 'knowledge': 1}, 'auto_by_importance': 1}
+
+[B] 主动遗忘闸门（写入侧三问）
+  [PASS] 重复内容 → MERGE（并入既有）  · MERGE · 重复度 1.00≥0.85（并入 c1，强化既有）
+  [PASS] MERGE 不新增节点
+  [PASS] MERGE 强化既有节点 importance  · 0.55
+  [PASS] importance_hint≥0.7 → ACCEPT（保护优先）  · 重要度 0.80≥0.7（触发不可遗忘保护）
+  [PASS] 保护优先写入后自动打保护标记
+  [PASS] 确定性内部冗余 → DROP（先于 MERGE，不强化既有）  · 确定性内部产生且冗余 1.00≥0.6（低熵噪音，不编码）
+  [PASS] DROP 不落库
+  [PASS] DROP 未污染既有节点 importance（未走 MERGE 强化）  · 0.55
+  [PASS] 外部惊奇（全新内容）→ ACCEPT  · 重要度 0.90≥0.7（触发不可遗忘保护）
+  [PASS] 高熵判定：novelty 高 / 自信息代理高  · {'source_kind': 'external_surprising', 'novelty': 0.98, 'self_information_bits': 3.5995, 'normalized': 0.8999, 'duplicate_with': 'c1', 'duplicate_ratio': 0.02, 'compared': 2}
+  [PASS] 来源分类：外部惊奇
+  [PASS] 裁决含三问完整判据
+  [PASS] 半重复且不重要 → DEFER（待定复核）  · DEFER · dup=0.73
+  [PASS] DEFER 不落库
+  [PASS] 自信息代理单调：dup↑ → bits↓
+  [PASS] 来源分类函数
+  [PASS] 重复强化跨 0.7 自动打保护标记  · 0.8500000000000003
+  [PASS] 遗忘裁决留痕（含 ACCEPT/MERGE/DROP/DEFER）  · ['ACCEPT', 'DEFER', 'DROP', 'MERGE']
+  [PASS] 留痕文件 _forgetting.jsonl 存在
+  [PASS] gated=False 绕过闸门（兼容既有写入路径）
+  [PASS] 公开 API：remember_gated / forgetting_history / protect_stats
+
+==== P9 结果：37 通过 / 0 失败 ====
+
+[82/117] md_cg.test_predict_beta
+
+测试完成：23 通过 / 0 失败
+ALL PASS
+
+[83/117] md_cg.test_preflight_failclosed
+
+[1] 未装配分支 fail-closed（镜像 aeis_core 无 self_cognition 模块）
+
+  镜像引擎装配状态: _self_cognition=None error="No module named 'self_cognition_engine'"
+  [PASS] 未装配 → ok is False（拦截）
+  [PASS] status=fail_closed
+  [PASS] reason=self_cognition_not_ready
+  [PASS] note 声明未验证不放行
+  [PASS] 装配错误透传（可见可修）
+
+[2] 组件在位委托路径（stub 验证门面零干扰）
+
+  [PASS] 委托：sc 结果原样返回
+  [PASS] 委托：门面未注入 fail_closed 字段
+
+[3] 双副本源码一致性静态断言
+
+  [PASS] 镜像门面含 fail_closed
+  [PASS] 镜像 fail-open 签名已移除
+  [SKIP] AEIS 仓不在同级路径，真身一致性由 AEIS 侧测试覆盖
+
+============================================================
+preflight fail-closed 专项测试：9 通过 / 0 失败
+
+[84/117] md_cg.test_progressive
+
+progressive: 19 passed, 0 failed
+
+[85/117] md_cg.test_protocol
+-- A 静态对账 --
+[PASS] A1 audit ok（声明与实现一致）
+[PASS] A2 协议 v1 且 draft 期未冻结（冻结是单向门）
+[PASS] A3 声明五动词且顺序固定
+[PASS] A4 live 四动词有实现分支
+[PASS] A5 supersede 登记 reserved 且未泄漏实现（不冒充）
+[PASS] A6 无 live 动词缺实现分支
+[PASS] A7 扩展能力面如实报告（属能力不属违例）
+[PASS] A8 每动词至少一形态、每形态带 when
+[PASS] A9 write 各形态 required 均含铁律三键
+[PASS] A10 reserved 动词给出 map_to 现状映射证据
+[PASS] A11 read 显式登记 null 形态（目标缺失 ≠ 错误）
+[PASS] A12 非法动词 fail-closed（shape_of 抛 KeyError）
+[PASS] A13 summary 单行含 ok=True
+[PASS] A14 AST 提取四写法齐（双引号/单引号/in 元组/strip().lower）
+[PASS] A15 负例：action == 分支不被误取为 op
+[PASS] A16 语法错误返回空列表且不抛异常
+[PASS] A17 dispatch_ops 与 audit 同源（同一次提取口径）
+-- B 进程内真调形状 --
+[PASS] B1 route 形态 required 齐（knowledge/meta）
+[PASS] B2 write 铁律三键齐（ok/id/committed——落盘与否不靠猜）
+[PASS] B3 write 未 committed 时去向可见（gate 或 moved_to）
+[PASS] B3c write 闸门短路形态 required 齐（moved_to/verdict/hint）
+[PASS] B4 verdict 字段集与协议声明一致（写闸门短路态）
+[PASS] B5 read(node) 形态 required 齐（含 verification_state）
+[PASS] B6 read(list) 形态 required 齐（meta/results）
+[PASS] B7 read(pack) 形态 required 齐（pack/tokens_used/budget/skipped/recent/meta）
+[PASS] B8 read 目标缺失返回 null（协议登记形态，非错误对象）
+[PASS] B9 forget 成功形态 required 齐（ok/id/tombstone）
+[PASS] B10 forget 后 read(node_id) 立即返回 null（软删对读面生效）
+[PASS] B11 restore 返回属声明两形态之一（restored / failed）
+[PASS] B12 forget 目标缺失失败形态 required 齐（ok/error）
+[PASS] B13 op 推导兜底：content → write 且透出 op_derived
+[PASS] B14 推导附加键不破坏 write 铁律三键
+[PASS] B15 推导附加键集与协议声明一致（op/op_derived/hint）
+[PASS] B16 op 推导兜底：query → read
+-- C conformance 集成 --
+[PASS] C1 报告含 protocol 段
+[PASS] C2 已钉入 conformance 且 ok：protocol.op.extension_surface
+[PASS] C2 已钉入 conformance 且 ok：protocol.verb.implemented
+[PASS] C2 已钉入 conformance 且 ok：protocol.verb.reserved_clean
+[PASS] C2 已钉入 conformance 且 ok：protocol.shape.declared
+[PASS] C3 协议外 op 面为报告项 WARN（能力不是违例）
+[PASS] C4 protocol.* 全绿（无 FAIL 残留）
+============================================================
+protocol：41 通过 / 0 失败
+
+[86/117] md_cg.test_reach
+md_cg 收敛层 reach 验收 · 大域收敛 / 条件门控 / 图扩散 / 回退
+======================================================================
+
+(1) 大域收敛包含性（A2 可证形式）
+  [PASS] (1) 收敛集 ⊇ 全量 LIKE 命中集  · like=7 narrow=7 miss=0
+  [PASS] (1) 收敛集 ⊇ 词法打分>0 集合  · score>0=7 miss=0
+  [PASS] (1) meta 如实报收敛状态  · {'reach': 'converged', 'reach_seed': 7, 'reach_diffused': 0, 'reach_hops': 1, 'reach_diffused_paths': [], 'reach_fresh_nodes': 0, 'reach_build_docs': 10, 'reach_build_reads': 10}
+
+(2) 条件门控（收敛集 ⊆ 候选集）
+  [PASS] (2) 收敛集不越出调用方候选集
+  [PASS] (2) 负记忆层不因收敛回流
+
+(3) 图扩散
+  [PASS] (3) 扩散开关开启时 edges 邻居被吸收  · other_2 in narrow_d=True diffused=1 (默认关时 ids=7)
+  [PASS] (3) 1 跳邻居集合正确  · ['a', 'b', 'c']
+  [PASS] (3) 2 跳可达  · ['a', 'b', 'c', 'd']
+  [PASS] (3) 扩散受上限约束  · |out|=3
+
+(4) 回退（不适用条件 → 不收敛）
+  [PASS] (4) MDCG_REACH=0 → 不收敛  · {'reach': 'off'}
+  [PASS] (4) 单字符 term → 不收敛  · {'reach': 'short_term'}
+  [PASS] (4) 索引不可用 → 不收敛  · {'reach': 'index_unavailable'}
+
+(5) 端到端（search 两态）
+  [PASS] (5) 开态结果集 ⊇ 关态（不丢召回）  · off=['code_0', 'code_0b', 'code_1'] on=['code_0', 'code_0b', 'code_1']
+  [PASS] (5) meta 透出 reach* 审计字段  · reach=converged seed=7
+  [PASS] (5) 开态读盘数不增（收敛生效）  · off=9 on=7
+  [PASS] (5) 截断前候选数不少于关态（图扩散可补召回）  · off=7 on=7
+  [PASS] (5) 图扩散邻居进入 search 结果（补召回落地）  · other_2 on=True off=False
+  [PASS] (5b) 回退全量时 reach 改写为 reverted（不谎报 converged）  · reverted
+  [PASS] (5b) 回退后仍能出结果（全量路径）  · n=6
+  [PASS] (5b) 回退标记 reach_reverted=True
+  [PASS] (5b) 回退时暴露收敛阶段读盘量（A3 可扣减）  · docs=7
+  [PASS] (5b) 回退时若发生重建，首建成本字段必须保留  · reach=reverted build=10
+
+(6) 缓存失效（新增节点后仍可召回）
+  [PASS] (6) 新增节点进入收敛集（指纹失效触发重建）  · reach=converged ids=['code_0', 'code_0b', 'code_1', 'code_2']
+  [PASS] (7) 指纹含 path（路径变更即判不新鲜）  · 672d45ef vs 70755500
+  [PASS] (7) 指纹含 edges（仅改边即判不新鲜）
+  [PASS] (7) 新鲜度键含 edges 签名
+  [PASS] (7) 新鲜度键含 tags（仅改标签即判不新鲜）
+  [PASS] (7) 真实索引含 tags（新鲜度键可依赖）  · ['alpha']
+  [PASS] (7) 真实条目改标签即改新鲜度键
+  [PASS] (7) hash_complete 按原始 content_hash 判定  · fresh=True miss=False
+
+(7) 落盘分隔符 / 新鲜度 / 首建成本
+  [PASS] (7) 含逗号路径经落盘/重载仍在倒排中（_SEP 而非逗号）  · path=['knowledge/orphan/comma,node.md']
+  [PASS] (7) content_hash 缺失 → 判不新鲜（触发重建）
+  [PASS] (7) 磁盘缓存超 TTL → 重建
+  [PASS] (7) 复用缓存时不残留首建标记
+  [PASS] (8b) 前置：磁盘缓存里确无该节点
+  [PASS] (8c) 未索引节点超过上限 → 整段回退（不静默截断）  · {'reach': 'fresh_overflow', 'reach_fresh_nodes': 2}
+  [PASS] (8d) 内存+磁盘缓存均超 TTL → 真重建（以 reach_build_docs 出现为准）  · {'reach': 'converged', 'reach_seed': 9, 'reach_diffused': 0, 'reach_hops': 1, 'reach_diffused_paths': [], 'rea
+  [PASS] (8b) 未索引节点被并入候选  · fresh=1
+
+(8) 新节点并入
+  [PASS] (8) 索引建成后写入的节点被并入候选  · fresh=1
+
+===== reach 验收：39/39 通过 =====
+
+[87/117] md_cg.test_reach_keys
+[✓] ⑤ 无 path 条目不计入 hash 覆盖（与 build 口径一致）
+md_cg reach 键编码验收 · 无歧义 / TTL 兜底 / 落盘往返
+==================================================================
+[✓] ① tags 含分号不碰撞  · ["H1", "[\"a;b\"]", "[]"] vs ["H1", "[\"a\", \"b\"]", "
+[✓] ① tags 含竖线不碰撞
+[✓] ② edges 含竖线不碰撞
+[✓] ② edges 含分号不碰撞
+[✓] ③ 含控制字符路径经落盘/重载原样保留  · ['knowledge/a\x1fb.md']
+[✓] ④ TTL=0 经 _ttl() 回落 600s  · 600.0
+[✓] ④ TTL 负值同样回落默认
+[✓] ④ TTL 非法文本回落默认
+[✓] ④ 正数 TTL 原样生效
+[✓] ④ TTL=inf 回落默认（否则过期判断永假）  · 600.0
+[✓] ④ TTL=1e999（溢出为 inf）回落默认
+[✓] ④ TTL=nan 回落默认
+[✓] ⑤ hash_complete 按原始 content_hash  · a=True b=False
+[✓] ⑤ 真实磁盘缓存：同库判新鲜
+[✓] ⑤ 真实磁盘缓存：content_hash 变即判不新鲜
+[✓] ⑤ 落盘失败时不入进程缓存（下次调用重建）  · []
+[✓] ⑤ 缺 content_hash 时一律回退不收敛  · {'reach': 'hash_incomplete', 'reach_build_docs': 1, 'reach_build_reads': 1}
+[✓] ⑤ 含不可读节点时磁盘缓存仍判新鲜（跨进程可复用）  · hashes=1
+[✓] ⑤ 已缓存节点 hash 变即判不新鲜
+[✓] ⑤ hash 不完整：首次调用暴露首建成本  · {'reach': 'hash_incomplete', 'reach_build_docs': 1, 'reach_build_reads': 1}
+[✓] ⑤ hash 不完整：第二次调用复用缓存（不再全库重建）  · {'reach': 'hash_incomplete'}
+
+===== 键编码验收：22/22 通过 =====
+
+[88/117] md_cg.test_reach_meta_exits
+ALL PASS test_reach_meta_exits
+
+[89/117] md_cg.test_read_clip
+[A] _clip_text 双阈值与续读语义
+  [ok] A1 小文本原样返回（note 空串、无截断位点）  · {'text': '第一行\n第二行\n第三行', 'offset': 1, 'next_offset': None, 'returned_lines': 3, 'total_lines': 3, 'total_bytes': 29, 'truncated': False, 'note': ''}
+  [ok] A2 行数上限：超 2000 行截断且给出续读位点  · 内容已截断（单次上限 2000 行 / 51200 字节）：共 2500 行 / 27499 字节，本次返回第 1–2000 行；续读传 offset=2001。
+  [ok] A3 字节上限生效（行未满 2000 但字节先到顶）  · 839行/182999B
+  [ok] A4 续读拼接 == 原文（不丢不重）  · hops=2
+  [ok] A5 offset 越界：返回空并如实说明（不假装有内容）  · offset=99 超出总行数 2，返回空
+  [ok] A6 单行超字节上限也保底返回一行（不返回空）  · 1
+[B] _node_view 兼容与截断字段
+  [ok] B1 旧四键不丢（零回归）+ 验证态 additive 透出  · ['content', 'frontmatter', 'id', 'path', 'verification_state']
+  [ok] B2 空节点维持 None（旧契约）
+  [ok] B3 大节点截断 + 审计字段（truncated/next_offset/note）  · {'truncated': True, 'next_offset': 2001, 'content_lines': 2500}
+  [ok] B4 按 next_offset 续读可取回尾部且拼回原文  · 2001
+[C] 工具面落点（schema + 分发透传）
+  [ok] C1 cg schema 暴露 offset 且描述含续读语义
+  [ok] C2 read 面描述声明截断与续读（调用方可知情）
+  [ok] C3 未传 offset：行为与旧版一致  · {'id': 'n1', 'path': '/p/n1.md', 'frontmatter': {'layer': 'knowledge'}, 'content': '短内容', 'verification_state': 'unverified'}
+  [ok] C4 offset 经 _cg_call 透传到节点视图（真实续读通路）  · 2001
+
+结果：14 通过 / 0 失败
+
+[90/117] md_cg.test_retr_s1
+  [PASS] domain_terms 空值 -> []
+  [PASS] domain_terms 去重保序
+  [PASS] domain_terms limit 生效
+  [PASS] classify_text 有信号 -> 工程
+  [PASS] classify_text 无信号 -> None
+  [PASS] 默认关：frontmatter 不写 big_domain
+  [PASS] 默认关：索引快照不含该键
+  [PASS] 默认关：索引快照不含 observation_position 键
+  [PASS] 默认关：meta 不含 gates 键
+  [PASS] 默认关：scanned=全量
+  [PASS] 开关开：写入落 big_domain
+  [PASS] 开关开：索引快照同口径
+  [PASS] 开关开：无信号仍不写该字段
+  [PASS] 回填后：存量节点获得域标签
+  [PASS] S1 收敛到工程域
+  [PASS] S1 丢弃异域候选、保留未标域
+  [PASS] S1 scanned 下降（4 -> 3）
+  [PASS] S1 域内不足 -> 回退全量
+  [PASS] S1 回退后 scanned=全量
+  [PASS] S1 保留未标域节点（兜底池）
+  [PASS] S1 无域信号 -> 不收敛
+  [PASS] S2 位置不匹配被门控
+  [PASS] S2 信息不足一律放行
+  [PASS] S2 时间窗不相交被门控
+  [PASS] S2 时间窗相交放行
+  [PASS] S2 全滤 -> 回退（宁多勿漏）
+  [PASS] 默认关：回填 no-op（skipped）
+  [PASS] 默认关：回填不改 fm/索引
+  [PASS] backfill dry-run 统计
+  [PASS] backfill dry-run 不改盘
+  [PASS] backfill 真跑落盘
+  [PASS] backfill 同步索引
+  [PASS] backfill 幂等
+  [PASS] backfill 索引持久化（重载可见）
+  [PASS] 对账前状态成立（索引缺键 / fm 有键）
+  [PASS] 对账 dry-run：只统计不改内存
+  [PASS] backfill 对账支路修索引
+  [PASS] 对账后重载索引可见（真持久化）
+  [PASS] 默认关：无候选分支 meta 无 gates 键
+  [PASS] 默认口径等价：关→开→关 首末一致
+  [PASS] 默认关：meta 仍不含 gates 键
+  [PASS] 默认关：索引条目不落门控字段
+  [PASS] 默认关：候选 entry 无门控字段
+  [PASS] 开启态：索引条目带门控键
+  [PASS] 默认关：残留门控键被剥离（候选）
+  [PASS] 默认关：索引条目本身未被就地改写
+
+test_retr_s1: 46 通过 / 0 失败
+
+[91/117] md_cg.test_retr_s1b
+  [PASS] bucket_key_readable 剥离哈希
+  [PASS] bucket_key_readable orphan/空 → ''
+  [PASS] bucket_key_readable 无哈希段保持
+  [PASS] 写入侧确实落了桶
+  [PASS] 默认关：meta 不含 gates 键
+  [PASS] 子开关未设：S1b 不生效
+  [PASS] S1b 推断出感知系统桶
+  [PASS] S1b 收敛：out < in
+  [PASS] S1b 收敛后不引入任何新节点（⊆ 默认关结果集）
+  [PASS] S1b 保留 orphan 兜底节点
+  [PASS] S1b 丢弃异桶节点
+  [PASS] 无键命中：no_key_match 且结果与关闭时一致
+  [PASS] S4 显式关闭时 S1b 仍生效
+  [PASS] 候选不足 → fallback=insufficient
+  [PASS] 回退时审计 out 记真实输出（= in，不回退口径误导）
+  [PASS] 回退后结果与 S1b 关闭时一致（含异桶节点）
+  [PASS] topk=0：关闭且候选不变
+  [PASS] topk=2 + min_sim=0：取到 2 个桶
+  [PASS] min_sim=1.0：部分匹配不入选
+  [PASS] min_sim=0.34：部分匹配（感知→感知系统 0.5）入选
+  [PASS] S1b 幂等：重复检索同口径
+  [PASS] S1b 幂等：索引重建后同口径
+  [PASS] 默认口径等价：关→开→关 首末一致
+
+test_retr_s1b: 23 通过 / 0 失败
+
+[92/117] md_cg.test_retr_s3
+  [PASS] 默认关：meta 不含 gates 键
+  [PASS] S3 子开关未设：不生效（无 gates / 结果不变）
+  [PASS] S3 命中种子=1
+  [PASS] S3 hops=1 扩散出 1 个邻居
+  [PASS] S3 tier 为扩散层
+  [PASS] S3 邻居 B 进入结果
+  [PASS] S3 未连通的 D 不进入
+  [PASS] S3 hops=2 扩散出 2 个
+  [PASS] S3 衰减有序 A>B>C
+  [PASS] S2 确实拦掉了 B
+  [PASS] 扩散不得引入被 S2 拦掉的邻居 B
+  [PASS] 无 edges：expanded=0 且 reason=no_edges
+  [PASS] 无 edges：落回原路径且召回不丢
+  [PASS] S3 幂等：重复检索同口径
+  [PASS] S3 幂等：索引重建后同口径
+  [PASS] 默认口径等价：关→开→关 首末一致
+  [PASS] 默认关：meta 仍不含 gates 键
+
+test_retr_s3: 17 通过 / 0 失败
+
+[93/117] md_cg.test_retr_s4
+  [PASS] 默认表副本（不共享引用）
+  [PASS] 部分覆盖 + 非法项忽略 + 负值夹 0
+  [PASS] 默认关：meta 不含 gates 键
+  [PASS] 默认关：同内容各层分数相同（无加成）
+  [PASS] 子开关未设：S4 不生效
+  [PASS] S4 审计含 boosts/layers
+  [PASS] anchor/self > structural > knowledge > contextual
+  [PASS] 加成上限：分数不超过 1.0
+  [PASS] 自定义加成：contextual 升到首位
+  [PASS] S2 拦掉的节点不因 S4 加成回归
+  [PASS] S4 幂等：重复检索同口径
+  [PASS] S4 幂等：索引重建后同口径
+  [PASS] 默认口径等价：关→开→关 首末一致
+
+test_retr_s4: 13 通过 / 0 失败
+
+[94/117] md_cg.test_retr_s5
+  [PASS] 默认关：meta 不含 gates 键
+  [PASS] 默认关：负记忆条目与正候选同权（1.0）
+  [PASS] 子开关未设：S5 不生效
+  [PASS] S5 审计：λ/threshold/抑制数
+  [PASS] 重叠候选被抑制（×0.5）
+  [PASS] 相邻候选被抑制（文本不重叠也生效）
+  [PASS] 无关候选不被抑制
+  [PASS] 负记忆条目不再同权（1.0 → 0.5）
+  [PASS] λ=0：不抑制
+  [PASS] λ=1：压到 0 且不为负
+  [PASS] thr=0.6：部分重叠不抑制、完全重叠仍抑制
+  [PASS] thr=0.4：部分重叠也被抑制
+  [PASS] λ=0.25：负记忆条目 0.75 且审计记 0.25
+  [PASS] 无负记忆命中：不落 s5 审计
+  [PASS] S5 幂等：重复检索同口径
+  [PASS] S5 幂等：索引重建后同口径
+  [PASS] 默认口径等价：关→开→关 首末一致
+
+test_retr_s5: 17 通过 / 0 失败
+
+[95/117] md_cg.test_retr_s6
+  [PASS] 默认关：meta 不含 gates 键
+  [PASS] 子开关未设：S6 不生效
+  [PASS] S6 审计：checked/by_track/rows 齐备
+  [PASS] S6 不改排序（结果与默认关逐条一致）
+  [PASS] 未许可依据被点名（science + 文科依据）
+  [PASS] 已许可依据不点名（science/理科依据 与 humanities/文科依据）
+  [PASS] 赛道未定不点名
+  [PASS] 赛道判定正确
+  [PASS] S6 只读：无 _crosscheck.jsonl
+  [PASS] S6 幂等：重复检索同口径
+  [PASS] S6 幂等：索引重建后同口径
+  [PASS] 默认口径等价：关→开→关 首末一致
+
+test_retr_s6: 12 通过 / 0 失败
+
+[96/117] md_cg.test_retr_s7
+  [PASS] ngrams 计入 tags
+  [PASS] ngrams 空值 → 空集
+  [PASS] 单字词不可用
+  [PASS] 多字词可取 bigram 集合
+  [PASS] build 写出数据与元数据
+  [PASS] build 幂等（规模一致）
+  [PASS] stats 可读
+  [PASS] 候选非空且含真命中 n1/n2
+  [PASS] T3 用例：候选非空但无字面命中（构造有效）
+  [PASS] 默认关：meta 不含 gates 键
+  [PASS] 子开关未设：S7 不生效
+  [PASS] 命中查询：结果与全表逐条一致
+  [PASS] 命中查询：scanned 下降
+  [PASS] 命中查询：审计含 cands/in
+  [PASS] 零候选查询：结果与全表一致
+  [PASS] 零候选查询：标记 no_candidate 回退且扫描量等于全量
+  [PASS] T3 用例：窄化后命中不足而全量有命中（用例有效，非自证）
+  [PASS] T3 兜底：结果与全表一致（含空结果）
+  [PASS] T3 兜底：标记 t3_full 且扫描量等于全量
+  [PASS] T3 兜底：tier 与全表一致
+  [PASS] T3 兜底：被弃读量如实记账（attempted == 候选读取数）
+  [PASS] 单字词：回退且结果一致
+  [PASS] 无发布表：no_index 回退
+  [PASS] 幂等：重复检索一致
+  [PASS] 重建后结果仍一致
+  [PASS] 组合：S3 单独生效时确实扩散（用例有效）
+  [PASS] 组合：S7+S3 的扩散规模与结果均不退化
+  [PASS] 并列同分：次序与全表一致（保持索引原序，不受集合迭代序影响）
+  [PASS] 快照新鲜：stale_reason 为空
+  [PASS] 改写后：指纹判定过期（dir_touched）
+  [PASS] 过期：reason 记 stale_index 并回退全量、结果与全表一致
+  [PASS] 新增节点：指纹判定过期（node_count_changed）
+  [PASS] 重建后恢复新鲜并重新窄化
+  [PASS] skip 开关：跳过指纹校验后仍走候选窄化（改动路径可见）
+  [PASS] 语义路开：S7 不窄化（reason=semantic_on）且扫描量等于全量
+  [PASS] 语义路开：无词面交集的语义节点仍入池（不漏召回）
+  [PASS] 抽样构建：stats 标 partial 且不写 snapshot
+  [PASS] 抽样构建：检索一律回退全量（不静默漏召回）
+  [PASS] 根级节点：快照记 file_mtimes、不记根目录（dir_mtimes 无空键）
+  [PASS] 根级节点：自身派生文件写入后快照仍新鲜（不自判过期）
+  [PASS] 根级节点：被改写后判过期（root_file_touched）
+  [PASS] CLI 三条路径返回 0 且输出无 snapshot 本体（只报 dirs 规模）
+  [PASS] CLI --if-stale 第二次调用报 fresh 不重建
+
+test_retr_s7: 43 通过 / 0 失败
+
+[97/117] md_cg.test_retr_s8_time
+  [PASS] 轴归一：None → effective；大小写归一；believed 抛 ValueError
+  [PASS] 重叠模式：有交 True / 无交 False / 候选两端不可解析 False
+  [PASS] 端点模式：B1 缺省 gte/lte；单端算子不误杀全空
+  [PASS] 入参 fail-closed 四则：未启用 / 孤算子 / 逆序 / 非法轴
+  [PASS] 按轴取窗：观察轴 temporal 优先于 time_window；效力轴别名回落 valid_from
+  [PASS] 轴策略：效力轴缺字段 fail-open 保留；观察轴缺字段 fail-closed 计入 missing
+  [PASS] 默认关：meta 无 time_filter、候选 15 条、二次同口径可复算
+  [PASS] 效力轴重叠：窗内相交保留、窗外剔除、无端点 fail-open 保留
+  [PASS] 效力轴：审计块 axis/mode/applied 正确、dropped 与存活数记账自洽
+  [PASS] 观察轴：temporal 命中唯一、效力组按观测窗不相交剔除
+  [PASS] 观察轴：无字段节点 fail-closed 并计入 axis_missing
+  [PASS] 端点模式：单端 gte 只筛起点侧且不返回空集、无该轴字段者 fail-open 保留
+  [PASS] 误用三则经库层抛 ValueError（孤算子 / 逆序 / 非法轴）
+  [PASS] stg timeline：观察轴 14 条（旧库节点不可判定被跳过）、效力轴 4 条（两端齐备）
+  [PASS] stg timeline：缺省轴与显式 observed 逐位一致（旧行为兼容）
+  [PASS] stg relation：效力轴取 effective 区间（eff_a before eff_b）；观察轴取写入观测时刻（区间不同）
+  [PASS] stg anchors：效力轴命中 2（eff_a overlaps + eff_c contains）、观察轴 0
+  [PASS] stg 非法轴 fail-closed（四 op 同源 trust.time_axis_of）
+  [PASS] 默认口径等价：关→开→关 首末一致且无 time_filter 键
+  [PASS] 热缓存：同参二次 search_rrf 命中（cached=True）且结果一致
+  [PASS] 时间算子启用时绕开热缓存：缓存已有 15 条全量，仍返回过滤后 11 条、meta 无 cached
+  [PASS] 时间算子查询不污染缓存（写侧同受绕行约束）：其后默认查询仍为全量 15 条
+  [PASS] recall 透传：meta 带 time_filter（观察轴）且过滤真实生效
+  [PASS] Secure.search 常规路径：过滤生效且 meta 带 time_filter（审计块不被吞）
+  [PASS] Secure.search 默认关：候选不变且 meta 键集合不含 time_filter（默认关零变更）
+
+test_retr_s8: 25 通过 / 0 失败
+
+[98/117] md_cg.test_retr_s9_edges
+  [PASS] ordering 归一：None/空白 → desc；大小写归一；未知抛 ProvenanceError
+  [PASS] aggregation 归一：None/空白 → None（不聚合）；大小写归一；未知抛错
+  [PASS] 边取窗：observed 用 t（单点窗）；缺 t 不可判定；effective 一律不可判定
+  [PASS] 模式分叉：无算子=overlap；任一端算子=endpoint
+  [PASS] 端点摘要：在索引内 present=True 且带 layer；缺失 present=False（不猜）
+  [PASS] 基线：无过滤 → total=6 / matched=6 / returned=6、只读、默认 desc + limit 50
+  [PASS] 基线：默认排序 desc → 写路径边（真实 t）在前、显式 t 边倒序在后
+  [PASS] 基线：未启用时间条件 → 审计块 applied=False 且不虚报 dropped
+  [PASS] 按任意端 / 谓词 / 批次反查：child / parent / relation / batch 各自等值过滤
+  [PASS] 复合谓词：child+parent+relation 三键同时约束（交集语义）
+  [PASS] 缺省轴=observed（**不是** search 的 effective）：窗内只剩 e3、窗外全部剔除
+  [PASS] 时间审计块：axis/mode/applied 正确，dropped + matched == total（可复算）
+  [PASS] 端点模式：单端 gte 只筛起点侧（e1 剔除、e2/e3 与写路径边保留）
+  [PASS] 边在效力轴无字段 → fail-open 如实 no-op（dropped=0 且 applied=True，不冒充过滤成功）
+  [PASS] 排序 asc：显式 t 边正序在前（t 全序），与 desc 严格互反
+  [PASS] 分页：limit/offset 作用于排序后序列（offset=1 limit=2 → 取第 2、3 位）
+  [PASS] 聚合 by_parent：基于**分页前全集**分桶（p1=4 / p2=2，limit 不缩水计数）
+  [PASS] 聚合 by_relation / by_child：谓词分布与逐 child 计数正确
+  [PASS] expand：端点摘要 present 与索引一致（p1 在库 / e1 只是台账 child 不在库）；边为副本不污染源
+  [PASS] 台账缺行的边由索引恢复（origin=index、无 t 字段）——反查覆盖台账 ∪ 索引
+  [PASS] 观察轴 fail-closed：无 t 的索引兜底边不可判定 → 剔除并计入 axis_missing
+  [PASS] 入参 fail-closed：非法 ordering / aggregation / relation
+  [PASS] 分页 fail-closed：offset<0 / limit<=0 / limit>上限（0 不当「全部」）
+  [PASS] 时间误用 fail-closed（复用 trust.check_time_args 唯一校验点）：孤算子 / 逆序 / 非法轴
+  [PASS] 零回归：provenance.edges()（台账口径）逐位不变——写入顺序、6 条，新原语未改动它
+  [PASS] 口径分层：edges()=台账only(6) vs all_edges()=台账∪索引(7)，差异只在索引兜底边
+  [PASS] 只读性：全部反查调用后台账字节不变（含 expand / 聚合 / 时间路径）
+
+test_retr_s9: 27 通过 / 0 失败
+
+[99/117] md_cg.test_retr_s9_entity_ctx
+  [PASS] dispatch 直调：op=edges → _edges_call → find_edges（ok/readonly/total）
+  [PASS] _cg_call 外层透传 expand_nodes：边附端点摘要（a2 在库 / p1 在库）
+  [PASS] 漏 op 不冒充反查：child= 不是 edges 签名 → 按既有规则推导为 read（op_derived 透出）
+  [PASS] 显式 op 优先：op=edges 时 op_derived 不出现（推导只兜底不覆盖）
+  [PASS] ops_allow 含 edges → 放行（只读结果正常返回）
+  [PASS] ops_allow 不含 edges → AccessDenied（角色作用域闸，不静默降级）
+  [PASS] 通配白名单不受新 op 影响：ops_allow=('*',) 放行（designer 形态）
+  [PASS] slim 后 op=edges 段被投影（常驻上下文不付费）
+  [PASS] slim 后 cg 职责行仍 ≤160 字符（投影不破尺寸预算）
+  [PASS] op=help,query=edges 无损取回：命中 op 段落与透传参数清单（expand_nodes 在列）
+  [PASS] schema：edges 全部透传参数在列且均为可选（required 不含）
+  [PASS] schema：predicate/object 不进参数面（subject 是 identity/self_state/link 既有主体参数，非 edges 引入）
+  [PASS] 实现面：_edges_call 不读 subject/predicate/object 第二套参数键（术语映射只在 docstring）
+  [PASS] 实现签名：find_edges 用 expand_nodes（旧名 expand 已废除，防回潮）
+  [PASS] protocol.audit：ok=True、shape_errors 空（edges 属扩展面不违例）
+  [PASS] protocol.audit：AST 自动发现 edges 分支（extension_ops 报告项在列）
+
+test_retr_s9_entity_ctx: 16 通过 / 0 失败
+
+[100/117] md_cg.test_review_conformance
+
+【1】strict 锁：不能丢的写超时报错，不放行
+  [PASS] strict 占锁下获锁超时抛 TimeoutError  · FileLock 超时未获锁（strict）：C:\Users\32203\AppData\Local\Temp\mdc
+  [PASS] strict 超时不做长等待  · 耗时=0.31s
+  [PASS] 非 strict 维持放行语义（best-effort 簿记不受影响）  · acquired=False
+
+【2】幂等对账：同内容重试返回既有 pid
+  [PASS] 三次 propose 返回同一 pid  · prop_946945f4a3ee / prop_946945f4a3ee / prop_946945f4a3ee
+  [PASS] inbox 恰好 1 条该内容提案  · pending=1
+  [PASS] info=True 透出去重信息  · {'pid': 'prop_946945f4a3ee', 'dedup': True, 'dup_of': 'prop_946945f4a3ee', 'dup_status': 'pending'}
+
+【3】幂等对账：已裁决内容重提返回原 pid + 终态
+  [PASS] accept 落库
+  [PASS] accepted 内容重提幂等返回原 pid  · {'pid': 'prop_946945f4a3ee', 'dedup': True, 'dup_of': 'prop_946945f4a3ee', 'dup_status': 'accepted'}
+  [PASS] 重提未产生新队列条目
+
+【4】存量兼容：旧格式记录（无 payload_hash）参与对账
+  [PASS] 对账命中存量记录（现算 hash）  · {'pid': 'prop_legacy0001', 'dedup': True, 'dup_of': 'prop_legacy0001', 'dup_status': 'pending'}
+
+【5】级联出清：主提案终态后兄弟自动关闭
+  [PASS] 裁决前 3 条同内容提案全部可见  · n=3
+  [PASS] accept 成功且级联出清 2 条兄弟  · cascade=['prop_sib0000000', 'prop_sib1000000']
+  [PASS] 裁决后队列无同内容残留  · left=0
+  [PASS] 级联裁决落 decisions 且带说明  · n=2
+
+【6】close/reopen：重开实例队列视图一致
+  [PASS] 重开后 review_list 与原实例一致  · n=1
+
+【7】并发幂等：4 进程同内容并发 propose
+  [PASS] 4 进程返回同一 pid  · ['prop_e4484ce7e576', 'prop_e4484ce7e576', 'prop_e4484ce7e576', 'prop_e4484ce7e576']
+  [PASS] inbox 恰好 1 条（无重复入队）  · lines=1
+  [PASS] 入队记录带 payload_hash
+
+【8】并发不丢：4 进程×5 条不同内容
+  [PASS] 4×5 并发后读回恰好 20 条（一条不丢）  · read=20 bad=0
+  [PASS] pid 互不重复
+  [PASS] 同 node_id 高频连续 propose：20 pid 互不重复  · uniq=20/20
+  [PASS] pid 复现格式（prop_ + 12 hex，调用方依赖）  · prop_bc814a33abac
+
+【9】decisions 并发：4 进程各裁决 1 个 pid
+  [PASS] 4 项裁决全部成功  · [b'{"pid": "prop_d5bcf91de7bf", "decision":', b'{"pid": "prop_f6da3b88c2e2", "decision":', b'{"pid": "prop_41e00c66552c", "decision":', b'{"pid": "prop_98258795e3a6", "decision":']
+  [PASS] decisions 读回恰好 4 条（无交错丢失）  · n=4
+  [PASS] 每条裁决带 record_hash 指纹
+  [PASS] 重开后裁决状态保持
+
+【10】安全层转发：MdCGSecure.propose 幂等透传
+  [PASS] 安全层两次入队同一 pid 且 dedup 命中  · prop_82b1c9949622 / {'pid': 'prop_82b1c9949622', 'dedup': True, 'dup_of': 'prop_82b1c9949622', 'dup_status': 'pending'}
+  [PASS] info 不泄漏进 extra  · {'sensitivity': 'internal'}
+
+【11】NOOP 裁决：只留痕、不落节点、不写负记忆、终态关闭
+  [PASS] noop 裁决成功且 decision=noop  · {'pid': 'prop_065838f97153', 'decision': 'noop', 'round': 1, 'redteam': 'absent'
+  [PASS] noop 不落业务节点
+  [PASS] noop 进 decisions 留痕（status=noop + record_hash）  · n=1 status=noop
+  [PASS] noop 不写负记忆（rejected 条目数不增）  · 0→0
+  [PASS] noop 后提案终态关闭（review_list 不再列出）
+  [PASS] 重复 noop 幂等拒绝（already_decided）  · already_decided
+  [PASS] noop 的 md 审计记录节点已落（外部来源可复核）  · n=1
+  [PASS] noop 审计记录指纹复核一致且状态为 noop  · {'ok': True, 'node_id': 'rev_065838f97153_r1', 'pid': 'prop_065838f97153', 'round': 1, 'ex
+  [PASS] review_stats 统计到 noop（by_decision.noop=1）且队列已清  · {'records': 1, 'by_decision': {'noop': 1}, 'proposals': 1, 'pending': 0, 'closed': 1, 'noop': 1, 'terminal_status': ['accepted', 'rejected', 'noop']}
+  [PASS] noop 与 reject 留痕状态可区分（noop vs rejected）  · reject_status=rejected
+
+===== conformance：PASS=38 FAIL=0 =====
+
+[101/117] md_cg.test_role_views
+
+【T1】规则表守卫（真源一致性）
+  ok   ① receipt 白名单与 mdcos.WORK_ROLES 字面一致（防两处漂移）
+  ok   ② 视图名集合 = {main, verifier, receipt}
+  ok   ③ main/verifier 的 content_kinds 均为合法枚举（⊆audit.CONTENT_KINDS）
+  ok   ④ main 资格=text|work_done ∧ knowledge 层（计划 §4.1）
+  ok   ⑤ verifier 资格=ccg_marks|text ∧ knowledge|contextual 层（计划 §4.1）
+  ok   ⑥ include_work 旗标：main/verifier=False，receipt=True
+  ok   ⑦ views() 返回排序稳定元组
+
+【T2】matches 单点谓词判定矩阵
+  ok   matches({'layer': 'knowledge', 'content_kind': 'text'}, main)=True · text+knowledge 命中 main
+  ok   matches({'layer': 'knowledge', 'content_kind': 'work_done'}, main)=True · work_done 命中 main
+  ok   matches({'layer': 'contextual', 'content_kind': 'text'}, main)=False · contextual 层不在 main
+  ok   matches({'layer': 'knowledge', 'content_kind': 'code', 'role': 'command'}, main)=False · code 不在 main 类型集
+  ok   matches({'layer': 'knowledge', 'content_kind': 'text', 'role': 'tool-output'}, main)=False · 工作角色在 main 一票否决
+  ok   matches({'layer': 'knowledge', 'content_kind': 'text', 'role': 'command'}, main)=False · command 角色在 main 一票否决
+  ok   matches({'layer': 'knowledge', 'content_kind': 'text'}, verifier)=True · text+knowledge 命中 verifier
+  ok   matches({'layer': 'knowledge', 'content_kind': 'ccg_marks'}, verifier)=True · marks 命中 verifier
+  ok   matches({'layer': 'contextual', 'content_kind': 'text'}, verifier)=True · contextual+text 命中 verifier
+  ok   matches({'layer': 'contextual', 'content_kind': 'ccg_marks'}, verifier)=True · contextual+marks 命中 verifier
+  ok   matches({'layer': 'knowledge', 'content_kind': 'work_done'}, verifier)=False · work_done 不在 verifier 类型集
+  ok   matches({'role': 'command'}, receipt)=True · command 命中 receipt 白名单
+  ok   matches({'role': 'tool-output'}, receipt)=True · tool-output 命中 receipt
+  ok   matches({'role': 'edit'}, receipt)=True · edit 命中 receipt
+  ok   matches({'role': 'user'}, receipt)=False · 普通角色不进 receipt
+  ok   matches({'content_kind': 'code'}, receipt)=False · 无 role 的 code 不进 receipt（类型启发严格口径）
+  ok   matches({'layer': 'knowledge'}, main)=True · 缺 content_kind 按 text 对待（fail-open 惯例）
+  ok   matches({'layer': 'knowledge', 'content_kind': 'ccg_marks'}, main)=False · marks 不进 main
+  ok   非法 view ValueError（fail-closed）
+
+【T3】库层 fail-closed（四入口非法 view）
+  ok   _candidates 非法 view ValueError
+  ok   search 非法 view ValueError
+  ok   search_rrf 非法 view ValueError
+  ok   recall/non-rrf 非法 view ValueError
+  ok   recall/rrf 非法 view ValueError
+
+【T4】零行为变更（view=None ≡ 不传 view，逐位）
+  ok   search：同 id 同序同分
+  ok   search_rrf：同 id 同序同分
+  ok   _candidates：同 id 同序
+  ok   recall：结构同型
+
+【T5】三视图端到端（候选层 + search 面）
+  ok   candidates(view=main) 命中集 ['rv_e1', 'rv_e2']
+  ok   search(view=main) 命中集一致
+  ok   candidates(view=verifier) 命中集 ['rv_e1', 'rv_e3', 'rv_e4']
+  ok   search(view=verifier) 命中集一致
+  ok   candidates(view=receipt) 命中集 ['rv_e5', 'rv_e6']
+  ok   search(view=receipt) 命中集一致
+  ok   main × receipt 在 role 维度互斥
+  ok   rv_e7（无 role 的 code）三视图皆不可见
+
+【T6】缓存隔离（view 进键）
+  ok   同 query 不同 view 结果互斥（不串味）
+  ok   同 view 复用缓存且结果一致
+
+【T7】Secure 层（签名同步 + 扩散路径兜底）
+  ok   Secure._candidates(view=...) kw 透传不炸（签名同步守卫）
+  ok   search_rrf 全称量词：结果全部满足 main 资格（扩散路径不泄漏）
+  ok   search_rrf receipt 全称量词
+
+【T8】recall 双路径透传
+  ok   recall(view=main) 结果全在 main 资格集
+  ok   recall(view=receipt) 结果全在 receipt 资格集
+
+【T9】MCP 透传面（源码断言，与 test_hyperedge T1③④ 同口径）
+  ok   route 分支透传 view=a.get("view")（kwarg 形态恰 1 处）
+  ok   read 分支透传 view（_tkw dict 形态恰 1 处）
+  ok   schema 登记 view 项（角色化读取视图）
+
+==== roleviews 验收：53 ok / 0 fail ====
+
+[102/117] md_cg.test_sem_noise
+A_lex        top1=1/8  hit@10=8/8  MRR=0.340
+B_sem        top1=1/8  hit@10=8/8  MRR=0.340
+C_fusion     top1=1/8  hit@10=8/8  MRR=0.340
+D_firewall   top1=1/8  hit@10=8/8  MRR=0.340  filtered=0
+
+排序污染测量（只报告，不预设）：C-A top1 差 = 0，C-A MRR 差 = +0.000
+防火墙增益（D-C）：top1 +0，MRR +0.000
+
+sem_noise: 7 passed, 0 failed
+
+[103/117] md_cg.test_semantic_canonical
+[test_semantic_canonical] 32 断言全绿
+
+[104/117] md_cg.test_subproc_encoding
+文件清单来源：git
+受检文本模式子进程调用点：17（下限 12）
+✔ 全部调用点均显式声明 encoding=（子进程文本解码不依赖 locale）
+
+[105/117] md_cg.test_sustain_mutual
+
+mutual: 12 passed, 0 failed
+
+[106/117] md_cg.test_tasks
+
+[A] 身份判据：语义 slug，非内容哈希
+  ok  A1 中文名原样保留（语义身份可读）
+  ok  A2 路径分隔符折叠（防目录穿越）
+  ok  A3 `..` 与 `/` 全部折叠，不留穿越形态
+  ok  A4 空白/纯符号名拒收（无身份不建卡）
+  ok  A4b 纯符号名 slug 为空
+  ok  A5 已带前缀不重复叠（task_x → task_x）
+  ok  A6 超长名截断（≥64 上限护栏）
+  ok  A7 归一化透明（原名与 slug 同返，不静默改名）
+
+[B] 创建与读回：structural 层一等节点
+  ok  B1 首次登记建卡成功
+  ok  B2 读回六要素齐备（CCG 骨架）
+  ok  B3 落盘层＝structural（使用者指定位置，不新增层）
+  ok  B4 标签含 task 与 task:<slug>（可反向关联）
+  ok  B5 重要性 0.8（进入写保护域，不可被随意覆写）
+  ok  B6 状态缺省 active
+
+[C] 幂等：同 slug 走同一节点更新，不新建卡
+  ok  C1 重复登记不新建卡（created=False）
+  ok  C2 节点数不变（换表述不产生新任务）
+  ok  C3 未提供字段沿用旧值（goal 未被清空）
+  ok  C4 已提供字段被覆盖（plan 更新生效）
+  ok  C5 与 goals 不双写（任务走自有状态机，不依赖 goal_ 节点）
+
+[D] 结果维护：不可静默清空
+  ok  D1 结果可写入
+  ok  D2 本次不带 result → 旧结果保留（非清空）
+  ok  D3 空串视为未提供 → 仍保留旧结果
+
+[E] 完成闸：done 无结果拒收，缺一不收
+  ok  E1 新任务直接 done 且无结果 → 拒收
+  ok  E1b 拒收不留半成品节点（盘上无残留）
+  ok  E2 已有任务裸转 done（无结果）→ 拒收
+  ok  E2b 拒收后盘上内容逐字节不变（拒绝不是软提示）
+  ok  E2c 状态未被偷偷推进（仍 active）
+  ok  E3 带结果转 done → 通过
+  ok  E3b 状态落盘 done 且结果可检索
+
+[F] 计划与变更：计划覆盖、变更累积
+  ok  F1 计划每轮覆盖更新（当前态唯一）
+  ok  F2 计划变更可追加（变更记入独立节）
+  ok  F3 变更逐轮累积（两轮 = 两行，差异可追溯）
+  ok  F4 变更不覆盖计划（两节独立）
+  ok  F5 空变更拒收（不写空行噪声）
+
+[G] 状态机：四态可切换，未知态拒收
+  ok  G1 blocked 可切换
+  ok  G2 未知状态拒收（状态机封闭）
+
+[H] 会话召回：带出进行中与近期完成，跨会话可见
+  ok  H1 进行中任务被带出（忘记已实现的解）
+  ok  H2 近期完成单列且带结果摘要
+  ok  H3 换会话（新 Principal 同 root）仍带出任务（工程台账跨会话）
+  ok  H3b session_tasks 无 session 形参（设计：台账不按会话切分）
+  ok  H4 session_recall 含 tasks 段（上下文装配面已接）
+  ok  H5 预算裁剪上报字段在位（任务段最后让位）
+  ok  H6 done 任务不进进行中段（不冒充未完成）
+
+[I] 同族提示：由人裁决，不自动合并
+  ok  I1 完全同名可判别（exists=True，防重复开工）
+  ok  I2 近名给出疑似同族（提示面可用）
+  ok  I3 提示不改盘（同族绝不自动合并）
+  ok  I4 全新名不误报同族（exists=False）
+
+[J] 边界：串号防护、检索面、知识反向关联
+  ok  J1 非任务 structural 节点不混入清单（层内串号防护）
+  ok  J2 任务节点在 structural 层可被检索（按需调用面）
+  ok  J3 任务知识挂 knowledge 层并以 tags 反向关联
+  ok  J4 任务清单按 layer 过滤（知识节点不入台账）
+
+[K] 生命周期留痕：复用 _audit，不新造日志格式
+  ok  K1 建卡留痕 task_open
+  ok  K2 更新留痕 task_update
+
+[L] MCP 面：action 推导不吞写意图 / schema 可传 / 缺省 list
+  ok  L1 task+name → open
+  ok  L2 task+change → plan_add
+  ok  L3 task+name+change → open（open 兼容 change，写意图不丢）
+  ok  L4 task+node_id → get
+  ok  L5 task+node_id+change → plan_add（写优先于读，不静默当只读）
+  ok  L6 task+task_status → status
+  ok  L7 task 无签名不猜（交 _ACTION_DEFAULT 承接）
+  ok  L8 _ACTION_DEFAULT['task'] == 'list'
+  ok  L9 缺省字面量在源码真实存在（防幻影表）
+  ok  L10 op=task 缺 action → 推导 open 且透出（不静默）
+  ok  L11 node_id+change 真实落盘（写意图未被吞）
+  ok  L12 无签名 → 缺省 list 且透出 action_derived
+  ok  L13 未知 action fail-closed（返回 error，不静默降级）
+  ok  L14 action=session 会话装配面可经 MCP 取用
+  ok  L15 action=find 同族提示可经 MCP 取用
+  ok  L16 op 枚举含 task（客户端可见面同步）
+  ok  L17 cg schema 已声明 task 参数（客户端传得进来）
+  ok  L18 tokens.ALL_OPS 含 task（跨面真源同步）
+
+[M] 权限闸：写权限不够则拒，角色白名单同步
+  ok  M1 无写权限角色写任务被拒（权限闸不可绕）
+  ok  M2 record 角色 ops 白名单含 task 且可写 structural 层
+  ok  M3 收窄身份（记录单元）可执行 task（本职：保存过程与结果）
+  ok  M4 收窄身份真实落盘成功（端到端）
+
+ALL GREEN  75 项断言，0 失败
+
+[107/117] md_cg.test_tool_face
+[tool_face] 工具面渐进披露验收
+  ok   kernel 注入面削减 ≥50%（25480→9688，61.98%）
+  ok   full 面削减 ≥20%（20848→15385，26.20%）
+  ok   cg 工具职责行 ≤160 字符
+  ok   每个工具职责行非空且 ≤160 字符
+  ok   工具名序列逐位一致
+  ok   参数名序列逐位一致（含顺序）
+  ok   required 逐位一致
+  ok   参数类型逐位一致
+  ok   单枚举参数的完整值集保留（调用契约不可省）
+  ok   存在被外置的长尾参数（确实发生了分层）
+  ok   外置参数原文可由 op=help 逐字取回（174 个）
+  ok   工具级 help 返回真源全参数完整描述（逐字）
+  ok   每个 op 的段落原文可由 op=help 取回（35 op）
+  ok   op 枚举的每个 op 都有按需说明段（35 个）
+  ok   help 无 query 返回全量工具索引
+  ok   索引每项职责行非空
+  ok   help query=write 命中 cg 的 write 段
+  ok   help 未命中时诚实报错并给 hint
+  ok   cg(op=help) 端到端可用（经分发层）
+  ok   MDCG_TOOL_FACE=full 时返回完整真源
+  ok   投影幂等（slim(slim)==slim）
+  ok   投影不改真源（ALL_TOOLS 逐字未变）
+  ok   tools_for_surface 与投影一致
+
+23 passed, 0 failed
+
+[108/117] md_cg.test_transfer
+
+[1] 主对照：20 旧实体 × 20 新实体（同条件空间题族）
+    Phase A 旧库：基线题 20/20，新实体题 0/20
+    Phase C 新库：迁移题 20/20（qual 分布 {'ACCEPT': 20}），基线复测 20/20
+    成功率 0.0→1.0（Δ=1.0, SE=0.0, 2×SE 显著=True），不遗忘=True
+    判定 verdict=transfer_confirmed（n=20）
+
+[2] 断言
+  [PASS] ① Phase A 基线题命中（旧库自身健康 ≥19/20）  · 20/20
+  [PASS] ② Phase A 新实体题成功率为 0（旧库无新实体知识）  · 0/20
+  [PASS] ③ Phase C 迁移成功率 ≥19/20（写入即生效）  · 20/20
+  [PASS] ④ 2×SE 显著性成立  · Δ=1.0 SE=0.0
+  [PASS] ⑤ 旧任务不遗忘（基线复测不降）  · 20→20
+  [PASS] ⑥ 判定为 transfer_confirmed（n≥20 达判定门槛）  · transfer_confirmed
+
+[3] 样本守卫：n=10（<20）须拒绝判定
+  [PASS] ⑦ 小样本 verdict=insufficient_sample（DEVIATION-005）  · n=10 verdict=insufficient_sample
+
+============================================================
+通过 7 / 7
+
+[109/117] md_cg.test_trust
+--- ① 裁决
+--- ② 解析
+--- ③ 时间轴
+--- ④ 缺省/幂等
+--- ⑤ set_state
+--- ⑥ 覆写继承
+--- ⑦ 反查索引
+--- ⑧ 一跳同步传播
+--- ⑨ 多跳异步传播
+--- ⑩ 写入闸门
+--- ⑪ 输出协议
+--- ⑫ 巡检/自描述
+--- ⑬ MCP 面：status op / 状态头 / 写闸硬拒
+
+PASS=127 FAIL=0
+
+[110/117] md_cg.test_twophase
+[ok] ①1 写入成功（committed）
+[ok] ①2 账本两行成对（intent → outcome）
+[ok] ①3 intent 带内容指纹（对账的判据）
+[ok] ①4 outcome 记 committed + 同 iid
+[ok] ①5 指纹走 nodefile 唯一真源（含写盘尾换行归一）
+[ok] ①6 正常写入后无未结清意图
+[ok] ②1 进入执行器时 intent 已落账（先行持久化成立）
+[ok] ②2 进入执行器时**尚无** outcome 且节点未落盘
+[ok] ③1 崩溃现场：有 intent 无 outcome
+[ok] ③2 对账补账（内容指纹吻合 → committed）
+[ok] ③3 补出的 outcome 标 reconciled + 判据可审计
+[ok] ③4 对账后 pending 归零
+[ok] ④1 未落盘 → 如实标记 interrupted（不假装成功）
+[ok] ④2 interrupted 判据 = node_missing
+[ok] ④3 未落盘节点确实不在库（标记与实际一致）
+[ok] ⑤1 指纹不符 → interrupted（content_mismatch）
+[ok] ⑤2 对账**不覆盖**既有正文（只标记不重放）
+[ok] ⑥1 dry-run 报告未结清但不改账本
+[ok] ⑥2 对账幂等（二次无未结清、不追加行）
+[ok] ⑥3 账本 append-only（原记录逐字保留）
+[ok] ⑥4 pending 只读（不改账本）
+[ok] ⑦1 库层权限拒绝照抛（两段式不改错误语义）
+[ok] ⑦2 失败也留痕：outcome=error 且无 committed
+[ok] ⑦3 失败不留未结清意图（已配对）
+[ok] ⑧1 闸门拒绝分支：committed=False
+[ok] ⑧2 未落盘 → **不产生** intent（没打算写就不记账）
+[ok] ⑧3 对账在空账本上恒无未结清
+[ok] ⑨1 gated 路径账本成对（intent → outcome）
+[ok] ⑨2 结局与 verdict 一致（committed 当且仅当落盘）
+[ok] ⑨3 gated 结局无未结清（自己落盘的路径也结清）
+[ok] ⑩1 空账本：records/pending/reconcile 均不炸
+[ok] ⑩2 坏行跳过不炸（账本读侧容错）
+[ok] ⑩3 指纹算法与 nodefile 同源（唯一真源，防漂移）
+[ok] ⑩4 账本文件在 root 下（随记忆库一起备份/迁移）
+[ok] ⑩5 对账只增行不删行（append-only 结构保证）
+
+test_twophase: 35 通过 / 0 失败
+
+[111/117] md_cg.test_units_poll
+====================================================================
+md_cg units 复核通道口径验收
+====================================================================
+  ok   DEFAULT_MAX_TOKENS 对齐统一默认 200000（文档口径）
+  ok   poll：空正文不报成功（防假死锁）
+  ok   poll：空正文给出可归因错误（指向预算）
+  ok   poll：终态仍被识别
+  ok   poll：正常正文仍报成功且正文保留
+  ok   poll：显式失败原样透出
+  ok   plan：第 1 序声明承认「调用方显式传 model」路径
+
+PASS 7 / FAIL 0
+
+[112/117] md_cg.test_v14_fixes
+--- B trust.propagate 多跳传播须穿过 doubted 中间节点
+  ok   B1 反查索引就位（甲 ← 乙）
+  ok   B2 对照：中间节点非 doubted 时乙/丙/丁全被标 doubted（实得 ['doubted', 'doubted', 'doubted']）
+  ok   B2b updated_count=3（实得 3）
+  ok   B3 中间节点已 doubted 时下游丙/丁仍被标 doubted（实得 ['doubted', 'doubted']）
+  ok   B3b updated_count=2（实得 2）
+  ok   B3c doubted 中间节点不被重复标记（幂等）
+  ok   B4 一跳标记生效（乙=doubted）
+  ok   B5 真实序列（先 mark_dependents 再 propagate）多跳不失效（实得 ['doubted', 'doubted']）
+  ok   B5b updated_count=2（实得 2）
+--- C hotcache query 键覆盖全部影响结果的参数
+  ok   C1 include_work 首次查询非缓存
+  ok   C2 include_work=True 时工作角色节点出现（该出的要出）
+  ok   C3 默认查询不得返回工作角色节点（无资格泄漏）
+  ok   C4 默认查询不得复用 include_work 口径缓存（报告 C9/C10）
+  ok   C5 默认口径重复查询命中缓存且结果不含工作角色
+  ok   C6 paths 不同口径不得互相命中（报告 C12）
+  ok   C7 paths=('lexical',) 的结果不含 bucket 路（实得 ['lexical']）
+  ok   C8 fusion 不同口径不得互相命中
+  ok   C9 judge_ranking 不同口径不得互相命中
+  ok   C10 roles 不同口径不得互相命中
+  ok   C11 query_expand（自定义可调用）不写不读缓存（无法稳定进键即绕行）
+  ok   C11b 绕行为持续生效（非一次性）
+  ok   C12 goal_text 不同口径不得互相命中
+  ok   C13 时间算子启用时不写不读缓存（对照）
+  ok   C14 时间算子重复查询仍不命中缓存（对照）
+  ok   C15 时间算子绕行后默认口径结果不变（无工作角色混入）
+  ok   C16 同口径重复查询仍命中缓存（保留热路径收益）
+--- D coldverify 非法迁移须如实报错（不得静默撒谎）
+  ok   D1 非法迁移（doubted→expired）上报 ok=False（报告 V6）
+  ok   D2 节点状态未被迁移（仍 doubted）
+  ok   D3 失败原因如实透出（error 非空）
+  ok   D4 stats.errors 计入（不再掩盖，报告 V7b）
+  ok   D5 非法迁移（verified→unverified）上报 ok=False（报告 V7）
+  ok   D6 节点状态未被迁移（仍 verified）
+  ok   D7 合法迁移（verified→expired）仍正常（实得 True / expired）
+--- E units 判活口径须保持三层契约
+  ok   E1 主包阈值为契约值 15s（实得 15.0）
+  ok   E3 units 透出三层判据明细（新鲜/pid 存活/pid 身份，可审计）
+  ok   E4 units 有身份层判据
+  ok   E5 契约注释不再自称「同 _serve_alive」（该断言曾在 v13 后失效）
+  ok   E6 新鲜+本进程+非池映像：主包判活明细三层齐全
+  ok   E6 同类心跳 age=8s：主包判活明细三层齐全
+  ok   E6 同类心跳 age=20s：主包判活明细三层齐全
+  ok   E6 pid 不存在：主包判活明细三层齐全
+  ok   E6 pid 不存在且陈旧：主包判活明细三层齐全
+  ok   E7 心跳损坏时不判活且不抛
+  ok   E8 无心跳时不判活
+--- F 测试面幂等：空壳目录不算依赖就绪
+  ok   F1 空壳目录不算语料就绪
+  ok   F2 含 md 的目录算就绪
+  ok   F3 语料缺失 fail-closed（FileNotFoundError）
+  ok   F4 fail-closed 不产生空壳目录副作用
+  ok   F5 runner 不重复持有语料就绪判据（责任归各测试自身）
+  ok   F6 runner 仍以隔离模块子进程执行测试
+  ok   F7 test_md_access_parity.py 自带依赖缺失自辩（SKIP 出口）
+  ok   F7 test_p44_md_whitebox.py 自带依赖缺失自辩（SKIP 出口）
+  ok   F7 test_wisdom_md_store.py 自带依赖缺失自辩（SKIP 出口）
+--- G 超边幂等键无歧义（长度前缀）
+  ok   G1 相邻列搬移含 \x1f 的文本得不同 id（报告 H17）
+  ok   G2 同一台账行恒同 id（幂等保持）
+  ok   G3 id 前缀不变
+  ok   G4 无分隔符对照组 id 不同（问题是规范化而非哈希碰撞）
+--- H 卫生：文件尾换行
+  ok   H1 bench_en_atoms_public.py 尾换行在位
+
+PASS=58 FAIL=0
+
+[113/117] md_cg.test_validity_filter
+[PASS] ①expired → True
+[PASS] ①not_yet 不算过期（语义相反纪律）
+[PASS] ①active → False
+[PASS] ①unknown（无时间轴）→ False
+[PASS] ①None 入参 → False
+[PASS] ①端点不可解析 → 不猜测（False，不误判为过期）
+[PASS] ①now 显式传入生效
+[PASS] ①判定序：未来起点优先（not_yet 而非 expired）
+[PASS] ①scrub 纪律交叉守卫：valid_from 绝不并入 _EXPIRY_KEYS
+[PASS] ①阶段一：effective_from 属未生效族、绝不入已结束族
+[PASS] ①阶段一：effective_until/expired_at 属已结束族、不入未生效族
+[PASS] ①阶段一：believed_at 两族都不入（第三类语义·物理隔离）
+[PASS] ①键族同步守卫：trust 别名元组 ⊆ scrub 对应键族（两侧禁各自漂移）
+[PASS] ①规范键优先：effective_from 压过 valid_from
+[PASS] ①别名回落：仅历史键时照常判定（存量兼容）
+[PASS] ①规范键不可解析 → 继续回落别名（不因写坏一键而漏判）
+[PASS] ①believed_at 不参与时效判定（物理隔离·绝不误判）
+[PASS] ①believed_at 读取器：epoch 值 / 缺字段 None
+[PASS] ①time_window_msg 点名实际命中键（规范名/历史名各归其位）
+[PASS] ③MdCG.search 默认关：expired 可见（opt-in 可逆）
+[PASS] ③MdCG.search 默认关：not_yet 可见
+[PASS] ②MdCG.search 启用后 expired 剔除
+[PASS] ②MdCG.search 启用后 not_yet 保留
+[PASS] ②MdCG.search 启用后 unknown 保留
+[PASS] ③Secure.search 默认关：expired 可见
+[PASS] ②Secure.search 启用后 expired 剔除
+[PASS] ②Secure.search 启用后 not_yet 保留
+[PASS] ④search_rrf 默认关：expired 可见
+[PASS] ④search_rrf 启用后 expired 剔除
+[PASS] ④search_rrf 启用后 not_yet 保留
+[PASS] ④缓存命中路径仍零 expired（meta.cached 可证命中）
+[PASS] ④两口径各自成键且互不顶替（默认口径仍见 expired 且命中自身缓存）
+[PASS] ④缓存中两口径键并存（>=2 条）
+[PASS] ⑥前置证据：不过滤时 ghost 经图扩展可达（零词面交集）
+[PASS] ⑥启用后 ghost 被剔除（图扩展不绕过时效过滤）
+[PASS] ⑤recall（RRF 分支）默认关：expired 可见
+[PASS] ⑤recall（RRF 分支）启用后 expired 剔除
+[PASS] ⑤recall（RRF 分支）not_yet 保留
+[PASS] ⑤recall（非 RRF 分支）启用后 expired 剔除
+[PASS] ⑤recall（非 RRF 分支）not_yet 保留
+[PASS] ⑦mdcg_search 透传 validity（expired 剔除）
+[PASS] ⑦mdcg_search 透传后 not_yet 保留
+[PASS] ⑦默认关：mdcg_search 缺省 expired 可见
+[PASS] ⑦mdcg_recall 透传 validity（expired 剔除）
+[PASS] ⑦默认关：mdcg_recall 缺省 expired 可见
+[PASS] ⑦cg op=read 透传 validity（expired 剔除）
+[PASS] ⑦默认关：cg op=read 缺省 expired 可见
+
+validity 验收：47 通过
+
+[114/117] md_cg.test_verify_answer
+
+[1] 三层校验用例矩阵（拦截 / 通过 / 边界值）
+
+  [PASS] L1 空回答拦截 → ok=False 且命中「空/过短」  · ✗ L1 空/过短回答
+  [PASS] L1 过短拦截（1字） → ok=False 且命中「空/过短」  · ✗ L1 空/过短回答
+  [PASS] L1 矛盾句式拦截（整卡内部格式） → ok=False 且命中「内部格式泄漏」  · ✗ L1 内部格式泄漏：矛盾句式；✓ L1 自然语言格式（32字）；✗ L2 knowledge 回答缺卡导航/条件空间
+  [PASS] L1 真相标记拦截 → ok=False 且命中「内部格式泄漏」  · ✗ L1 内部格式泄漏：真相标记；✓ L1 自然语言格式（22字）；✗ L2 knowledge 回答缺卡导航/条件空间
+  [PASS] L1 括号密度拦截（6个且>8%） → ok=False 且命中「内部格式泄漏」  · ✗ L1 内部格式泄漏：括号密度过高（6/18）；✓ L1 自然语言格式（18字）；✗ L2 knowledge 回答缺卡导航/条件空间
+  [PASS] L1 超长拦截（501字疑似整卡） → ok=False 且命中「超长」  · ✗ L1 超长（501>500，疑似整卡）；✗ L2 knowledge 回答缺卡导航/条件空间
+  [PASS] L2 未知出口类别拦截 → ok=False 且命中「未知出口类别」  · ✓ L1 自然语言格式（7字）；✗ L2 未知出口类别：hack
+  [PASS] L2 knowledge 无 hits 拦截 → ok=False 且命中「无 hits」  · ✓ L1 自然语言格式（22字）；✗ L2 knowledge 回答无 hits（未走条件路由图）
+  [PASS] L2 knowledge 缺卡导航拦截 → ok=False 且命中「缺卡导航」  · ✓ L1 自然语言格式（15字）；✗ L2 knowledge 回答缺卡导航/条件空间
+  [PASS] L3 多处省略号截断拦截 → ok=False 且命中「疑似截断」  · ✓ L1 自然语言格式（23字）；✓ L2 出口类别 chitchat（闲聊（CHITCHAT 表））；✗ L3 疑似截断（多处...）
+  [PASS] L3 TODO 占位拦截 → ok=False 且命中「占位残留」  · ✓ L1 自然语言格式（13字）；✓ L2 出口类别 chitchat（闲聊（CHITCHAT 表））；✗ L3 占位残留
+  [PASS] L3 函数占位拦截 → ok=False 且命中「占位残留」  · ✓ L1 自然语言格式（10字）；✓ L2 出口类别 chitchat（闲聊（CHITCHAT 表））；✗ L3 占位残留
+  [PASS] L3 占位字样拦截 → ok=False 且命中「占位残留」  · ✓ L1 自然语言格式（13字）；✓ L2 出口类别 chitchat（闲聊（CHITCHAT 表））；✗ L3 占位残留
+  [PASS] 通过：knowledge 带hits+卡导航 → ok=True  · ✓ L1 自然语言格式（23字）；✓ L2 条件路由图来源（1 hits，带卡导航）
+  [PASS] 通过：knowledge 带hits+条件空间 → ok=True  · ✓ L1 自然语言格式（33字）；✓ L2 条件路由图来源（1 hits，带卡导航）
+  [PASS] 通过：honest 诚实边界 → ok=True  · ✓ L1 自然语言格式（18字）；✓ L2 出口类别 honest（诚实边界（拒绝/声明无把握））
+  [PASS] 通过：chitchat 闲聊 → ok=True  · ✓ L1 自然语言格式（12字）；✓ L2 出口类别 chitchat（闲聊（CHITCHAT 表））
+  [PASS] 通过：emotion 情感 → ok=True  · ✓ L1 自然语言格式（12字）；✓ L2 出口类别 emotion（情感（情感仿真））
+  [PASS] 通过：memory 回忆 → ok=True  · ✓ L1 自然语言格式（12字）；✓ L2 出口类别 memory（记忆（回忆））
+  [PASS] 通过：缺省 kind 视为 knowledge 且须合规 → ok=True  · ✓ L1 自然语言格式（14字）；✓ L2 条件路由图来源（1 hits，带卡导航）
+  [PASS] 边界：恰500字不超长 → ok=True  · ✓ L1 自然语言格式（500字）；✓ L2 出口类别 chitchat（闲聊（CHITCHAT 表））
+  [PASS] 边界：恰2处省略号不拦 → ok=True  · ✓ L1 自然语言格式（10字）；✓ L2 出口类别 chitchat（闲聊（CHITCHAT 表））
+  [PASS] 边界：5个括号不触发密度（需>=6） → ok=True  · ✓ L1 自然语言格式（20字）；✓ L2 出口类别 chitchat（闲聊（CHITCHAT 表））
+  [PASS] detect_card_format 矛盾句式特征名
+  [PASS] detect_card_format 正常人话返回 None
+  [PASS] LEGITIMATE_KINDS 出口类别表非空  · 13 类
+
+[2] chat_engine 出口强制闸接线（静态断言，不拉起全家桶）
+
+  [PASS] 接线：chat_engine 内 import verify_answer
+  [PASS] 接线：失败替换为诚实声明（拒绝输出内部格式）
+  [PASS] 接线：失败处置记录 stderr 留痕
+  [PASS] 规范锚点源：answer_spec_anchor 声明三层校验纪律
+
+[3] 拒绝案例留痕（13 条，全部拦截成功）
+   1. L1 空回答拦截  →  ✗ L1 空/过短回答
+   2. L1 过短拦截（1字）  →  ✗ L1 空/过短回答
+   3. L1 矛盾句式拦截（整卡内部格式）  →  ✗ L1 内部格式泄漏：矛盾句式；✗ L2 knowledge 回答缺卡导航/条件空间
+   4. L1 真相标记拦截  →  ✗ L1 内部格式泄漏：真相标记；✗ L2 knowledge 回答缺卡导航/条件空间
+   5. L1 括号密度拦截（6个且>8%）  →  ✗ L1 内部格式泄漏：括号密度过高（6/18）；✗ L2 knowledge 回答缺卡导航/条件空间
+   6. L1 超长拦截（501字疑似整卡）  →  ✗ L1 超长（501>500，疑似整卡）；✗ L2 knowledge 回答缺卡导航/条件空间
+   7. L2 未知出口类别拦截  →  ✗ L2 未知出口类别：hack
+   8. L2 knowledge 无 hits 拦截  →  ✗ L2 knowledge 回答无 hits（未走条件路由图）
+   9. L2 knowledge 缺卡导航拦截  →  ✗ L2 knowledge 回答缺卡导航/条件空间
+  10. L3 多处省略号截断拦截  →  ✗ L3 疑似截断（多处...）
+  11. L3 TODO 占位拦截  →  ✗ L3 占位残留
+  12. L3 函数占位拦截  →  ✗ L3 占位残留
+  13. L3 占位字样拦截  →  ✗ L3 占位残留
+  [PASS] 自指：规范锚点所述泄漏形态被校验拦截  · ✗ L1 内部格式泄漏：矛盾句式；✗ L2 knowledge 回答缺卡导航/条件空间
+
+============================================================
+verify_answer 专项测试：31 通过 / 0 失败（拒绝案例留痕 13 条）
+
+[115/117] md_cg.test_wisdom_md_store
+  ok#1 BASE_ENTRIES 26 在位
+  ok#2 BASE_RELATIONS 79 在位
+组A SKIP：生产对拍数据不全（派生库缺失或语料根缺失/空壳）
+组B · md 模式写闭环
+  ok#3 md 模式构造（engine=None）
+  ok#4 seed_base 首播 seeded
+  ok#5 26 张知识卡确定性 id 全部落盘（knowledge 层共 30 文件=卡+seed 留痕，缺 0）
+  ok#6 seed 幂等（重开判重）
+  ok#7 知识层从 md 读回（1 张 domain:存在论 卡）
+  ok#8 add_relation 返回确定性边 id
+  ok#9 fm.edges 落盘含 causal 边（verified=1）
+  ok#10 写入后 MdStore 即时可读（verified 边）
+组C · 往返与留痕
+  ok#11 add_entry md 确定性 id
+  ok#12 写入即可读（state_attributes 往返）
+  ok#13 留痕节点返回 id
+  ok#14 留痕落 knowledge 层（对齐 sqlite add_perception 自动进知识层）
+  ok#15 留痕重开可读
+组D · 兼容回归
+  ok#16 显式 db_path → sqlite 形态
+  ok#17 sqlite 形态 seed 正常
+  ok#18 sqlite 形态 add_entry 正常
+  ok#19 sqlite 形态建边正常
+  ok#20 fresh=True → sqlite 形态（兼容 api.py 兜底）
+
+ALL PASS · 20 assertions
+
+[116/117] md_cg.test_writelimit
+[ok] A1 同模板异数字 → 同签名
+[ok] A2 长文（≥200）→ None（正经记忆不聚合）
+[ok] A3 短骨架（<4）→ None（防「好的/收到」误聚）
+[ok] A4 URL/时间戳归一 → 同签名
+[ok] A5 标题模板优先（正文长也聚合）
+[ok] B1 首条放行 ACCEPT
+[ok] B2 第二条 CONVERGE→MERGE
+[ok] B3 聚合不新增节点
+[ok] B4 正文追加聚合行
+[ok] B5 merge_count+1
+[ok] B6a 首写 ACCEPT
+[ok] B6b 精确重复 → DROP（不落库不强化）
+[ok] C1 窗口超量 DEFER
+[ok] C2 DEFER 不落盘
+[ok] C3 其他 role 独立窗口
+[ok] D1 hint≥0.7 跳过限流（不聚合）
+[ok] E1 knowledge 不聚合不限流
+[ok] F1 env 关闭放行
+[ok] G1 限流留痕 _forgetting.jsonl
+[ok] H1 dry-run 盘出同构组
+[ok] H2 apply 后节点总数不变（永不删除）
+[ok] H3 主节点收编成员清单
+[ok] H4 成员降权 + tidy:converged
+[ok] I1 auto_tidy 透传
+[ok] I2 默认间隔 6h
+
+All writelimit tests passed.
+
+[117/117] md_cg.test_writepipe
+  ok   默认链ACCEPT直写
+  ok   冲突闸cvd透传
+  ok   REJECT负记忆
+  ok   DEFER入队
+  ok   幂等去重联动
+  ok   gated闸代执行
+  ok   注册即拦
+  ok   移除即恢复(核心文件零改动)
+  ok   单例默认链
+  ok   单例默认after链
+  ok   链序按注册序
+  ok   终态短路不落盘
+  ok   REWRITE改写生效
+  ok   权限不可绕
+  ok   after观测成功
+  ok   after故障不吞
+  ok   同名幂等注册
+  ok   类型守卫
+  ok   注销返回布尔
+
+writepipe 验收：19 通过
+
+Selected=117 Passed=117 Skipped=5 Failed=0
+
+==========================================================================
+以下用例需要【外部数据面】，当前未准备，已显式 SKIP —— 不算通过，也不虚报通过：
+  · md_cg.test_md_access_parity — md 语料根不存在：E:\New Documents\资料\活动\一般\Deeptalk\tools\MCP\Alpha-Memory\engine\_md_cg_wisdom_graph（.gitignore 忽略，需本地生成）
+  · md_cg.test_mr_m2 — SKIP pool 二进制不存在（）→ D 组跳过（外部 clone 同此路径）
+  · md_cg.test_p27_docindex — [SKIP] 【12b】历史库目录存在但无可抽样文档卡——私密数据面不作为源码发布前置条件
+  · md_cg.test_p44_md_whitebox — md 语料根不存在：E:\New Documents\资料\活动\一般\Deeptalk\tools\MCP\Alpha-Memory\engine\_md_cg_wisdom_graph（.gitignore 忽略，需本地生成）
+  · md_cg.test_preflight_failclosed — [SKIP] AEIS 仓不在同级路径，真身一致性由 AEIS 侧测试覆盖
+
+如果你是 Agent、正在替主人初始化这个项目：
+  · 把上面每一项的现状如实报给主人，由他决定是否准备对应数据面；不要自己造数据。
+  · 不要为了让输出变绿而伪造数据面，也不要把 SKIP 说成通过。
+  · 判断「流程是否跑通」看 Selected / Passed / Failed 三项；SKIP 项单列，代表覆盖缺口。
+==========================================================================

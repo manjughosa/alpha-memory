@@ -1,0 +1,15 @@
+{
+  "_readme": "Alpha text 类写入审核规则库（MDCG_POLICY_FILE）。两类都空则 DEFER；命中 forbidden 则 REJECT；缺 required 则 REJECT；否则 ACCEPT。规则为正则，re.search 语义。作者：设计者 2026-09-16。",
+  "_why": "Alpha记忆的病灶是无闸倾倒：空条目占五成以上、巡检轻档占位、同事件多版本洪水。此库即闸门第一版，专拦这三类。",
+  "_note_escape": "正则里的反斜杠用 JSON 的 \u005c 转义书写，因为命令行 --data 通道会把双反斜杠压成单反斜杠导致 JSONDecodeError。",
+  "forbidden": [
+    "待补充",
+    "自动触发，不可跳过",
+    "本轮无实质",
+    "无内容",
+    "见上文"
+  ],
+  "required": [
+    "^[\u005cs\u005cS]{8,}$"
+  ]
+}
