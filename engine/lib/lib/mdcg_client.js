@@ -1,0 +1,308 @@
+/**
+ * mdcg_client.ts —— 认知图显式客户端（LIB 本地库）
+ *
+ * 架构定位（2026-09-10 决定）
+ * --------------------------
+ *   · md_cg = 记忆操作系统 / **唯一真源**（记忆的写、读、裁决、留痕）。
+ *   · AEIS  = **能力库**（白箱引擎、角色扮演生成等），不再是记忆真源。
+ *
+ * 本模块是MCP 侧调用 md_cg 的**唯一显式入口**：只暴露 `cg` / `stg` 两个
+ * 认知基元，每个方法 = 一条 MCP 调用，不做隐式魔法。
+ *
+ * 显式调用映射（（内部设计文档，不在发行包内））
+ * ------------------------------------------------
+ *   路由/召回     → MdcgClient.route()      → MCP cg(op=route)
+ *   读取节点      → MdcgClient.read()       → MCP cg(op=read)
+ *   记忆沉淀      → MdcgClient.remember()   → MCP mdcg_remember(gated=true)
+ *   语义召回      → MdcgClient.recall()     → MCP cg(op=read, query)
+ *   写入记忆      → MdcgClient.write()      → MCP mdcg_remember(gated=false)
+ *   外部裁决回填  → MdcgClient.verify()     → MCP cg(op=verify)
+ *   最近记忆时间线 → MdcgClient.timeline()  → MCP stg(op=timeline)
+ *   近期事件窗口  → MdcgClient.recent()     → MCP cg(op=recent)
+ *   身份读取      → MdcgClient.identity()   → MCP cg(op=identity)
+ *   白箱能力验证  → MdcgClient.whitebox()   → MCP cg(op=whitebox)
+ *   服务信息      → MdcgClient.serviceInfo()→ MCP cg(op=info)
+ *   互维主张核验  → MdcgClient.verifyClaim()→ cg(op=read) + 依据强度判定
+ *   角色/转录落图 → MdcgClient.writeRole() / writeTranscript() → mdcg_remember
+ *
+ * 写入为什么不能走 cg(op=write)（关键约束，勿回退）
+ * ------------------------------------------------
+ *   `cg(op=write)` 是**带审核**的写路径：先过 `audit.audit(content_kind)`，
+ *   未声明 content_kind 且未配置 `MDCG_POLICY_FILE` 时恒判 BLINDSPOT/DEFER ——
+ *   只进审核队列、**永不落盘**（自动记忆会静默全失败，实测 0 篇 md 文档）。
+ *   而 `mdcg_remember`（`md_cg/mcp_server.py:1691`）直接调 `MdCG.remember_gated`
+ *   / `MdCG.add`，跳过审核，是 mcp_server 顶部文档定义的「写」入口。故本客户端
+ *   的**所有写入**（记忆沉淀 / 角色定义 / 对话转录）统一经 `mdcg_remember`。
+ */
+import { AlphaBridge } from '../bridge.js';
+import { pythonPathValue, runRoot } from './datapath.js';
+const DEFAULT_ARGS = ['-m', 'md_cg.mcp_server'];
+/**
+ * MCP 子进程环境：**唯一构造点**（导出即为了让机械守卫能断言它——
+ * 见 `test/python-utf8-mode.test.ts`）。勿在别处另拼 env。
+ *
+ * ⚠️ 两条编码注入是**硬约束**，不是可选项：
+ *
+ * ① `PYTHONIOENCODING=utf-8`（子进程**自身** stdio）：Windows 下 piped 子进程默认
+ *    gbk + surrogateescape，Node 写出的 UTF-8 中文会被解成孤立代理字符（\udcXX），
+ *    md_cg 在落盘 / 回写 stdout 时抛 UnicodeEncodeError——中文记忆（主场景）全失败。
+ *
+ * ② `PYTHONUTF8=1`（子进程**后代**的默认 text 编码，PEP 540）：`PYTHONIOENCODING`
+ *    会被后代继承（后代于是往管道写 UTF-8），但**文本解码口径不被继承**——后代读
+ *    `subprocess.run(..., text=True)` 时取的是 locale（本机 cp936），于是
+ *    「子进程写 UTF-8、父进程按 gbk 读」→ 读线程崩死、诊断静默丢失。
+ *    2026-09-20 实证现场（`npm test` 周期复现，来源为子进程的后代代码单元）：
+ *      Exception in thread Thread-N (_readerthread):
+ *      UnicodeDecodeError: 'gbk' codec can't decode byte 0x82 in position 181
+ *    UTF-8 模式把默认 text 编码改为 UTF-8，读写两侧同口径（且解码结果正确，
+ *    而非 `errors="replace"` 那种替换字符）。
+ *
+ * 确定性对照实验（P1 复现 / P3 消除）见 `test/python-utf8-mode.test.ts`。
+ * `opts.env` 最后展开——显式覆盖优先。
+ */
+export function mdcgChildEnv(opts) {
+    return {
+        PYTHONIOENCODING: 'utf-8',
+        PYTHONUTF8: '1',
+        MDCG_ROOT: opts.root,
+        // 工具面必须是 full：写入通道 mdcg_remember 属细粒度工具（见 MdcgOptions.surface）。
+        MDCG_MCP_SURFACE: opts.surface ?? 'full',
+        MDCG_TENANT: opts.tenant ?? 'default',
+        MDCG_CLEARANCE: opts.clearance ?? 'private',
+        PYTHONPATH: pythonPathValue(),
+        ...(opts.actor ? { MDCG_ACTOR: opts.actor } : {}),
+        ...(opts.identity ? { MDCG_IDENTITY: opts.identity } : {}),
+        ...(opts.env ?? {}),
+    };
+}
+/** 认知图依据强度：这些 basis 视为「强依据」，可支撑 pass。
+ *  取值须在 md_cg.mdcg.VERIFICATION_BASIS 允许集内：
+ *  compiler | test | measurement | formal_proof | data | other（other 不算强依据）。 */
+const STRONG_BASIS = new Set(['compiler', 'test', 'measurement', 'formal_proof', 'data']);
+function collectItems(payload) {
+    if (Array.isArray(payload))
+        return payload;
+    if (payload && typeof payload === 'object') {
+        const obj = payload;
+        for (const key of ['results', 'items', 'nodes', 'hits', 'data', 'records']) {
+            if (Array.isArray(obj[key]))
+                return obj[key];
+        }
+    }
+    return [];
+}
+/**
+ * 认知图显式客户端。
+ *
+ * 生命周期与桥一致：懒启动 + 自动重连；未就绪时调用会快速失败。
+ * 未就绪的处置：互维 verify 走 fail-closed（见 index.ts 的注入），
+ * 自动记忆静默跳过——**不再有"回退 aeis 能力库"路径**（该库已剥离）。
+ */
+export class MdcgClient {
+    bridge;
+    constructor(opts) {
+        // 子进程 cwd 必须落在发行包目录之外，否则 pnpm 更新本发行包时
+        // rmdir 包目录会撞上 Windows 的「目录被当作 CWD」共享冲突 → ERR_PNPM_EBUSY。
+        // 模块解析不依赖 cwd：PYTHONPATH（pythonPathValue()）已锚定随包 md_cg；
+        // opts.env 显式提供 PYTHONPATH 时完全接管（其展开在最后）。详见 datapath.runRoot()。
+        const cwd = opts.cwd ?? runRoot();
+        // 编码与模块解析口径见 mdcgChildEnv() 头注（含 2026-09-20 读线程崩溃现场）。
+        const env = mdcgChildEnv(opts);
+        this.bridge = new AlphaBridge({
+            python: opts.python,
+            args: opts.args ?? DEFAULT_ARGS,
+            env,
+            cwd,
+            timeoutMs: opts.timeoutMs ?? 60_000,
+            maxRetryDelayMs: opts.maxRetryDelayMs ?? 30_000,
+        });
+    }
+    start() {
+        this.bridge.start();
+    }
+    async waitReady() {
+        return this.bridge.waitReady();
+    }
+    /** 桥是否已握手就绪。
+     *
+     * ⚠️ 不可缓存 waitReady() 的结果：waitReady() 在**首次心跳失败**时会立即
+     * resolve(false)（见 bridge.ts 的 failed 分支），但桥仍会后台重连成功——
+     * 若把这次 false 缓存下来，isReady() 将永久为假，自动记忆 / 互维核验会在
+     * 重连成功后静默失效。故一律以桥的实时状态为准。 */
+    isReady() {
+        return this.bridge.isReady();
+    }
+    dispose() {
+        this.bridge.dispose();
+    }
+    /** 原始 cg 调用（逃生口；显式传参，不做推断）。
+     *  `asUnit` = 本次调用的请求级单元身份（见 AlphaUnit）；只收窄、不提权。 */
+    async cg(args, asUnit) {
+        return this.call('cg', args, asUnit);
+    }
+    /** 原始 stg 调用（时间线/关系/锚点/一致性）。 */
+    async stg(args, asUnit) {
+        return this.call('stg', args, asUnit);
+    }
+    async call(tool, args, asUnit) {
+        // as_unit 由大脑侧 mcp_server.call_tool 在同一进程内消费并收窄 principal，
+        // 不从 args 向下透传，故不会污染各 tool handler 的参数解析。
+        const payload = asUnit ? { ...args, as_unit: asUnit } : args;
+        const result = await this.bridge.callTool(tool, payload);
+        const text = (result.content ?? [])
+            .filter((c) => c.type === 'text')
+            .map((c) => c.text ?? '')
+            .join('');
+        if (result.isError)
+            throw new Error(text || `md_cg ${tool} 调用失败`);
+        try {
+            return JSON.parse(text);
+        }
+        catch {
+            return text;
+        }
+    }
+    // -- 显式认知能力（每个方法一条 MCP 调用） --------------------------------
+    /** 路由：意图 → 相关知识 + 建议能力。 */
+    route(intent, extra = {}) {
+        return this.cg({ op: 'route', intent, ...extra });
+    }
+    /** 读取：按语义召回节点。 */
+    read(query, extra = {}) {
+        return this.cg({ op: 'read', query, ...extra });
+    }
+    /** 按 id 精确读取单个节点。 */
+    get(nodeId) {
+        return this.cg({ op: 'read', node_id: nodeId });
+    }
+    /** 认知图写入入口（MCP `mdcg_remember`）。
+     *
+     * ⚠️ 唯一写入通道：**不可**改用 `cg(op=write)`（那条路径会被 audit 拦住，
+     * 见文件头「写入为什么不能走 cg(op=write)」）。gated=false 直写 `MdCG.add`
+     * （默认 layer=knowledge），gated=true 走主动遗忘闸门。 */
+    writeNode(args, asUnit) {
+        return this.call('mdcg_remember', args, asUnit);
+    }
+    /** 写入：新增/覆盖一个记忆节点（直写 `MdCG.add`，不经审核队列）。 */
+    write(content, extra = {}) {
+        return this.writeNode({ content, ...extra });
+    }
+    /** 记忆沉淀（AEIS `remember` 的对应物）：写入情景层并过**主动遗忘闸门**。
+     *
+     * `mdcg_remember(gated=true)` → `MdCG.remember_gated`：三问 → 四态，
+     * ACCEPT 落盘 / MERGE 并入既有（= 去重强化，不新增节点）/ DROP 丢弃低熵
+     * 噪音 / DEFER 待定；四种结果都写 `_forgetting.jsonl`，可审计。
+     * `importance` 作为 importance_hint 传入（≥0.7 时保护优先、直接 ACCEPT）。
+     *
+     * layer 默认 contextual：md_cg 对会话事件约定的落层就是 contextual，
+     * role 取 user | assistant | tool-output（见 md_cg/sources.py 的
+     * SESSION_LAYER / SessionLogSource 事件映射）。 */
+    remember(content, extra = {}) {
+        // 落层 contextual 固定在 record 白名单内 → 声明 record 单元（不得写 self/anchor）。
+        return this.writeNode({ content, gated: true, layer: 'contextual', ...extra }, 'record');
+    }
+    /** 语义召回（AEIS `recall` 的对应物）：`cg(op=read, query)` → md_cg 检索。
+     *  读取会记 access log（复用观测），供 importance / scrub 陈旧度使用。 */
+    recall(query, k = 5) {
+        return this.read(query, { k });
+    }
+    /** 外部裁决回填：为已有节点写 confirmed/weakened/falsified。 */
+    verify(nodeId, evidence, verdict) {
+        // 裁决回填声明 verify 单元：只写 rejected/contextual，不得改被验证内容。
+        return this.cg({ op: 'verify', node_id: nodeId, evidence, verdict }, 'verify');
+    }
+    /** 最近记忆。 */
+    recent(limit = 20) {
+        return this.cg({ op: 'recent', limit });
+    }
+    /** 最近记忆**时间线**（AEIS `timeline` 的对应物）：`stg(op=timeline)` →
+     *  `{count, limit, items:[{id, layer, start, end, preview}]}`，按时间倒序。
+     *
+     *  只收录带时间区间的节点；而 `cg.add()` 在调用方未给 time_window 时会以
+     *  **写入时刻**自动填充（见 mdcg.py 的 OBSERVATION_WINDOW_SEC 分支），故经
+     *  本客户端写入的记忆都能进入时间线。
+     *  要原始近期**事件**（未结构化对话窗口）请用 `recent()`。 */
+    timeline(limit = 4, extra = {}) {
+        return this.stg({ op: 'timeline', limit, desc: true, ...extra });
+    }
+    /** 身份维度读取。 */
+    identity(subjectId, extra = {}) {
+        return this.cg({ op: 'identity', ...(subjectId ? { subject_id: subjectId } : {}), ...extra });
+    }
+    /** 白箱能力库：显式调用 + 能力验证。 */
+    whitebox(action, extra = {}) {
+        return this.cg({ op: 'whitebox', action, ...extra });
+    }
+    /** 服务信息（信任透明度）。 */
+    serviceInfo() {
+        return this.cg({ op: 'info' });
+    }
+    // -- 语义化封装（互维 / 角色扮演显式使用认知图） --------------------------
+    /**
+     * 互维主张核验（memory 通道）：用认知图替代 AEIS `wisdom_verify`。
+     * 返回结构与 VerifyResult['whitebox'] 对齐，便于直接注入 mutual。
+     */
+    async verifyClaim(claim) {
+        const payload = await this.read(claim, { k: 4 });
+        const scored = collectItems(payload)
+            .map((it) => {
+            const node = it['node'] ?? it;
+            const fm = node['frontmatter'] ?? node;
+            const score = typeof it['score'] === 'number'
+                ? it['score']
+                : Number(it['score'] ?? 0);
+            return {
+                id: String(node['id'] ?? it['id'] ?? ''),
+                score: Number.isFinite(score) ? score : 0,
+                basis: String(fm['verification_basis'] ?? node['verification_basis'] ?? ''),
+                content: String(node['content'] ?? ''),
+            };
+        })
+            .filter((x) => x.id)
+            .sort((a, b) => b.score - a.score);
+        const best = scored[0];
+        if (best && best.score > 0 && STRONG_BASIS.has(best.basis)) {
+            return {
+                judgment: `采纳：认知图已有强依据节点 ${best.id}（basis=${best.basis}）`,
+                best: best.content.slice(0, 200),
+                d_norm: Math.min(1, best.score),
+                record_id: best.id,
+            };
+        }
+        if (best && best.score > 0) {
+            return {
+                judgment: `待定：命中节点 ${best.id} 但依据不足（basis=${best.basis || 'unknown'}）`,
+                best: best.content.slice(0, 200),
+                d_norm: -1,
+                record_id: best.id,
+            };
+        }
+        return { judgment: '未命中：认知图中无相关节点', best: '', d_norm: -1, record_id: '' };
+    }
+    /** 角色定义落图：layer=knowledge，tags=['roleplay','role:<id>']。 */
+    writeRole(roleId, content, extra = {}) {
+        // 落层固定 knowledge（在 record 白名单内）→ 声明 record 单元。
+        // ⚠️ 不经 this.write()：那是不注入单元的通用直写口（还要写 self 层锚点）。
+        return this.writeNode({
+            content,
+            node_id: `roleplay_role_${roleId}`,
+            layer: 'knowledge',
+            tags: ['roleplay', `role:${roleId}`, 'roleplay:role'],
+            importance: 0.7,
+            ...extra,
+        }, 'record');
+    }
+    /** 角色对话转录落图：layer=contextual，tags=['roleplay','role:<id>','session:<cid>']。 */
+    writeTranscript(roleId, sessionId, who, content, extra = {}) {
+        const stamp = Date.now();
+        // 落层固定 contextual（在 record 白名单内）→ 声明 record 单元。
+        return this.writeNode({
+            content,
+            node_id: `roleplay_turn_${roleId}_${sessionId}_${stamp}`,
+            layer: 'contextual',
+            tags: ['roleplay', `role:${roleId}`, `session:${sessionId}`, `turn:${who}`],
+            importance: 0.4,
+            ...extra,
+        }, 'record');
+    }
+}

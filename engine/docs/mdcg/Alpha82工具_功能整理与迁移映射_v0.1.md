@@ -1,0 +1,278 @@
+# Alpha 82 工具 · 功能整理与迁移映射（v0.1）
+
+> 目的：把 `aeis.mcp.server` 注册的 **82 个 MCP 工具**逐条归类，给出「取消 82 工具注册 → 本地库调用 / 认知图调用 / md_cg 统一实现」的落地映射。
+> 源清单：[AlphaMCP工具总表_v3.4.md](./AlphaMCP工具总表_v3.4.md)（82 个 · 智能论 v3.4）
+> 生成：2026-09-10 · 依据：本仓 `md_cg/*` 实证 + `src/tools.ts` 现状
+
+---
+
+## 一、现状：两个互不相干的 MCP 面
+
+| 面 | 注册方 | 工具数 | DSH 侧接入方式 |
+|---|---|---|---|
+| **AEIS / Alpha** | 外部进程 `python -m aeis.mcp.server`（`aeis` pip 包） | **82**（`tools: all` 时另排除 13 个宿主风险工具） | `src/tools.ts::registerAlphaTools` **运行时动态拉取** `tools/list` → `ctx.tools.register` |
+| **md_cg（本地记忆 OS）** | 本仓 `md_cg/mcp_server.py` | **2 基元**（`cg` / `stg`）+ 29 细粒度（`MDCG_MCP_SURFACE=full`） | 独立 MCP server，与 AEIS 无耦合 |
+
+关键事实：
+- `src/tools.ts` 把 AEIS 的 82 个工具**动态注册**进 DSH，`tools: 'core'|'brain'|'all'` 只是筛选，**注册源始终是 AEIS**。
+- `src/index.ts` 除工具注册外，还依赖 AEIS 做：自动记忆钩子（`remember`）、角色扮演网页（`roleplay_chat` 等）、白箱 LLM provider、互维维护（`wisdom_verify` + `think`）。
+- md_cg 侧 `cg(op=...)` 共 **22 个 op**、`stg(op=...)` 共 **4 个 op**，已覆盖大量认知/记忆能力（见映射表「已实现」）。
+
+---
+
+## 二、归类规则
+
+| 代号 | 含义 | 处置 |
+|---|---|---|
+| **CG** | 认知图调用 —— 已有功能，由 `cg`/`stg` 认知基元承接 | 保留 `cg`/`stg` 两个工具面；**不再注册** 82 个独立工具 |
+| **MD** | 记忆相关 —— 统一在 md_cg 实现 | 收敛到 `md_cg`（`cg(op=...)` / `MdCGOS` / 对应模块）；缺口补齐 |
+| **LIB** | 本地库调用 —— 非记忆、非认知图的独立能力 | **取消 MCP 注册**，进程内 `import` 直接调用（或留在 AEIS 本地库，Agent 不可见） |
+| **DROP** | 不再注册 / 废弃 | 从 DSH 工具面移除（宿主级风险、AEIS 专属、与记忆 OS 无关） |
+
+---
+
+## 三、82 工具逐条映射
+
+### 1. 记忆（12）
+
+| 工具 | 归类 | 目标实现（md_cg） |
+|---|---|---|
+| `remember` | **MD** | `cg(op=write)` / `mdcg_remember`（含主动遗忘闸门）· **已实现** |
+| `recall` | **CG** | `cg(op=route)` + `mdcg_recall`（RRF 多路）· **已实现** |
+| `search` | **CG** | `cg(op=read)` / `mdcg_search` · **已实现** |
+| `timeline` | **CG** | `stg(op=timeline)` · **已实现** |
+| `longterm_snapshot` | **MD** | 快照→重要性评估→分层写入；md_cg 有 importance/gate，**缺合并入口** |
+| `prefeed` | **MD** | 新奇检测→当场强化编码；md_cg 有 `propose`/`review`（海马体 inbox），**缺 novelty 检测** |
+| `promote_memories` | **MD** | 情境层批量提升；md_cg 有 `_move_layer` + `consolidate.py`，**缺批量扫描入口** |
+| `pattern_separation` | **MD** | 相似节点分离边；md_cg 有 `consistency`/`scrub`，**缺 separation 边生成** |
+| `reconstruct_scene` | **MD** | 线索→条件空间复原；md_cg 有条件空间 + `subgraph`，**缺复原入口** |
+| `session_note` | **MD** | 会话要点外部化；`sources.DSHSession` + `mdcg_ingest` · **部分** |
+| `session_recall` | **MD** | 会话要点恢复；`cg(op=read)` role 过滤 · **部分** |
+| `compact_context` | **MD** | 超长会话摘要节点；读侧 budget-pack 已有，**写侧摘要缺** |
+
+### 2. 知识图谱与推理（11）
+
+| 工具 | 归类 | 目标实现（md_cg） |
+|---|---|---|
+| `relate` | **CG** | `cg(op=relation)` · **已实现** |
+| `reason` | **CG** | `cg(op=causal)` / `mdcg_causal` · **已实现** |
+| `induce` | **MD** | 聚类生成概念节点；`consolidate.py` 可承接，**缺聚类入口** |
+| `distill` | **MD** | 飞轮蒸馏；`mdcg_flywheel` · **已实现** |
+| `think` | **CG** | `cg(op=route)` 记忆注入 · **已实现** |
+| `ingest_text` | **MD** | `mdcg_ingest` + `sources.Jsonl` · **部分** |
+| `ingest_file` | **MD** | 按扩展名分派；`sources.py` 仅 Jsonl/DSHSession，**缺文件分派** |
+| `ingest_url` | **LIB** | 网络 I/O（零依赖抓取）→ 本地库，不入记忆核心 |
+| `importance_recalc` | **MD** | 结构重要性重算；importance/decay 已有，**缺重算入口** |
+| `transfer_test` | **MD** | 迁移测试（新实体预测成功率）；`predict.py` 可承接 · **部分** |
+| `flywheel_metrics` | **MD** | 飞轮度量；`mdcg_flywheel(action=stats)` · **已实现** |
+
+### 3. 预测与盲区（7）
+
+| 工具 | 归类 | 目标实现（md_cg） |
+|---|---|---|
+| `predict_routes` | **CG** | `cg(op=predict)` / `mdcg_predict` · **已实现** |
+| `prediction_feedback` | **CG** | `mdcg_predict(action=feedback)`（D-006） · **已实现** |
+| `prediction_stats` | **CG** | `mdcg_predict(action=stats)` · **已实现** |
+| `blindspots` | **CG** | `cg(op=metacognition)` 盲区地图 · **已实现** |
+| `learn` | **MD** | 盲区学习（预测→探索→终态）；`predict` + `sustain` 组合，**缺闭环入口** |
+| `gap_trend` | **CG** | `cg(op=metacognition)` 信息差轨迹 · **已实现** |
+| `calibrate` | **CG** | `cg(op=metacognition)` 校准面 · **已实现** |
+
+### 4. 感知机 / 端口架构（8）
+
+| 工具 | 归类 | 目标实现 |
+|---|---|---|
+| `see` | **LIB** | 视觉感知（YOLO-World）→ 本地库（模型依赖，不入 md_cg） |
+| `body` | **DROP** | 身体能力声明，与记忆 OS 无关 |
+| `body_devices` | **LIB** | 外部设备层 → 本地库 |
+| `device_call` | **DROP** | 宿主级风险（`RISK_TOOLS`） |
+| `run_command` | **DROP** | 宿主级风险（`RISK_TOOLS`） |
+| `world3d` | **LIB** | 时空 3D 重建 → 世界模型本地库 |
+| `vprim` | **LIB** | 视觉原语 → 本地库 |
+| `visual_check` | **LIB** | 视觉面检查 → 本地库 |
+
+### 5. 验证与确认（11）
+
+> 源表头写作「（10）」，实列 **11** 条——源文档计数勘误，见第八节。
+
+| 工具 | 归类 | 目标实现（md_cg） |
+|---|---|---|
+| `wisdom_verify` | **CG** | `cg(op=verify)` · **已实现** |
+| `recursive_reflect` | **CG** | `mdcg_reflect` + `consistency` 三级决策 · **已实现** |
+| `preflight` | **CG** | `metacognition.self_check` · **部分**（价值观一致性待补） |
+| `self_reliability` | **CG** | `cg(op=metacognition)` 校准面 · **已实现** |
+| `emotional_bias` | **CG** | `cg(op=metacognition)` 情绪面（d²D/dt²） · **已实现** |
+| `cognition` | **CG** | `cg(op=metacognition)` · **已实现** |
+| `cognition_report` | **CG** | `cg(op=metacognition)` · **已实现** |
+| `action_log` | **MD** | `audit.py` + `mdcg_mine_fix_pairs` · **部分** |
+| `nightly_cleanup` | **MD** | `cg(op=scrub)` + `cg(op=sustain)` · **已实现** |
+| `learning_impact` | **CG** | `metacognition` / `predict` · **部分** |
+| `self_check` | **CG** | `metacognition.self_check` · **已实现** |
+
+### 6. 生命周期（4）
+
+| 工具 | 归类 | 目标实现（md_cg） |
+|---|---|---|
+| `lifecycle_step` | **MD** | `cg(op=sustain)` 心跳/自愈 · **部分** |
+| `lifecycle_state` | **MD** | `cg(op=sustain)` status · **已实现** |
+| `start_lifecycle` | **MD** | `cg(op=sustain)` start · **已实现** |
+| `stop_lifecycle` | **MD** | `cg(op=sustain)` stop · **已实现** |
+
+### 7. 智慧之书（6）
+
+| 工具 | 归类 | 目标实现 |
+|---|---|---|
+| `wisdom_analyze` | **LIB** | 外来知识分析（条件卡+候选+判定）→ 本地库（md_cg 无对应） |
+| `wisdom_predict` | **CG** | `cg(op=predict)` · **已实现** |
+| `wisdom_trust_judge` | **CG** | `metacognition` P_trust / P_gap · **部分** |
+| `wisdom_compose` | **DROP** | 跨学科组合 → AEIS 专属 |
+| `wisdom_respond` | **CG** | `cg(op=route)` 建议能力名 · **已实现** |
+| `wisdom_chat` | **DROP** | 信息分层对话（LLM 兜底）→ 非记忆 |
+
+### 8. 角色扮演（4）
+
+| 工具 | 归类 | 目标实现 |
+|---|---|---|
+| `roleplay_chat` | **DROP** | AEIS 角色扮演专属 |
+| `role_create` | **DROP** | 宿主级风险（`RISK_TOOLS`） |
+| `role_import` | **DROP** | 宿主级风险（`RISK_TOOLS`） |
+| `role_block` | **DROP** | 宿主级风险（`RISK_TOOLS`） |
+
+### 9. 洞察（4）
+
+| 工具 | 归类 | 目标实现（md_cg） |
+|---|---|---|
+| `insight_record` | **MD** | 洞见事件（C1–C8 条件快照）；条件空间可承接，**缺事件模型** |
+| `insight_verify` | **MD** | 洞察验证（V1/V2/V3 证据）；`cg(op=verify)` 可承接 · **部分** |
+| `insight_report` | **MD** | 洞察 CER 报告（有效洞见率+显著性）· **缺** |
+| `insight_window` | **MD** | 窗口检测（C1≥0.6∧跨域∧低压力）· **缺** |
+
+### 10. 外部（5）
+
+| 工具 | 归类 | 目标实现 |
+|---|---|---|
+| `web_search` | **LIB** | 外部搜索（博查 API）→ 本地库 |
+| `web_ingest_search` | **DROP** | 宿主级风险（`RISK_TOOLS`） |
+| `export` | **MD** | 全库导出 JSON；md_cg 有备份机制，**缺 export 工具** |
+| `service_info` | **CG** | `mdcg_service_info` · **已实现** |
+| `designer_decide` | **DROP** | 宿主级风险（`RISK_TOOLS`） |
+
+### 11. 世界模型 · 游戏服务器（10）
+
+| 工具 | 归类 | 目标实现 |
+|---|---|---|
+| `voxel_world` | **LIB** | 4D 时空沙盒 → 世界模型本地库 |
+| `world_server` | **LIB** | AI 游戏世界服务器 → 本地库 |
+| `scene_simulator` | **LIB** | 场景级模拟器 → 本地库 |
+| `spacetime_consistency` | **LIB** | 时空一致性验证 → 本地库 |
+| `world_model` | **LIB** | 统一世界模型 → 本地库 |
+| `world_learner` | **LIB** | 自监督世界学习 → 本地库 |
+| `curiosity_explorer` | **LIB** | 好奇驱动探索 → 本地库 |
+| `seven_layer_loop` | **LIB** | 七层闭环 → 本地库 |
+| `world_generator` | **LIB** | 文字生图/生视频 → 本地库 |
+| `world_semantics` | **LIB** | 图像语义提取 → 本地库 |
+
+---
+
+## 四、统计
+
+| 归类 | 数量 | 说明 |
+|---|---|---|
+| **CG** 认知图调用 | **25** | 全部 `cg`/`stg` 已覆盖（**已实现**） |
+| **MD** 记忆统一到 md_cg | **28** | 已实现 ≈19 · 部分 ≈9 · **待补 0**（12 落点已交付，见 §五） |
+| **LIB** 本地库调用 | **18** | 取消 MCP 注册，进程内直调 |
+| **DROP** 废弃/宿主风险 | **11** | 其中 7 个属 `RISK_TOOLS` |
+| **合计** | **82** | ✅ 不重复、不遗漏 |
+
+> 结论：**82 中有 25 个已可由 `cg`/`stg` 直接承接**，说明「已有功能用认知图调用」这条基本成立；真正的工作量集中在 **28 个记忆项向 md_cg 收敛**（其中 11 个需要新写入口，已于 P0–P2 交付，见 §五）。
+
+---
+
+## 五、md_cg 差距清单（12 落点）与交付状态
+
+按优先级排列（P0 = 影响日常记忆连续性/灾备）。
+
+**op 真源**：`tokens.ALL_OPS` 由 25 增至 **31**，新增 `session` `ingest` `export` `maintain` `consolidate` `insight`；三处同步（真源 / `mcp_server` schema / `_cg_call` 分发）由 `test_p27_docindex` 断言守护。
+
+| 优先级 | 缺口 | 对应工具 | 落点 | 状态 |
+|---|---|---|---|---|
+| P0 | 会话要点写入 / 恢复 / 摘要 | `session_note` `session_recall` `compact_context` | `sources.py` + `mdcos.py`（会话层） | ✅ `op=session`（note/recall/compact）· `test_p29` |
+| P0 | 全库导出 JSON | `export` | `md_cg/` 新增 `export` 入口（复用备份） | ✅ `export.py` `op=export`（graph/nodes/slice/stat）· `test_p29` |
+| P0 | 文件摄取分派（按扩展名） | `ingest_file` | `sources.py` 扩展 | ✅ `op=ingest`（file/dir/jsonl/stat）· `test_p29` |
+| P1 | 结构重要性重算入口 | `importance_recalc` | `mdcos.py` | ✅ `maintain action=importance` · `test_p30` |
+| P1 | 长期记忆快照（评估→分层） | `longterm_snapshot` | `mdcos.py` + `forgetting.py` | ✅ `maintain action=longterm` · `test_p30` |
+| P1 | 情境层批量提升 | `promote_memories` | `consolidate.py` | ✅ `consolidate action=promote` · `test_p30` |
+| P1 | 海马体前馈（新奇检测） | `prefeed` | `mdcos.py`（propose 前置） | ✅ `maintain action=prefeed` · `test_p30` |
+| P1 | 模式分离（分离边） | `pattern_separation` | `subgraph.py` + `consistency.py` | ✅ `maintain action=separate` · `test_p30` |
+| P2 | 情景重构（线索→条件空间） | `reconstruct_scene` | `subgraph.py` + 条件空间 | ✅ `insight action=reconstruct` · `test_p31` |
+| P2 | 归纳/概念聚类 | `induce` | `consolidate.py` | ✅ `consolidate action=induce` · `test_p31` |
+| P2 | 盲区学习闭环 | `learn` | `predict.py` + `sustain.py` | ✅ `insight action=learn` · `test_p31` |
+| P2 | 洞察四件套 | `insight_*` | `mdcos.py` 新增洞察条件层 | ✅ `insight`（d1/d2/report/outlook）· `test_p31` |
+
+**真实库对齐（P32）**：`backfill.py` 提供 CCG 回填（`maintain action=backfill`）、能力标签注入（`maintain action=cap`）与留痕 / 回滚；批量改写一律「预演 → 分批 → 留痕 → 可回滚」，加密节点 fail-closed 跳过。`stg` 时间线预览按调用方权限返回明文或占位符，**不再回显密文碎片**。验收：`test_p32_backfill`。
+
+**真实库可判定化（P33–P36）**：在 P32「可部分补全」之上把「可判定」真正打通。三步**顺序不可倒置**——证据 → 接线 → 摘豁免；倒置会让缺证节点从 DEFER **退化为 BLINDSPOT**，比改造前更差。
+
+- **P33 接线（`test_p33_ccg_wiring`）**：`derive_fields` 补 `state_attributes.name` 作「功能名」来源，新增 `nodefile.is_placeholder_text` 占位纯函数判定；把节点**已声明**的四要素（生效条件 / 子功能 / 执行 / 不适用条件）渲染为正文规范行，占位空壳（`骨架锚点，内容待填充`）一律排除、转待填充工单，绝不把「待填充」固化成事实。**检索键语义修正**：新增 `nodefile.positive_body` 剥离 `# 不适用条件：` 行，`MdCG._like` 与 `mdcos._search` 两处阶梯同步——反例命中不再召回节点（改由 `judge_qualification` 读 `frontmatter.non_applicable_conditions` 走 REJECT）；`apply` 同时回写 `non_applicable_conditions` 使 REJECT 路径可达。范围可收窄（`prefix="kp_"`）、内部 `anchor`/`self` 层出局、幂等（`_has_ccg_line` 判重）、可回滚（仅当「当前值 == 写入值」才撤销）。
+- **P34 批量核对（`test_p34_crosscheck`）**：`crosscheck.py` 复用 `consolidate` 的「反思候选 → 白箱闸门 → 验证否决 → 固化」四段管线，`reflect_fn`/`verify_fn` 换为**两个不同执行者**（`detect_self_verify` 防自证；**验证只能否决、不能新增**）。来源分级执照校验：文科 `textbook`/`public_kb`（来源一致性），理科 `measurement`/`test`/`formal_proof`/`compiler`/`data`（可复现证据）；**无源不写**、保持 DEFER，并产出待补证据清单。留痕 `_crosscheck.jsonl`，可反向 `rollback`。
+- **P35 条件化表述（`test_p35_conditioned_claim`）**：识别评价性断言（B 型）并在节点内改写为带来源限定的条件表述（`conditioned_claim`）；事实性断言（A 型）保持原样，节点仍留知识层参与判定。
+- **P36 摘豁免与端到端（`test_p36_kp_align`）**：`backfill.exempt_plan/apply` 要求「合法 `verification_basis`」+「5 要素齐备（含验证方式行）」**同时成立**才摘 `ccg_exempt`，置 False 而非删键（可反向还原）。
+
+实测（AEIS/data/mdcg，2026-09-10，`kp_` 2962 节点）：
+
+| 指标 | 改造前 | 改造后 |
+|---|---|---|
+| 正文规范行（`# 生效条件：`） | 0 | **2561** |
+| `non_applicable_conditions`（knowledge 层） | 0 | **2451** |
+| CCG 5 要素齐备 | 0 | **29** |
+| 四态（`kp_`） | DEFER 2962（恒定） | **ACCEPT 29 / DEFER 2933** |
+| 触发词召回（60 个生效条件首键） | 命中 **0/60** | 命中 **60/60**（中位 2 / P95 89 / 超 `GLOBAL_CAP=500` 者 0） |
+
+→ 达成「**可检索 + 可判定并存**」：DEFER 恒定被打破，且召回**无膨胀**（P95 89 ≪ 500，故 T2 截断时机无需改动）。剩余 2933 仍 DEFER，因「验证方式」属**库外声明**（人 / 流程 / 教材 / 公开知识库证据），库内不可闭合——不以回填充数。
+
+---
+
+## 六、迁移路线
+
+**阶段 0 · 冻结与标注（本次）**
+- 本映射表落档；`src/tools.ts` 对 82 工具加弃用提示（`ctx.logger.warn`），不改变行为。
+
+**阶段 1 · DSH 工具面收口**
+- `src/index.ts`：`registerAlphaTools` 改为**只注册 `cg`/`stg` 两个认知基元**（或直接切到 md_cg 的 MCP server）。
+- 删除 `CORE_TOOLS` / `BRAIN_TOOLS` / `RISK_TOOLS` 筛选逻辑（82 → 2）。
+- 逐个处理 `src/index.ts` 内部依赖：`installMemoryHooks`（改调 MCP `mdcg_remember(gated=true)`；**不走** `cg(op=write)`，该路径过 audit 会永不落盘）、`installRoleplayWeb`、`installWhiteboxLlm`、`installMutualMaintenance`（`wisdom_verify`/`think` → md_cg `cg(op=verify)`/`cg(op=route)`）。
+
+**阶段 2 · md_cg 补齐记忆能力（28 项）**
+- 按第五节优先级 P0 → P2 实施，每项配套 `test_p*.py` 用例。
+
+**阶段 3 · LIB 18 项本地库化**
+- 进程内 `import` 直调；AEIS 侧能力保留但不注册进 DSH 工具面。
+
+**阶段 4 · DROP 11 项移除**
+- 其中 7 项属宿主级风险（`run_command` `device_call` `designer_decide` `web_ingest_search` `role_create` `role_import` `role_block`）——移除即缩小 Agent 攻击面。
+
+---
+
+## 七、风险与待决策
+
+| # | 风险 / 决策点 | 说明 |
+|---|---|---|
+| 1 | **记忆真源归属** | md_cg（文件型认知图）vs AEIS（SQLite）双真源。建议 md_cg 为唯一真源，AEIS 降级为「能力库」。 |
+| 2 | **`llm_adapter`（白箱 LLM）** | 依赖 AEIS 白箱直答，与「取消 82」冲突——需明确保留 / 迁移 / 下线。 |
+| 3 | **`roleplay_web` + `mutual`** | 依赖 AEIS 工具，需明确归属（LIB 本地库 or DROP）。 |
+| 4 | **数据迁移** | AEIS SQLite → md_cg md 文件：`migrate_aeis.py` 已有幂等+备份，需补全 82→28 的字段映射。 |
+| 5 | **回滚** | 阶段 1 一次性收口风险高，建议以 `tools: []` 配置开关灰度（保留旧路径一版）。 |
+
+---
+
+## 八、源文档勘误
+
+- `AlphaMCP工具总表_v3.4.md` 第五节标题「验证与确认（10）」，实列 **11** 条（`wisdom_verify` … `self_check`）。总数 82 按 11 计才成立。
+- `README.md` 第 393 行「`'all'` = **68**」与第 400 行「`'all'` 实际暴露 **69** 个（82-13）」自相矛盾（68 vs 69）。建议统一为 **69**（82 − 13 `RISK_TOOLS`）。
+- **真实库对齐实测勘误（AEIS/data/mdcg，副本预演，2026-09-10）**：全库 **4526** 节点中 CCG 五要素齐全者 **0**；严格口径（只搬运已声明来源）下 `backfill` 可全量补全者 **0**，部分可补 **4383**（4383 可补「生效条件」、2853 可补「子功能 / 执行 / 不适用条件」），完全无来源 **138**，密文 **2**。硬阻塞为「功能名」（4383 节点均无 `title`）与「验证方式」（全库仅 **1** 节点有 `verification_basis`）——二者属**库外声明**（人 / 流程 / 编译出的证据），库内不可闭合，不得以回填充数。`cap` 预演可注入 **1492** 节点能力标签（3032 已具备，2 密文跳过）。
+  → 因此以「**全库**」为口径时，「从『仅可检索』升级为『可判定』」**未达成**；当时实际达成的是「可部分补全（不达标但可追溯来源）+ 能力标签可注入 + 预览脱敏」。回填 apply / cap apply 均需管理权，且**运行中的 MCP 进程为旧代码**（调用新 op 返回 `cg 未知 op：maintain`），须重启后才能在新 op 面上执行。
+- **真实库可判定化实测（P33–P36，2026-09-10 复测）**：以 `kp_` 为边界，第一步已落地——`kp_` **2962** 节点中，正文规范行 **2561**（其余 **401** 为占位空壳 `骨架锚点，内容待填充`，一律排除、转待填充工单，不渲染成事实）；`non_applicable_conditions` 回写后 knowledge 层由 **0** 增至 **2451**（REJECT 路径自此可达）；CCG 5 要素齐备 **29**；四态由 **DEFER 2962（恒定）** 变为 **ACCEPT 29 / DEFER 2933**（新开进程 `health()` 复核：全库 4526，knowledge 层 `ccg_complete 29`、`verification_basis_set 31`、`neg_conditions_set 2451`）。
+  - **触发词召回**：改造前抽样 60 个「生效条件」首键在库内命中 **0/60**（触发词只在 `comment`，未进检索键）；改造后 **60/60 命中**，命中数中位 **2**、P95 **89**、最大 **89**，超 `GLOBAL_CAP=500` 者 **0** → **无需**改 T2「先截断后打分」的时机。反例（不适用条件）触发词经 `nodefile.positive_body` 分区后**不再召回**节点，改走 `judge_qualification` 的 REJECT。
+  - **库内不可闭合项（诚实标注，不以回填充数）**：`kp_archaeo_1787282100038` 已有 `verification_basis=formal_proof`（理科可复现档）且正文规范行已落，但其 `state_attributes.comment` 仅含「功能名 / 生效条件 / 验证方式」，**缺子功能 / 执行 / 不适用条件**（网络科学主题，库内无来源可推）→ 5 要素不齐，保持 **DEFER**、`ccg_exempt` **未摘**，已登记入待补证据清单。此为**已知唯一**「有基底但要素不全」项（`verification_basis_set 31` − `ccg_complete 29` = 2，其中 1 即此节点、另 1 属非 `kp_` 节点）。
+  - **运行态**：运行中的 MCP 进程持有改造前索引（`cg(op=info)` 的 `neg_conditions_set` 仍报 0），**须重启**后新 op 面与新风控面才生效。
+- **诚实边界声明**：载体侧自动注入与令牌权限属外部配置，库内只提供构件（`python -m md_cg.tokens issue` 签发、`op=session recall` / `sustain resume` 免 hook 自举）。此部分标注为「库侧可缓解、载体侧待定」，**不计入已闭合**。同理，「验证方式」属**库外声明**（人 / 流程 / 教材 / 公开知识库证据），剩余 2933 个 DEFER 节点的摘豁免取决于外部证据补齐，库侧只保证「无源不写、待定不装完成」。

@@ -1,0 +1,13 @@
+{
+ "v": 1,
+ "alg": "chacha20poly1305",
+ "envelopes": {
+  "default|zyq": {
+   "id_fp": "4b1027adc54e4c9f",
+   "clearance": "secret",
+   "nonce": "XsY1d3pryUUzLciz",
+   "ct": "ETtz54LdW67skLQUys869gTss2eEcZ4mgKj0DuDk81VVnl/sSmqGbTQOelhTJcML",
+   "created_at": 1791581622.3072991
+  }
+ }
+}
