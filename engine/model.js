@@ -6,7 +6,7 @@ export const config = Object.freeze({
   models: [],
 });
 
-// ── 精确信任（zyq 2026-09-23 方案 C）─────────────────────────────
+// ── 精确信任（方案 C）─────────────────────────────
 // 本机网络出口有杀软 TLS 中间人（卡巴自签根替换 DeepSeek 证书链），
 // 导致 fetch 偶发 SELF_SIGNED_CERT_IN_CHAIN。
 // 解决：把中间人根证书交给 Node 的 NODE_EXTRA_CA_CERTS（标准 CA 扩展，
