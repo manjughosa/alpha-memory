@@ -172,12 +172,12 @@ VERIFY_PROMPT = (
 
 # ---- LLM 侧（黑箱只在离线工序，产出候选）--------------------------------
 
-# 生效条件：给定 role，按显式参数、角色环境变量、通用兜底依次解析并返回 (model, base, key)；key 不落 DEEPSEEK_API_KEY 除非 role 为 REFLECT_ROLE。
+# 生效条件：给定 role，按显式参数、角色环境变量、通用兜底依次解析并返回 (model, base, key)；key 不落 ALPHA_DOG_KEY 除非 role 为 REFLECT_ROLE。
 def role_config(role: str, model: str = None, base: str = None,
                 key: str = None) -> tuple:
     """解析某角色的 (model, base, key)：显式参数 > 角色环境变量 > 通用兜底。
 
-    key 刻意**不**让验证单元回落到 DEEPSEEK_API_KEY——跨厂商混用会把一个厂商的
+    key 刻意**不**让验证单元回落到 ALPHA_DOG_KEY——跨厂商混用会把一个厂商的
     凭证发到另一个厂商的网关，既必然失败又构成凭证外泄。
     """
     m_env, b_env, k_env = _ROLE_ENV[role]
@@ -191,7 +191,7 @@ def role_config(role: str, model: str = None, base: str = None,
         if key is None:
             key = os.environ.get("MDCG_LLM_KEY")
         if key is None and role == REFLECT_ROLE:
-            key = os.environ.get("DEEPSEEK_API_KEY")
+            key = os.environ.get("ALPHA_DOG_KEY")
     model = (model or os.environ.get(m_env) or os.environ.get("MDCG_LLM_MODEL")
              or ROLE_DEFAULT_MODEL[role])
     base = (base or os.environ.get(b_env) or os.environ.get("MDCG_LLM_BASE")
@@ -214,7 +214,7 @@ def http_llm(prompt: str, model: str = None, base: str = None, key: str = None,
         base = (base or os.environ.get("MDCG_LLM_BASE")
                 or ROLE_DEFAULT_BASE[REFLECT_ROLE])
         key = (key or os.environ.get("MDCG_LLM_KEY")
-               or os.environ.get("DEEPSEEK_API_KEY"))
+               or os.environ.get("ALPHA_DOG_KEY"))
     if not key:
         raise RuntimeError(
             f"未配置 {role or 'llm'} 的 API key"
@@ -1406,7 +1406,7 @@ def _cli(argv=None) -> int:
     if not a.no_llm:
         if not r_key:
             print(f"[consolidate] 反思单元未配置 key"
-                  f"（{_ROLE_ENV[REFLECT_ROLE][2]} / DEEPSEEK_API_KEY）→ 退化为普查模式",
+                  f"（{_ROLE_ENV[REFLECT_ROLE][2]} / ALPHA_DOG_KEY）→ 退化为普查模式",
                   file=sys.stderr)
         else:
             reflect_fn = (lambda p: http_llm(p, role=REFLECT_ROLE,   # noqa: E731

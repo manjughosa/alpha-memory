@@ -436,8 +436,21 @@ def probe_ref(ref: dict, *, root: str = None, with_text: bool = False) -> dict:
     if not r:
         return {**base, "error": "ref 未记录 root，请显式传 root 参数"
                                 "（索引里存的是相对 root 的 path）"}
-    fp = os.path.join(r, rel)
-    base["root"] = r
+    if (not isinstance(rel, str) or not rel or os.path.isabs(rel)
+            or os.path.splitdrive(rel)[0]):
+        return {**base, "status": "error",
+                "error": "ref path must be relative to its root"}
+    root_path = os.path.realpath(r)
+    fp = os.path.realpath(os.path.join(root_path, rel))
+    try:
+        common = os.path.commonpath((root_path, fp))
+    except ValueError:
+        return {**base, "root": root_path, "status": "error",
+                "error": "ref path resolves outside its root"}
+    if os.path.normcase(common) != os.path.normcase(root_path):
+        return {**base, "root": root_path, "status": "error",
+                "error": "ref path resolves outside its root"}
+    base["root"] = root_path
     if not os.path.isfile(fp):
         return {**base, "status": "dangling", "abspath": fp, "stale": True,
                 "error": f"源文件不存在（索引已悬空）：{fp}"}

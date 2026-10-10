@@ -52,6 +52,12 @@ def _run():
     slim = tf.slim_tools(origin)
     by_name_origin = {t["name"]: t for t in origin}
     by_name_slim = {t["name"]: t for t in slim}
+    kernel_names = {tool["name"] for tool in ms.KERNEL_TOOLS}
+    surface_names = {tool["name"] for tool in ms.tools_for_surface()}
+    _check("mdcg_get is exposed on the default kernel surface", "mdcg_get" in kernel_names)
+    _check("mdcg_recall is exposed on the default kernel surface", "mdcg_recall" in kernel_names)
+    _check("default MCP surface exposes direct read and active recall",
+           {"mdcg_get", "mdcg_recall"}.issubset(surface_names))
 
     # ---- ① 尺寸：主面（kernel）与 full 面 ----
     k_before, k_after = _size(ms.KERNEL_TOOLS), _size(tf.slim_tools(ms.KERNEL_TOOLS))

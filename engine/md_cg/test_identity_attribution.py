@@ -124,9 +124,16 @@ try:
     cg0.add("legacy", "旧库无归属节点的知识", layer="knowledge")
     cgs = MdCGSecure(root, principal=_p("carol", "sess_C"))
     res_all, _m = cgs.search("旧库无归属")
-    check("⑩旧节点默认检索不受影响",
+    check("⑩旧单用户节点在 default 域保持可检索",
           any(_row(r).get("id") == "legacy" for r in res_all),
           [_row(r).get("id") for r in res_all])
+    foreign = MdCGSecure(root, principal=Principal(
+        tenant="foreign", actor="carol", clearance=DEFAULT_SENSITIVITY,
+        can_write=False, session="sess_C"))
+    res_foreign, _ = foreign.search("旧库无归属")
+    check("⑩a 旧节点不对非 default 域开放",
+          all(_row(r).get("id") != "legacy" for r in res_foreign),
+          [_row(r).get("id") for r in res_foreign])
     res_f, _ = cgs.search("旧库无归属", session="sess_C")
     check("⑩b 旧节点被会话过滤排除（不炸）",
           all(_row(r).get("id") != "legacy" for r in res_f),

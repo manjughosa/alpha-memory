@@ -56,12 +56,25 @@ test('sidecar refuses a bridge path that does not exist instead of degrading sil
   rmSync(root, { recursive: true, force: true })
 })
 
-test('published sidecar runs the real bridge chain and honors On/Off plus wake signal', async () => {
+for (const tokenMode of ['env', 'files', 'legacy-file']) {
+test(`published sidecar runs the real bridge chain and honors On/Off plus wake signal (${tokenMode})`, async () => {
   const root = mkdtempSync(join(tmpdir(), 'alpha-dog-sidecar-test-'))
   const state = join(root, 'state')
   const setting = join(root, 'setting.json')
-  const tokenFile = join(root, 'alpha-token.txt')
-  writeFileSync(tokenFile, 'test-only-token\n')
+  const tokenFile = join(root, 'tokens.json')
+  const python = process.env.MDCG_PYTHON || (process.platform === 'win32'
+    ? join(project, '..', 'runtime', 'python.exe') : 'python3')
+  const { stdout: issuedToken } = await execFileAsync(python, ['-X', 'utf8', '-c',
+    "import sys; from md_cg.tokens import issue; print(issue('designer', actor='sidecar-test', path=sys.argv[1])['token'])", tokenFile], {
+    cwd: project, env: { ...process.env, PYTHONPATH: project }, encoding: 'utf8',
+  })
+  const bearerFile = join(root, 'bearer.txt')
+  writeFileSync(bearerFile, issuedToken.trim())
+  const authEnv = tokenMode === 'env'
+    ? { MDCG_TOKEN_FILE: tokenFile, MDCG_TOKEN: issuedToken.trim() }
+    : tokenMode === 'files'
+      ? { MDCG_TOKEN_REGISTRY_FILE: tokenFile, MDCG_BEARER_TOKEN_FILE: bearerFile, MDCG_TOKEN: '' }
+      : { MDCG_TOKEN_REGISTRY_FILE: tokenFile, MDCG_TOKEN_FILE: bearerFile, MDCG_TOKEN: '' }
   writeFileSync(setting, JSON.stringify({
     enabled: true,
     interfaces: { Alpha_Dog_On: true, Alpha_Dog_Off: true, cg: false, stg: false },
@@ -83,7 +96,11 @@ test('published sidecar runs the real bridge chain and honors On/Off plus wake s
       SIDECAR_FORCE: '1',
       MDCG_ROOT: join(root, 'mdcg'),
       MDCG_STATE_ROOT: join(root, 'state-root'),
-      MDCG_TOKEN_FILE: tokenFile,
+      MDCG_TOKEN_FILE: '',
+      MDCG_TOKEN_REGISTRY_FILE: '',
+      MDCG_BEARER_TOKEN_FILE: '',
+      ...authEnv,
+      MDCG_PYTHON: python,
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
@@ -136,8 +153,11 @@ test('published sidecar runs the real bridge chain and honors On/Off plus wake s
 
     write({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'cg', arguments: { op: 'info' } } })
     write({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'cg', arguments: { op: 'info' } } })
-    await awaitResponse(4, 'cg#1')
-    await awaitResponse(5, 'cg#2')
+    for (const [id, label] of [[4, 'cg#1'], [5, 'cg#2']]) {
+      const response = await awaitResponse(id, label)
+      assert.equal(response.error, undefined, stderr)
+      assert.notEqual(response.result?.isError, true, stderr)
+    }
     await new Promise((resolve) => setTimeout(resolve, 400))
 
     const counter = JSON.parse(readFileSync(join(state, 'sidecar-counter.json'), 'utf8'))
@@ -167,3 +187,4 @@ test('published sidecar runs the real bridge chain and honors On/Off plus wake s
     await new Promise((resolve) => setTimeout(resolve, 250))
   }
 })
+}

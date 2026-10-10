@@ -278,7 +278,7 @@ def main():
                                    "clientInfo": {"name": "k", "version": "0"}})
             kt = kc.send("tools/list").get("result", {}).get("tools", [])
             kn = [t["name"] for t in kt]
-            check("kernel 只暴露 2 个基元", kn == ["cg", "stg"], str(kn))
+            check("kernel 暴露 CG/STG 与直接读/主动召回", set(kn) == {"cg", "stg", "mdcg_get", "mdcg_recall"} and len(kn) == 4, str(kn))
             info = kc.call("cg", {"op": "info"})
             # 注：新增 content_kind（如 ccg_marks）须同步本清单——工具面自描述
             # 与 audit.CONTENT_KINDS 真源逐类对齐，防「真源扩了、自描述没跟」。

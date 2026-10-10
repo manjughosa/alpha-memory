@@ -27,6 +27,11 @@ def discover(group: str, keyword: str | None) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # The parent also prints child Unicode output. A GBK console otherwise
+    # aborts the whole suite on symbols such as circled eleven (U+246A).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description="Run Alpha-Memory module tests")
     parser.add_argument("groups", nargs="*", default=list(DEFAULT_GROUPS))
     parser.add_argument("-k", "--keyword", default=None)

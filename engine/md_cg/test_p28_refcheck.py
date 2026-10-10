@@ -205,8 +205,7 @@ def main():
               any((r.get("path") or "").endswith("alpha.py") for r in chk.get("stale", [])),
               str([r.get("path") for r in chk.get("stale", [])]))
         check("巡检只读：源文件 mtime 不变", mt_before == mt_after)
-        stale_rr = ref_read(cg, ref={"path": "alpha.py", "lineno": 5, "end": 7,
-                                     "hash": "deadbeef", "root": src, "precise": True})
+        stale_rr = ref_read(cg, node_id=(out1.get("ids") or [""])[0])
         check("回读陈旧 ref → hash_match=False / stale=True",
               stale_rr.get("hash_match") is False and stale_rr.get("stale") is True,
               str(stale_rr.get("hash_match")))

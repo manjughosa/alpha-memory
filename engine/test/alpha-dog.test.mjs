@@ -401,7 +401,7 @@ test('placeholder engine: init, evaluate four modes, move after closed topic', (
   assert.equal(ph.slots[30].anchorRound, 0);
 
   const turns = [
-    { roundHint: 1, text: 'assistant，今天把记忆系统收尾' },
+    { roundHint: 1, text: '今天把记忆系统收尾' },
     { roundHint: 2, text: '我们看看看门狗怎么跑' },
     { roundHint: 3, text: '先说说占位符机制' },
   ];
@@ -441,7 +441,7 @@ test('conversation source: black-box probes PI jsonl and extracts nested message
     const file = join(dir, 'session.jsonl');
     writeFileSync(file, [
       JSON.stringify({ type: 'session', id: 's1', timestamp: '2026-09-23T10:00:00Z', cwd: dir }),
-      JSON.stringify({ type: 'message', id: 'm1', timestamp: '2026-09-23T10:01:00Z', message: { role: 'user', content: [{ type: 'text', text: '第一轮：你好assistant' }], timestamp: 1 } }),
+      JSON.stringify({ type: 'message', id: 'm1', timestamp: '2026-09-23T10:01:00Z', message: { role: 'user', content: [{ type: 'text', text: '第一轮：你好' }], timestamp: 1 } }),
       JSON.stringify({ type: 'message', id: 'm2', timestamp: '2026-09-23T10:02:00Z', message: { role: 'assistant', content: [{ type: 'text', text: '你好，我在' }] } }),
       JSON.stringify({ type: 'message', id: 'm3', timestamp: '2026-09-23T10:03:00Z', message: { role: 'user', content: [{ type: 'text', text: '第二轮：讲讲记忆系统' }], timestamp: 2 } }),
       JSON.stringify({ type: 'custom_message', id: 'c1', timestamp: '2026-09-23T10:04:00Z', content: 'not a user turn' }),
@@ -453,7 +453,7 @@ test('conversation source: black-box probes PI jsonl and extracts nested message
     // 只提取嵌套 message.role==='user' 且有文本的轮；custom_message/损坏行跳过。
     assert.equal(result.userTurns.length, 2);
     assert.equal(result.turns.length, 3); // user + assistant + user
-    assert.equal(result.userTurns[0].text, '第一轮：你好assistant');
+    assert.equal(result.userTurns[0].text, '第一轮：你好');
     assert.equal(result.userTurns[1].text, '第二轮：讲讲记忆系统');
     assert.equal(result.userTurns[1].roundHint, 2);
   } finally {
@@ -567,7 +567,7 @@ test('tlsSelfCheck detects MITM (SELF_SIGNED_CERT_IN_CHAIN) and returns cert ins
       const runtime = new AlphaDogRuntime({
         setting: validateAlphaDogSetting({
           ...DEFAULT_DOG_SETTING,
-          model: { name: 'm', baseUrl: 'https://api.deepseek.com', api: 'openai-completions', apiKeyRef: 'DEEPSEEK_API_KEY', models: [] },
+          model: { name: 'm', baseUrl: 'https://api.deepseek.com', api: 'openai-completions', apiKeyRef: 'ALPHA_DOG_KEY', models: [] },
           state: { directory: 'state', mode: 'alpha_dog' },
         }),
         root: dir,

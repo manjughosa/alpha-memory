@@ -344,7 +344,7 @@ def _report(label, rows, n_perms):
     return agg
 
 
-# 生效条件：argv 为 None 时改读 sys.argv；若 --key 与 DEEPSEEK_API_KEY 均为空则返回 2，否则按 --only/--cases 从 CASES 取用例跑完双臂后返回 0。
+# 生效条件：argv 为 None 时改读 sys.argv；若 --key 与 ALPHA_DOG_KEY 均为空则返回 2，否则按 --only/--cases 从 CASES 取用例跑完双臂后返回 0。
 def main(argv=None):
     ap = argparse.ArgumentParser(
         description="先验陷阱 A/B：无记忆 vs 有记忆（真实 LLM）")
@@ -374,9 +374,9 @@ def main(argv=None):
         cases = cases[:a.cases]
     n_perms = max(1, min(6, a.perms))
 
-    key = a.key or os.environ.get("DEEPSEEK_API_KEY") or ""
+    key = a.key or os.environ.get("ALPHA_DOG_KEY") or ""
     if not key:
-        print("[error] 需要 DEEPSEEK_API_KEY 或 --key")
+        print("[error] 需要 ALPHA_DOG_KEY 或 --key")
         return 2
 
     root = tempfile.mkdtemp(prefix="mdcg_ab_prior_")

@@ -62,7 +62,7 @@ sidecar 直接 spawn Python 会把这些一起丢掉，症状是「装好了但�
 - `state.mode = legacy` → sidecar 完全不计数
 - `sidecar.enabled = false` → 不计数（`SIDECAR_FORCE=1` 仅供诊断）
 
-## 启动自查（2026-10-08 授权）
+## 启动自查（2026-10-08 授权 · 补）
 
 **病根**：狗生死绑定 pi 会话 + 上电只挂 `Alpha_Dog_On` 人工调用。会话关了狗下班，
 新会话没人调 On，狗每场只闪现几秒（10-01~10-07 七天现场）；计数器冻死 9-23；

@@ -54,6 +54,11 @@ const PID_ARG = pidIdx >= 0 ? Number(argv[pidIdx + 1]) : null
 const IF_ORPHAN = has('--if-orphan')
 const staleIdx = argv.indexOf('--stale-ms')
 const STALE_MS = staleIdx >= 0 ? Number(argv[staleIdx + 1]) : 30 * 60 * 1000
+// 2026-09-28 补：哑狗宽限期，与 sidecar 同源。ready 之后 bridge 一次没吭声即判半启动僵尸。
+const GRACE_MS = Number(process.env.ALPHA_DOG_ORPHAN_GRACE_MS || 90 * 1000)
+// 2026-09-28 补：在岗心跳记号（sidecar 每 15s 写 sidecar.heartbeat.json）。
+const HEARTBEAT_PATH = path.join(STATE_DIR, 'sidecar.heartbeat.json')
+const HEARTBEAT_STALE_MS = Number(process.env.ALPHA_DOG_HEARTBEAT_STALE_MS || 45 * 1000)
 
 // ── 输出 ────────────────────────────────────────────────────────────────
 const say = (msg) => process.stdout.write(msg + '\n')
@@ -147,14 +152,38 @@ function readLogTail(bytes = 16384) {
     } finally { fs.closeSync(fd) }
   } catch (e) { return '' }
 }
-function orphanVerdict() {
+function orphanVerdict(lockPid) {
   const lines = readLogTail().split('\n').filter((line) => line.includes('[sidecar]'))
   let lastReady = -1
   lines.forEach((line, index) => { if (line.includes('ready server=')) lastReady = index })
   if (lastReady >= 0 && lines.slice(lastReady + 1).some((line) => line.includes('bridge exit code='))) {
     return { orphan: true, why: 'bridge exited after last ready — client-less zombie' }
   }
-  const beats = [LOG_PATH, HISTORY_PATH, SIGNAL_PATH, COUNTER_PATH].map((file) => {
+  // ③ 哑狗实锤（2026-09-28 补）：ready 之后 bridge 一次都没吭声，超过宽限期即孤。
+  //    补的是①的漏：①要 bridge exit 才认，可 bridge 根本没起来，无 exit 可判。
+  if (lastReady >= 0) {
+    const after = lines.slice(lastReady + 1)
+    const bridgeSpoke = after.some((line) => line.includes('bridge exit code=')
+      || line.includes('tick ') || line.includes('observed tick')
+      || line.includes('power-on complete') || line.includes('self-driven wake'))
+    if (!bridgeSpoke) {
+      const stamp = /^\[([^\]]+)\]/.exec(lines[lastReady])
+      const readyAt = stamp ? Date.parse(stamp[1]) : NaN
+      if (Number.isFinite(readyAt) && Date.now() - readyAt > GRACE_MS) {
+        return { orphan: true, why: `silent after ready for ${Math.round((Date.now() - readyAt) / 1000)}s — half-started dog` }
+      }
+    }
+  }
+  // ④ 心跳记号实锤（2026-09-28 补）：锁主 pid 活着，但它自己写的心跳记号
+  //    超过 HEARTBEAT_STALE_MS 没刷新 → 定时器死了或卡死，判孤。
+  try {
+    const marker = JSON.parse(fs.readFileSync(HEARTBEAT_PATH, 'utf8'))
+    if (marker && marker.pid === lockPid && Number.isFinite(marker.at) && Date.now() - marker.at > HEARTBEAT_STALE_MS) {
+      return { orphan: true, why: `heartbeat stale ${Math.round((Date.now() - marker.at) / 1000)}s（进程活着但定时器死了）` }
+    }
+  } catch (_) { /* 记号不存在/损坏 → 走旧证据 */ }
+  // ② 心跳兜底：LOG_PATH 摘出（任何启动中的进程都写它，留着＝每连一次就替僵尸续一次心跳）
+  const beats = [HISTORY_PATH, SIGNAL_PATH, COUNTER_PATH].map((file) => {
     try { return fs.statSync(file).mtimeMs } catch (e) { return 0 }
   })
   const newest = Math.max(...beats)
@@ -213,7 +242,7 @@ function main() {
       return
     }
     if (IF_ORPHAN) {
-      const verdict = orphanVerdict()
+      const verdict = orphanVerdict(pid)
       if (!verdict.orphan) {
         say(`🟢 锁主 pid=${pid} 不是孤儿（${verdict.why}）—— --if-orphan 模式不动它。`)
         return

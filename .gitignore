@@ -29,7 +29,7 @@
 !/runtime/*.exe
 !/runtime/**/*.exe
 
-# ── Alpha-Dog 运行时状态（兜底·20260923 assistant补）──────────────
+# ── Alpha-Dog 运行时状态（兜底·20260923 补）──────────────
 # 无论 sidecar 的状态文件将来挪到仓库哪个角落（sidecar.log / runtime.json /
 # wake-history / counter / signal / lock / batch-report / sync-report），
 # 一律不入公开仓库——它们记录真实对话痕迹与本机行为。
@@ -75,3 +75,9 @@ node_modules/
 # ── 私人理论文档（不入发行物）──
 /engine/md_cg/whitebox_kb/seed_knowledge/wisdom_cards/情感情绪仿真·知识综述.md
 /engine/md_cg/whitebox_kb/seed_knowledge/wisdom_cards/时空记忆图·知识综述.md
+
+# ── 内部工作文档与生成产物（不入发行物）──
+# 内部任务书、评审记录、研究稿、理论稿、改版计划：属于工作底稿，不属于发行内容。
+/engine/docs/
+/docs/*.visual-check.*
+/docs/alpha-memory-retrieval-upgrade-plan.md

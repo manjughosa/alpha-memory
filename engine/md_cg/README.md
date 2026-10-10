@@ -63,7 +63,7 @@
 | 模块 | 职责 |
 |---|---|
 | `mdcg.py` | md 认知图的存储、检索与认知循环 |
-| `mdcos.py` | 记忆操作系统扩展（MdCGOS），上层编排 |
+| `mdcos.py` | 记忆操作系统扩展（MdCGOS）；词法路使用权限可见节点的加密稀疏来源 bigram 特征，recall 再按 source_ref 权威复读并按完整正文计 token |
 | `nodefile.py` | 节点文件格式：YAML-ish frontmatter + CCG 正文 |
 | `fsutil.py` | 文件系统原语：原子写 / 跨进程锁 / append-only 日志 |
 | `datapath.py` | 数据根解析（记忆写入路径可配置，支持环境变量与 paths.json） |
@@ -90,6 +90,10 @@
 | `signer.py` | 签名接口层 |
 | `protect.py` | 自我层 / 锚点层写保护（不可遗忘） |
 
+### 3.1 共享 root 的 tenant 归属
+
+`MdCGSecure` 将节点 tenant 固化为当前 `Principal.tenant`，调用方不能通过写入参数伪造。共享 root 时，get、search、RRF/recall 及近期事件都必须匹配当前 tenant；旧节点或索引缺少 tenant 标记时 fail-closed，不按默认租户猜测。节点文件访问通过 canonical memory root 路径守卫：索引扫描/重建、读取、检索辅助路径、集中节点写入、层迁移和删除均校验 realpath/commonpath；绝对/drive 路径或解析后越界的路径显式拒绝。经数据所有者核对后，具备 `can_admin` 的同租户管理员可逐节点调用 `MdCGSecure.bind_legacy_tenant(node_id)` 显式绑定未归属的旧节点；该方法不批量猜归属，也不允许改绑已有其他 tenant 的节点。加密正文按原密文保留。
+
 ### 4. 写入链路
 
 | 模块 | 职责 |
@@ -107,8 +111,8 @@
 | 模块 | 职责 |
 |---|---|
 | `condition_anchor.py` | 判定候选「生效条件」是否锚定在符号真实输入 / 状态上 |
-| `cond_facts.py` | 条件事实提取（白箱写注释的原料，确定性、零 LLM） |
-| `cond_compose.py` | 白箱条件填充器：把事实按模板填成功能级生效条件 |
+| `cond_<node>` | 条件事实提取（白箱写注释的原料，确定性、零 LLM） |
+| `cond_<node>` | 白箱条件填充器：把事实按模板填成功能级生效条件 |
 | `routing.py` | 路由键归一化 |
 | `census.py` | 条件空间分布普查 |
 | `weights.py` | 位置权重矩阵（不同身份，参数偏好不同） |
@@ -193,7 +197,7 @@
 |---|---|
 | `migrate.py` / `migrate_aeis.py` / `migrate_roleplay.py` / `migrate_wisdom_graph.py` | 各类历史数据迁移到 md 认知图 |
 | `export.py` | 全库导出 |
-| `sources.py` | 设备驱动：把外部会话流接进认知图 |
+| `sources.py` | 会话源适配与摄取；三类 parser 为 allowlist 内事件写入 versioned source_ref 和加密稀疏 bigram 特征，供后段词面召回及权威复读 |
 | `corpus.py` | 验收共用的自建 md 语料 |
 | `eval_common.py` / `bench*.py` | 公开基准评测与横评口径层 |
 
@@ -206,7 +210,7 @@
 | `protocol/` | 协议定义 |
 | `semantic/` | 语义结构与检索（含 SCHEMA.md / REPRODUCE.md） |
 | `whitebox_kb/` | 白箱子系统 |
-| `test_*.py` | **117 个测试文件**，覆盖内核 / 协议 / 权限 / 并发 / 治理 / 回放一致性 |
+| `test_*.py` | **123 个测试文件**，覆盖内核 / 协议 / 权限 / 并发 / 治理 / 回放一致性 |
 
 ---
 
@@ -235,8 +239,59 @@ npm run test:python
 # 单个模块测试（示例）
 python -m md_cg.test_p27_docindex
 
+# 纯合成召回基线：1,000 条事件、180 个问题；仅使用临时隔离 root 与临时密钥
+python -c 'import json; from md_cg.bench_recall_synthetic import run_baseline; r=run_baseline(); print(json.dumps({k:r[k] for k in ("summary", "latency_ms", "counts", "manifest", "parameters")}, ensure_ascii=False, indent=2))'
+
+# 与 MCP mdcg_recall 默认参数对齐（k=20、budget=1200、judge=True、max_item_tokens=250）
+python -c 'import json; from md_cg.bench_recall_synthetic import run_baseline; r=run_baseline(k=20, budget_tokens=1200, judge=True, max_item_tokens=250, paths=None); print(json.dumps({k:r[k] for k in ("summary", "latency_ms", "counts", "manifest", "parameters")}, ensure_ascii=False, indent=2))'
+
 # 查看数据根解析结果
 python md_cg/datapath.py
 ```
 
 无对应数据面的用例会**显式 SKIP**，不虚报通过。
+
+### Local Qwen3 embedding synthetic comparison
+
+This is an offline-quality experiment against generated synthetic events only. It calls the loopback Ollama OpenAI-compatible `/v1/embeddings` endpoint with `qwen3-embedding:0.6b`, embeds complete event text in batches, and ranks cosine similarity in memory. Vectors are not written to disk; the runner rejects non-loopback endpoints. It does not use Qdrant and does not alter MCP recall behavior.
+
+Run from `engine`:
+
+```bash
+python -m unittest md_cg.test_synthetic_vector_recall
+python -c 'import json; from md_cg.bench_recall_synthetic import run_local_embedding_recall; r=run_local_embedding_recall(); print(json.dumps({k:r[k] for k in ("summary", "latency_ms", "counts", "manifest", "parameters")}, ensure_ascii=False, indent=2))'
+python -c 'import json; from md_cg.bench_recall_synthetic import run_source_ingested; r=run_source_ingested(k=20, budget_tokens=1200, judge=True, max_item_tokens=250, paths=("lexical",)); print(json.dumps({k:r[k] for k in ("summary", "latency_ms", "manifest", "parameters")}, ensure_ascii=False, indent=2))'
+```
+
+Latest fixed fixture: seed `20261009`, 1,000 events, 180 questions. Qwen3 Recall@5 was 98.89%; the lexical source-ingest path was 91.67%. Qwen3 reached 86.67% Recall@5 on paraphrases with no lexical overlap, versus 0% for lexical-only. The Qwen3 query p95 measures local embedding plus in-memory ranking only; it excludes Alpha ACL checks, authoritative source rereads, MCP packing, and any durable vector-store work, so it is not an end-to-end latency comparison.
+
+### 10k/300 synthetic stress check
+
+The repeatable 10,000-event / 300-query fixture is built with `build_stress_fixture()`; the same fixture can be passed to both runners:
+
+```bash
+python -c 'import json; from md_cg.bench_recall_synthetic import build_stress_fixture, run_local_embedding_recall; f=build_stress_fixture(); r=run_local_embedding_recall(f); print(json.dumps({k:r[k] for k in ("summary", "latency_ms", "counts", "manifest")}, ensure_ascii=False, indent=2))'
+python -c 'import json; from md_cg.bench_recall_synthetic import build_stress_fixture, run_source_ingested; f=build_stress_fixture(); r=run_source_ingested(f, k=20, budget_tokens=1200, judge=True, max_item_tokens=250, paths=("lexical",)); print(json.dumps({k:r[k] for k in ("summary", "latency_ms", "counts", "manifest", "source_ingest")}, ensure_ascii=False, indent=2))'
+```
+
+Fixed event/query hashes are `c226ab494b9055d0e6c62abf93d1607693af1f78e3d33e23ad9efa58c532e9ed` and `021f330b469fbda827fc455200b304eced8fc6b7255e3ee9924fb4003fde6106`. One run measured Qwen3 Recall@5 98.67%, query p95 1,295.7 ms, and 154.3 s for corpus embedding construction. Full source-ingest lexical Recall@5 was 92.33%, p95 585.0 ms, with all 10,000 events ingested. **Historical runner result only:** the 1,295.7 ms measurement used a pure-Python exhaustive cosine scorer; the Qdrant local-mode comparison below supersedes that standalone backend measurement. This does not establish Qwen3 or Qdrant performance failure; the formal Alpha end-to-end gate remains untested. The two query timing boundaries differ, so the 585 ms lexical number is context, not a valid 1.5x head-to-head ratio. The Qdrant server remains stopped; MCP recall is unchanged.
+
+### Local Qdrant memory-mode synthetic comparison
+
+The benchmark dependency is pinned in `requirements-benchmark.txt` (`qdrant-client==1.19.1`); the optional production vector path now also declares it in `requirements.txt`. Install that file in the Python interpreter actually used by the bridge, not an unrelated system Python. `run_qdrant_local_recall()` itself creates a Qdrant `:memory:` collection, embeds only the generated fixture through loopback Ollama, and discards the collection when the process closes. This benchmark does not connect to a Qdrant server, persist vectors, read real memories, or modify MCP recall.
+
+### Production vector recall (2026-10-10 repair)
+
+Unlike the benchmark above, the production `VectorIndex` persists to `<root>/qdrant`. Use the MCP `mdcg_recall` tool with `vector: true`, or `MdCGSecure.search_rrf(..., paths=("vector",))`. Default writes do **not** call embeddings: set `MDCG_VECTOR_AUTO_INDEX=1` explicitly to enable synchronous local indexing. Committed updates invalidate previous vectors even with auto-indexing disabled; forgetting removes all points for the node, including legacy randomized IDs. Retrieval filters authorized candidate IDs before vector top-k and rereads the Markdown source before packing results.
+
+Vector failures are visible in recall `meta.vector_error` and secure health `vector.last_error`; they are not successful empty searches. Persistent Qdrant operations are serialized with an OS file lock and operation-scoped clients. These changes were checked against synthetic roots, including restart and two-process regressions. No real memory migration was performed. See the project-root `VECTOR_RECALL_GUIDE.md` for current usage and limitations.
+
+Reproduce the 10k/300 test from `engine`:
+
+```bash
+python -m pip install -r requirements-benchmark.txt
+python -m unittest md_cg.test_synthetic_vector_recall
+python -c 'import json; from md_cg.bench_recall_synthetic import build_stress_fixture, run_qdrant_local_recall; f=build_stress_fixture(); r=run_qdrant_local_recall(f); print(json.dumps({k:r[k] for k in ("summary", "latency_ms", "counts", "manifest", "parameters")}, ensure_ascii=False, indent=2))'
+```
+
+On the fixed 10,000-event / 300-query fixture (same hashes above), three full runs produced Recall@5 98.67% each and no-overlap paraphrase Recall@5 82.61% (19/23). Query p95 was 119.2 / 162.7 / 165.5 ms; collection build (document embedding plus Qdrant in-memory insertion) took 164.2 / 174.1 / 170.8 seconds. Query timing includes query embedding and Qdrant local search, but excludes Alpha ACL filtering, authoritative source reread, MCP packing, and persistent/server Qdrant behavior. The earlier 1,295.7 ms dense p95 used a pure-Python exhaustive cosine loop; do not attribute that latency to Qwen or treat this local-mode result as an end-to-end acceptance.

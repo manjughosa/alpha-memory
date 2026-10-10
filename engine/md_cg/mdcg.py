@@ -22,6 +22,7 @@ import json
 import time
 import atexit
 import weakref
+import stat
 import hashlib
 import threading
 
@@ -337,6 +338,12 @@ def bigrams(s: str) -> set:
     return {s[i:i + 2] for i in range(len(s) - 1)}
 
 
+# 生效条件：当 `s` 为字符串时，先去掉空白字符；去空白后长度 < 3 返回空集，否则返回所有相邻 3-gram 集合。
+def trigrams(s: str) -> set:
+    s = "".join(s.split())
+    if len(s) < 3:
+        return set()
+    return {s[i:i + 3] for i in range(len(s) - 2)}
 # 中文高频功能 bigram（召回扩展时剔除：纯语法组合，召回价值低、噪音高）
 CN_STOP_GRAMS = {
     "的了", "是一", "的在", "有个", "就是", "不是", "没有", "这个", "那个",
@@ -771,7 +778,8 @@ class MdCG:
                 for fn in files:
                     if not fn.endswith(".md"):
                         continue
-                    p = os.path.join(dirpath, fn)
+                    rel = os.path.relpath(os.path.join(dirpath, fn), self.root).replace(os.sep, "/")
+                    p = self._resolve_node_path(rel)
                     try:
                         with open(p, encoding="utf-8") as f:
                             fm, content = nodefile.loads(f.read())
@@ -1263,7 +1271,7 @@ class MdCG:
         if not node:
             return None
         return (node.get("frontmatter") or {}, node.get("content") or "",
-                os.path.join(self.root, node.get("path") or f"{node_id}.md"))
+                self._resolve_node_path(node.get("path") or f"{node_id}.md"))
 
 # 生效条件：self.index["nodes"].get(node_id) 非 None 时把该条目 edges 置为 fm.get("edges") or []、subgraph 置为 fm.get("subgraph") 并标脏；条目为 None 则完全不同步（subgraph 缓存失效调用被静默吞异常）；
     def _sync_edge_entry(self, node_id, fm):
@@ -1564,6 +1572,12 @@ class MdCG:
 
 # 生效条件：无条件把 entry 写入 _dirty[node_id] 与 index["nodes"][node_id]；entry.get("bucket") 为真值时该桶计数 +1；当 len(self._dirty) >= self.autoflush 时调 flush()（autoflush 为 0 时每次标脏都立即 flush）；
     def _stage(self, node_id, entry):
+        terms_by_path = getattr(self, "_source_search_terms_by_path", None)
+        if terms_by_path is not None:
+            previous = self.index["nodes"].get(node_id)
+            if previous:
+                terms_by_path.pop(previous.get("path"), None)
+            terms_by_path.pop(entry.get("path"), None)
         self._dirty[node_id] = entry
         self.index["nodes"][node_id] = entry
         if entry.get("bucket"):
@@ -1607,10 +1621,23 @@ class MdCG:
         return content
 
 # 生效条件：无条件以 fm.get("sensitivity") 调 _seal_content 封装后执行 atomic_write(path, nodefile.dumps(fm, sealed), durable=durable) 并返回 sealed，durable 原样透传、无校验；
+    def _resolve_node_write_path(self, path: str) -> str:
+        if not isinstance(path, str) or not path:
+            raise ValueError("node path must be inside the memory root")
+        if os.path.isabs(path):
+            try:
+                relative_path = os.path.relpath(path, self.root)
+            except ValueError as exc:
+                raise ValueError("node path resolves outside the memory root") from exc
+        else:
+            relative_path = path
+        return self._resolve_node_path(relative_path)
+
     def _write_node(self, node_id: str, path: str, fm: dict, content: str,
                     durable: bool = False):
         """统一节点写盘口：先封装再原子写。**所有写盘点都应走这里**，
         否则 `get()` 解密后的明文会被直接回写（破坏加密）。"""
+        path = self._resolve_node_write_path(path)
         sealed = self._seal_content(node_id, content, fm.get("sensitivity"))
         atomic_write(path, nodefile.dumps(fm, sealed), durable=durable)
         return sealed
@@ -1682,12 +1709,49 @@ class MdCG:
 
     # ---------- 读 ----------
 
-# 生效条件：index["nodes"].get(node_id) 为假值时回落 self._dirty.get(node_id)，仍为假值返回 None；打开 root 下 e["path"] 抛 OSError 返回 None；_open_content 返回 None（无密钥/身份不符）返回 None；否则返回 {id, frontmatter, content, path}；
+# 生效条件：relative_path 必须为非空相对路径，且 realpath 解析后仍在 self.root 内；否则抛 ValueError；合规时返回解析后的绝对路径。
+    def _resolve_node_path(self, relative_path: str) -> str:
+        if (not isinstance(relative_path, str) or not relative_path
+                or os.path.isabs(relative_path)
+                or os.path.splitdrive(relative_path)[0]):
+            raise ValueError("node path must be relative to the memory root")
+        # Windows realpath uses expensive final-handle resolution per read.
+        # Plain paths have identical abspath/realpath semantics. Check EVERY
+        # ancestor on every call (no stale link cache); reparse points, missing
+        # components, and inaccessible paths retain the original resolver.
+        if os.name == "nt":
+            plain_root = os.path.abspath(self.root)
+            plain_path = os.path.abspath(os.path.join(plain_root, relative_path))
+            try:
+                inside = os.path.normcase(os.path.commonpath(
+                    (plain_root, plain_path))) == os.path.normcase(plain_root)
+                cursor = plain_path
+                while inside:
+                    attributes = os.lstat(cursor).st_file_attributes
+                    if attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+                        break
+                    parent = os.path.dirname(cursor)
+                    if parent == cursor:
+                        return plain_path
+                    cursor = parent
+            except (OSError, ValueError):
+                pass
+        root = os.path.realpath(self.root)
+        path = os.path.realpath(os.path.join(root, relative_path))
+        try:
+            common = os.path.commonpath((root, path))
+        except ValueError as exc:
+            raise ValueError("node path resolves outside the memory root") from exc
+        if os.path.normcase(common) != os.path.normcase(root):
+            raise ValueError("node path resolves outside the memory root")
+        return path
+
+# 生效条件：节点缺失返回 None；路径越出 root 时由 _resolve_node_path 抛 ValueError；OSError 或正文不可解封返回 None；否则返回 id/frontmatter/content/path。
     def get(self, node_id: str):
         e = self.index["nodes"].get(node_id) or self._dirty.get(node_id)
         if not e:
             return None
-        p = os.path.join(self.root, e["path"])
+        p = self._resolve_node_path(e["path"])
         try:
             with open(p, encoding="utf-8") as f:
                 fm, content = nodefile.loads(f.read())
@@ -1696,11 +1760,12 @@ class MdCG:
         content = self._open_content(node_id, fm, content)
         if content is None:
             return None                     # 有节点但无密钥 → 不可读即不存在
+        fm.pop("source_search_index", None)
         return {"id": node_id, "frontmatter": fm, "content": content, "path": e["path"]}
 
-# 生效条件：打开 os.path.join(self.root, entry["path"]) 成功时返回 nodefile.loads 的 (fm, content)；抛 OSError 时返回 (None, None)（entry 的 "path" 按源码直接取键，无 .get 回落）；
+# 生效条件：entry["path"] 越出 root 时由 _resolve_node_path 抛 ValueError；路径在 root 内时返回 nodefile.loads 的 (fm, content)，打开失败返回 (None, None)。
     def _read(self, entry):
-        p = os.path.join(self.root, entry["path"])
+        p = self._resolve_node_path(entry["path"])
         try:
             with open(p, encoding="utf-8") as f:
                 return nodefile.loads(f.read())
@@ -2063,7 +2128,7 @@ class MdCG:
                     got = self.get(e["path"].split("/")[-1][:-3])
                     # 用 path 末段作为 id 反查（_index 用 path，get 用 id）
                     # 上面写法是错的；改用直接路径读
-                    full_path = os.path.join(self.root, e["path"])
+                    full_path = self._resolve_node_path(e["path"])
                     if not os.path.exists(full_path):
                         continue
                     try:
@@ -2336,16 +2401,90 @@ class MdCG:
         return act, seeds
 
 
-# 生效条件：entries 逐条经 _read 得 content 为 None 的跳过、_open_content 返回 None 的跳过，其余以 (e, fm, c) 进入 docs，并把 len(docs) 累加进 stat["scanned"] 后返回 docs；
-    def _read_many(self, entries, stat):
+# 生效条件：entries 逐条经 _read 并解封正文；带 source_search_index 的可读节点再解封并校验 v1/v2 稀疏词项，内部加入来源特征；密文不可读或 JSON/schema 无效时抛 ValueError；其余以 (e, fm, c) 进入 docs，并累计 stat["scanned"]；
+    def _read_many(self, entries, stat, query_terms=None, lexical_terms=None,
+                   query_trigrams=None):
         docs = []
+        query_terms = set(query_terms or ())
+        query_trigrams = set(query_trigrams or ())
+        lexical_terms = tuple(str(term).lower() for term in (lexical_terms or ()))
+        can_prefilter = bool(query_terms and lexical_terms)
+        preserve_short_matches = (any(len(term.strip()) <= 1 for term in lexical_terms)
+                                  and not query_trigrams)
+        semantic_query = semantic_on() if can_prefilter else False
+        source_term_cache = getattr(self, "_source_search_terms_cache", None)
+        if source_term_cache is None:
+            source_term_cache = {}
+            self._source_search_terms_cache = source_term_cache
+        source_terms_by_path = getattr(self, "_source_search_terms_by_path", None)
+        if source_terms_by_path is None:
+            source_terms_by_path = {}
+            self._source_search_terms_by_path = source_terms_by_path
         for e in entries:
             fm, c = self._read(e)
             if c is None:
                 continue
+            source_terms = None
+            source_trigrams = frozenset()
+            source_version = 0
+            encrypted_index = fm.get("source_search_index")
+            if encrypted_index is not None:
+                if not isinstance(encrypted_index, str):
+                    raise ValueError(f"source search index has invalid type: {fm.get('id')}")
+                cache_key = (fm.get("id"), hashlib.sha256(
+                    encrypted_index.encode("utf-8")).digest())
+                if cache_key in source_term_cache:
+                    source_version, source_terms, source_trigrams = source_term_cache[cache_key]
+                else:
+                    index_text = self._open_content(fm.get("id"), fm, encrypted_index)
+                    if index_text is None:
+                        c = self._open_content(fm.get("id"), fm, c)
+                        if c is None:
+                            continue                    # 无密钥 / 身份不符 → 不参与检索
+                        raise ValueError(f"source search index is unreadable: {fm.get('id')}")
+                    try:
+                        index_data = json.loads(index_text)
+                    except json.JSONDecodeError as exc:
+                        raise ValueError(
+                            f"source search index is invalid JSON: {fm.get('id')}") from exc
+                    version = index_data.get("version") if isinstance(index_data, dict) else None
+                    terms = index_data.get("terms") if isinstance(index_data, dict) else None
+                    trigrams = index_data.get("trigrams") if isinstance(index_data, dict) else None
+                    if (not isinstance(index_data, dict)
+                            or type(version) is not int
+                            or version not in (1, 2)
+                            or not isinstance(terms, list)
+                            or any(not isinstance(term, str) for term in terms)
+                            or (version == 2 and (not isinstance(trigrams, list)
+                                or any(not isinstance(term, str) for term in trigrams)))):
+                        raise ValueError(f"source search index has invalid schema: {fm.get('id')}")
+                    source_version = version
+                    source_terms = frozenset(terms)
+                    source_trigrams = frozenset(trigrams or ())
+                    source_term_cache[cache_key] = (
+                        source_version, source_terms, source_trigrams)
+                source_terms_by_path[e.get("path")] = (
+                    source_version, source_terms, source_trigrams)
+                if can_prefilter and not preserve_short_matches:
+                    tags = " ".join(str(tag) for tag in (fm.get("tags") or [])).lower()
+                    tag_match = any(term in tags for term in lexical_terms)
+                    match_terms = (query_trigrams if source_version >= 2 and query_trigrams
+                                   else query_terms)
+                    indexed_terms = (source_trigrams if source_version >= 2 and query_trigrams
+                                     else source_terms)
+                    source_match = bool(match_terms.intersection(indexed_terms))
+                    if not source_match and not tag_match and not semantic_query:
+                        continue
+
             c = self._open_content(fm.get("id"), fm, c)
             if c is None:
                 continue                    # 无密钥 / 身份不符 → 不参与检索
+            if source_terms is not None:
+                fm = dict(fm)
+                fm.pop("source_search_index", None)
+                fm["_source_search_terms"] = source_terms
+                fm["_source_search_trigrams"] = source_trigrams
+                fm["_source_search_version"] = source_version
             docs.append((e, fm, c))
         stat["scanned"] += len(docs)
         return docs
@@ -2362,7 +2501,7 @@ class MdCG:
         tags_l = tags.lower()
         return any(t in body_l or t.lower() in tags_l for t in terms)
 
-# 生效条件：semantic_on() 为真、semantic.canonical.pair_hits 导入成功且该 doc 的 fm 有 semantic 时 raw = min(1.0, max(lexical_sim(qb, 该文档 normalize_en 后的 bigram, mode), pair_hits(fm["semantic"], q)) + tag_bonus)，否则 raw = min(1.0, sim + tag_bonus)；tag_bonus 仅在 fm.tags 中有 t 满足 str(t) in q 或 q in str(t) 时为 0.05，否则 0.0；pools 为真值时 raw 再乘 pooling.weight_of(...) 并夹到 [0,1]；返回 scored 列表；
+# 生效条件：raw 词面分以正文 bigram 与已解封的 _source_search_terms 并集计算；semantic_on() 且 canonical.pair_hits 与 fm.semantic 可用时 raw = min(1.0, max(sim, pair_hits(...)) + tag_bonus)，否则 raw = min(1.0, sim + tag_bonus)；tag_bonus 仅在 fm.tags 中有 t 满足 str(t) in q 或 q in str(t) 时为 0.05，否则 0.0；pools 为真值时 raw 再乘 pooling.weight_of(...) 并夹到 [0,1]；返回 scored 列表；
     def _score(self, docs, q, qb, pools=None, mode=None):
         # 语义摘要路（MDCG_SEMANTIC=1 opt-in，默认关闭零回归）：
         # doc 侧 fm.semantic 标准原子序列 × query 归一序列的组合窗口共现分
@@ -2384,9 +2523,9 @@ class MdCG:
         _boost = layer_boosts() if _s4_on else None
         scored = []
         for e, fm, c in docs:
-            # 归一化 content 后取 bigram（与 query 侧 normalize_en 对称）
+            # 合并正文 bigram 与授权后解封的完整来源稀疏 bigram
             c_norm = normalize_en(c)
-            nb = bigrams(c_norm)
+            nb = bigrams(c_norm) | set(fm.get("_source_search_terms") or ())
             sim = lexical_sim(qb, nb, mode)
             tag_bonus = 0.05 if any(str(t) in q or q in str(t)
                                     for t in (fm.get("tags") or [])) else 0.0
@@ -2400,7 +2539,11 @@ class MdCG:
                     fm.get("id") or e["path"], e, pools)))
             if _boost:                      # S4：层级加成（最后一步；上限仍夹在 1.0）
                 raw = min(1.0, raw + _boost.get(str(fm.get("layer") or ""), 0.0))
-            scored.append(({"id": fm.get("id") or e["path"], "frontmatter": fm,
+            public_fm = dict(fm)
+            public_fm.pop("_source_search_terms", None)
+            public_fm.pop("_source_search_trigrams", None)
+            public_fm.pop("_source_search_version", None)
+            scored.append(({"id": fm.get("id") or e["path"], "frontmatter": public_fm,
                             "content": c, "path": e["path"]}, raw))
         return scored
 
@@ -2431,7 +2574,7 @@ class MdCG:
             _negs = []
             for _nc in neg_coverage[:10]:
                 try:
-                    with open(os.path.join(self.root, _nc["path"]), encoding="utf-8") as _f:
+                    with open(self._resolve_node_path(_nc["path"]), encoding="utf-8") as _f:
                         _fm_n, _c_n = nodefile.loads(_f.read())
                 except Exception:
                     continue        # 解析异常同样放行（信息不足不得中断检索）
@@ -2513,7 +2656,7 @@ class MdCG:
             out.append((r[0], r[1], qual))
         # 把被负记忆覆盖的查询也作为结果条目返回（首条），方便调用方感知
         for nc in neg_coverage[:3]:
-            full_path = os.path.join(self.root, nc["path"])
+            full_path = self._resolve_node_path(nc["path"])
             try:
                 with open(full_path, encoding="utf-8") as f:
                     fm, content = nodefile.loads(f.read())
@@ -2677,7 +2820,7 @@ class MdCG:
         os.makedirs(d, exist_ok=True)
         new_path = os.path.join(d, f"{node_id}.md")
         self._write_node(node_id, new_path, fm, node["content"])
-        old_full = os.path.join(self.root, node["path"])
+        old_full = self._resolve_node_path(node["path"])
         if (os.path.abspath(old_full) != os.path.abspath(new_path)
                 and os.path.exists(old_full)):
             os.remove(old_full)
@@ -2724,7 +2867,7 @@ class MdCG:
                               reason=evidence,
                               verification_basis="test")
             # 从原位置删除（节点进入 rejected 层）
-            os.remove(os.path.join(self.root, node["path"]))
+            os.remove(self._resolve_node_path(node["path"]))
             self._unstage(node_id)      # 同上：索引删除必须可重放（防幽灵条目）
             trust.invalidate_cache(self)        # 索引已变 → 反查索引作废
             # 地基塌了：直接下游立即标存疑（**同步一跳**，永不抛、不阻断本次裁决）
@@ -2885,7 +3028,7 @@ class MdCG:
         layer_stats = {}
         neg_stats = {}
         for e in self.index["nodes"].values():
-            full_path = os.path.join(self.root, e["path"])
+            full_path = self._resolve_node_path(e["path"])
             try:
                 with open(full_path, encoding="utf-8") as f:
                     fm, content = nodefile.loads(f.read())

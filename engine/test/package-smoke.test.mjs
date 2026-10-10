@@ -69,6 +69,8 @@ test('npm publish whitelist excludes development artifacts', async () => {
   assert.ok(paths.includes('scripts/review_cli.py'))
   assert.ok(paths.includes('alpha-dog.setting.json'))
   assert.ok(paths.includes('md_cg/policy.default.json'))
+  assert.ok(paths.includes('requirements.txt'))
+  assert.equal(paths.some((path) => /^md_cg\/test_[^/]*\.py$/.test(path)), false)
   assert.equal(paths.some((path) => path === 'node_modules' || path.startsWith('node_modules/')), false)
   assert.equal(paths.some((path) => path === 'test' || path.startsWith('test/')), false)
   assert.equal(paths.some((path) => path === 'lib.next' || path.startsWith('lib.next/')), false)

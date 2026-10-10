@@ -182,9 +182,9 @@ def main():
         "MDCG_LLM_KEY", "MDCG_LLM_MODEL", "MDCG_LLM_BASE", "MDCG_REFLECT_MODEL",
         "MDCG_REFLECT_BASE", "MDCG_REFLECT_KEY", "MDCG_VERIFY_MODEL",
         "MDCG_VERIFY_BASE", "MDCG_VERIFY_KEY", "ZHIPU_API_KEY", "ZHIPUAI_API_KEY",
-        "GLM_API_KEY", "BIGMODEL_API_KEY", "DEEPSEEK_API_KEY")}
+        "GLM_API_KEY", "BIGMODEL_API_KEY", "ALPHA_DOG_KEY")}
     try:
-        os.environ["DEEPSEEK_API_KEY"] = "sk-fake-deepseek"
+        os.environ["ALPHA_DOG_KEY"] = "sk-fake-deepseek"
         check("反思单元默认模型", role_config(REFLECT_ROLE)[0] == REFLECT_MODEL,
               role_config(REFLECT_ROLE)[0])
         check("验证单元默认模型", role_config(VERIFY_ROLE)[0] == VERIFY_MODEL,

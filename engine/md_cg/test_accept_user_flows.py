@@ -156,7 +156,7 @@ def main():
         s.send("notifications/initialized", None, expect=False)
         tl = s.send("tools/list", {})
         tools = [t.get("name") for t in tl.get("result", {}).get("tools", [])]
-        check("默认工具面为 cg/stg 两基元", tools == ["cg", "stg"], str(tools))
+        check("默认工具面为 cg/stg 加读取与召回", tools == ["cg", "stg", "mdcg_get", "mdcg_recall"], str(tools))
 
         # S3 只读 guest：能读不能写
         print("\n[S3] 无令牌 = 只读 guest")

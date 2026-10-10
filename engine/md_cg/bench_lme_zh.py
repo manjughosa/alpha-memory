@@ -75,12 +75,12 @@ ZH_Q_PROMPT = """从下面英文问题里抽出中文关键词：只输出名词
 
 
 # ------------------------------------------------------------------ LLM
-# 生效条件：环境变量 DEEPSEEK_API_KEY 为真值（缺省或空串即抛 RuntimeError「需要 DEEPSEEK_API_KEY」）且 range(retries) 至少迭代一次（retries≥1）时，用 messages、max_tokens 调 llm_chat 并返回 (content, usage)；全部重试失败或 retries=0（last 保持 None）时抛 RuntimeError「LLM 调用失败：…」。
+# 生效条件：环境变量 ALPHA_DOG_KEY 为真值（缺省或空串即抛 RuntimeError「需要 ALPHA_DOG_KEY」）且 range(retries) 至少迭代一次（retries≥1）时，用 messages、max_tokens 调 llm_chat 并返回 (content, usage)；全部重试失败或 retries=0（last 保持 None）时抛 RuntimeError「LLM 调用失败：…」。
 def _llm(messages, max_tokens=400, retries=3):
     from md_cg.bench_task_ab_llm import llm_chat
-    key = os.environ.get("DEEPSEEK_API_KEY")
+    key = os.environ.get("ALPHA_DOG_KEY")
     if not key:
-        raise RuntimeError("需要 DEEPSEEK_API_KEY")
+        raise RuntimeError("需要 ALPHA_DOG_KEY")
     last = None
     for i in range(retries):
         try:

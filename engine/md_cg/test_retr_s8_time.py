@@ -240,13 +240,18 @@ def main():
 
     # ================= 9) 热缓存：命中 + 时间算子读/写双侧绕行 =================
     sec = MdCGSecure(root, principal=Principal(
-        actor="test-s8", clearance="secret", can_write=True,
+        actor="test-s8", clearance="secret", can_write=True, can_admin=True,
         role="designer", auth_mode="local-cli"))
+    # MdCG builds legacy unbound fixtures. Bind only this synthetic library:
+    # secure retrieval correctly hides unowned nodes until explicit admin binding.
+    for nid in list(sec.index["nodes"]):
+        sec.bind_legacy_tenant(nid)
     hotcache.attach(sec)
     _sa, sma = sec.search_rrf(QUERY, k=20, judge=False, record=False)
     _sb, smb = sec.search_rrf(QUERY, k=20, judge=False, record=False)
     check("热缓存：同参二次 search_rrf 命中（cached=True）且结果一致",
           sma.get("cached") is not True and smb.get("cached") is True
+          and len(_sa) == 15 and len(_sb) == 15
           and [r[0]["id"] for r in _sa] == [r[0]["id"] for r in _sb],
           "a=%s b=%s" % (sma.get("cached"), smb.get("cached")))
 

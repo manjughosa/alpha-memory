@@ -25,7 +25,7 @@ import re
 import time
 import uuid
 
-from .mdcg import (MdCG, expand_query_terms, bigrams, normalize_en, STATE_ACCEPT,
+from .mdcg import (MdCG, expand_query_terms, bigrams, trigrams, normalize_en, STATE_ACCEPT,
                    STATE_REJECT, STATE_DEFER, STATE_BLINDSPOT, TIER_BUCKET_LIKE,
                    TIER_BUCKET_SCAN, TIER_GLOBAL_LIKE, TIER_GLOBAL_SCAN,
                    GLOBAL_CAP, expand_query_terms_weighted,
@@ -837,7 +837,7 @@ class MdCGOS(MdCG):
 
 # 生效条件：当 query、entries、stat 传入时，先以 terms/qb 从 entries 读取文档并保留 LIKE 命中或（semantic_on 且 frontmatter.semantic）的项；若 hits 为空则按 importance/created_at 降序取前 GLOBAL_CAP 作为兜底；随后对 hits 打分并按相关度与 importance 降序排序，超过 GLOBAL_CAP 时截断并更新 stat，否则返回全部 scored；
     def _lexical(self, query, entries, stat):
-        """词法路径：LIKE 预筛 + 二元组相似度（口径见 mdcg.SCORE_MODE）。
+        """词法路径：LIKE/授权稀疏来源特征预筛 + 二元组相似度。
 
         预筛命中集超 GLOBAL_CAP 时按**打分降序**截断（原为按插入序取前 CAP）：
         LIKE 命中集沿 entries（目录枚举序）排列，插入序截断会让本路候选池
@@ -850,12 +850,61 @@ class MdCGOS(MdCG):
         terms = expand_query_terms(query)
         # qb 与文档侧 normalize_en 口径对齐（同 MdCGOS.search，防大小写断裂）
         # + 英→中语素 bigram 补充（跨语词法分恢复）
-        qb = bigrams(normalize_en(query)) | en_zh_bigrams(query)
-        docs = self._read_many(entries, stat)
+        normalized_query = normalize_en(query)
+        qb = bigrams(normalized_query) | en_zh_bigrams(query)
+        query_terms = set(qb)
+        query_trigrams = trigrams(normalized_query)
+        cached_source_terms = getattr(self, "_source_search_terms_by_path", {})
+        if query_trigrams and entries:
+            source_indexes = [cached_source_terms.get(entry.get("path")) for entry in entries]
+            if (all(isinstance(index, tuple) and len(index) == 3 and index[0] >= 2
+                    for index in source_indexes)):
+                trigram_df = {}
+                for _version, _source_terms, source_trigrams in source_indexes:
+                    for gram in source_trigrams:
+                        trigram_df[gram] = trigram_df.get(gram, 0) + 1
+                max_document_frequency = max(2, len(source_indexes) // 20)
+                rare_query_trigrams = {
+                    gram for gram in query_trigrams
+                    if trigram_df.get(gram, 0) <= max_document_frequency
+                }
+                query_trigrams = rare_query_trigrams
+        if cached_source_terms and query_terms and terms:
+            preserve_short_matches = (any(len(str(term).strip()) <= 1 for term in terms)
+                                      and not query_trigrams)
+            semantic_query = semantic_on()
+            narrowed = []
+            for entry in entries:
+                source_index = cached_source_terms.get(entry.get("path"))
+                if source_index is None or preserve_short_matches or semantic_query:
+                    narrowed.append(entry)
+                    continue
+                source_version, source_terms, source_trigrams = source_index
+                match_terms = (query_trigrams if source_version >= 2 and query_trigrams
+                               else query_terms)
+                indexed_terms = (source_trigrams if source_version >= 2 and query_trigrams
+                                 else source_terms)
+                tags = " ".join(str(tag) for tag in (entry.get("tags") or [])).lower()
+                if (match_terms.intersection(indexed_terms)
+                        or any(str(term).lower() in tags for term in terms)):
+                    narrowed.append(entry)
+            entries = narrowed
+        docs = self._read_many(entries, stat, query_terms=query_terms,
+                               lexical_terms=terms, query_trigrams=query_trigrams)
         # 语义资格（MDCG_SEMANTIC=1）：fm.semantic 节点无条件入池——
         # 语义摘要=检索面（设想核心），否则摘要层只在 LIKE 全空时生效
-        hits = [d for d in docs if self._like(d[2], d[1], terms)
-                or (semantic_on() and d[1].get("semantic"))]
+        hits = []
+        for d in docs:
+            source_version = d[1].get("_source_search_version", 1)
+            if source_version >= 2 and query_trigrams:
+                source_match = bool(query_trigrams.intersection(
+                    d[1].get("_source_search_trigrams") or ()))
+            else:
+                source_match = bool(query_terms.intersection(
+                    d[1].get("_source_search_terms") or ()))
+            if (self._like(d[2], d[1], terms) or source_match
+                    or (semantic_on() and d[1].get("semantic"))):
+                hits.append(d)
         if not hits:
             # 兜底池（LIKE 全空 = 无相关度信号）：截断依据=importance/created_at
             # 序，确定可复算；此时 bigram 部分匹配不足以定序（共现噪声），
@@ -1198,7 +1247,7 @@ class MdCGOS(MdCG):
         }
         # 不可稳定进键的参数（自定义可调用 query_expand）：非默认即**绕行**
         # 缓存（读+写双侧闭合）——fail-closed，宁可不用缓存也不串味。
-        _bypass = query_expand is not None
+        _bypass = query_expand is not None or "vector" in (paths or ())
         if hc is not None and not _time_on and not _bypass:
             cached = hc.get_query(q, k=k, layer=layer, session=session,
                                   branch=branch, validity=validity, view=view,
@@ -1226,6 +1275,7 @@ class MdCGOS(MdCG):
         _tf_meta = {"time_filter": _tf} if _tf else {}
         ranked = {}          # path -> [(node, score)]
         fuzzy_source = None
+        vector_error = None
         chain_prov = {}
         if "lexical" in paths:
             ranked["lexical"] = self._lexical(q, entries, stat)
@@ -1243,6 +1293,35 @@ class MdCGOS(MdCG):
                 q, entries, context, expand=query_expand)
         if "semantic" in paths:
             ranked["semantic"] = self._path_semantic(q, entries, context)
+        if "vector" in paths:
+            try:
+                from md_cg.vector_index import VectorIndex
+                if not hasattr(self, "_vector_index"):
+                    self._vector_index = VectorIndex(self.root)
+                # Filter before top-k, not merely after fusion: foreign tenants
+                # must neither enter ranking nor starve authorized results.
+                # _candidates returns raw index entries (without id/frontmatter).
+                # Resolve their paths back to IDs and re-read authoritative nodes
+                # instead of passing an index-shaped object into RRF.
+                eligible_paths = {entry["path"] for entry in entries}
+                visible = {}
+                for nid, entry in self.index["nodes"].items():
+                    if entry["path"] in eligible_paths:
+                        node = self.get(nid)
+                        if node is not None:
+                            visible[nid] = node
+                vector_results = self._vector_index.search(
+                    query, limit=50, allowed_node_ids=list(visible))
+                # Defense in depth: intersect again before fusion.
+                ranked["vector"] = [
+                    (visible[nid], score) for nid, score in vector_results
+                    if nid in visible
+                ]
+                self._vector_last_error = None
+            except Exception as exc:
+                vector_error = f"{type(exc).__name__}: {exc}"
+                self._vector_last_error = vector_error
+                ranked["vector"] = []
         goal_used = None
         if "goal" in paths:
             ranked["goal"], goal_used = self._path_goal(
@@ -1350,6 +1429,7 @@ class MdCGOS(MdCG):
                          "early_stopped": early_stopped,
                          "expand_source": fuzzy_source,
                          "goal_used": goal_used,
+                         "vector_error": vector_error,
                          "provenance": prov, **_tf_meta}, k=k, layer=layer,
                          session=session, branch=branch, validity=validity,
                          view=view, extra=_cache_extra)
@@ -1360,6 +1440,7 @@ class MdCGOS(MdCG):
                          "early_stopped": early_stopped,
                          "expand_source": fuzzy_source,
                          "goal_used": goal_used,
+                         "vector_error": vector_error,
                          "provenance": prov, **_tf_meta}
 
     # ================= 7. budget-driven pack =================
@@ -1438,7 +1519,18 @@ class MdCGOS(MdCG):
         # 单条最小摘录下限：剩余预算低于此值就不值得再放一条残缺内容
         min_excerpt = max(1, min(50, max_item_tokens // 5)) if max_item_tokens else 0
         for node, score, qual, prov in items:
-            content = node.get("content") or ""
+            frontmatter = node.get("frontmatter") or {}
+            source_ref = frontmatter.get("source_ref") if isinstance(frontmatter, dict) else None
+            if source_ref is not None:
+                from .sources import _resolve_source_ref
+                resolved = _resolve_source_ref(source_ref)
+                if resolved["status"] != "ok":
+                    skipped.append({"id": node["id"], "tokens": 0,
+                                    "reason": resolved["status"]})
+                    continue
+                content = resolved["text"]
+            else:
+                content = node.get("content") or ""
             t = est_tokens(content)
             truncated = False
             if used + t > budget_tokens:
@@ -3291,6 +3383,48 @@ class MdCGSecure(MdCGOS):
     # ---------- 私有内容加密（密钥即访问权 + 身份一致性识别）----------
 
 # 生效条件：master_key 非 None 时取 self._resolve_master_key(master_key)、为 None 时取 crypto.load_master_key()；kek 为假值时置 _crypto_error="no_master_key" 且 self.kek=self.dek=None 并返回；否则置 self.kek 并调 crypto.provision_dek(self.root, kek, tenant, actor, clearance=...) 得 dek；捕获 crypto.CryptoError 或 OSError 时置 _crypto_error=str(e) 且 self.kek=self.dek=None。
+    def _auto_index_vector(self, node_id: str, content: str, sensitivity: str):
+        """Optional synchronous indexing; default writes never wait for Ollama."""
+        try:
+            if sensitivity not in ("public", "internal") or not content.strip():
+                self._delete_vector(node_id)
+                return
+            if os.environ.get("MDCG_VECTOR_AUTO_INDEX", "0") != "1":
+                # A changed source must not retain an outdated vector when
+                # automatic embedding is disabled.
+                self._delete_vector(node_id)
+                return
+            # lazy-load VectorIndex（复用 search_rrf 的实例）
+            if not hasattr(self, "_vector_index"):
+                from md_cg.vector_index import VectorIndex
+                self._vector_index = VectorIndex(self.root)
+            
+            ok = self._vector_index.index_node(
+                node_id, content, acl_visible=True, sensitivity=sensitivity)
+            if not ok:
+                self._delete_vector(node_id)
+            self._vector_last_error = None if ok else f"index_failed:{node_id}"
+        except Exception as exc:
+            # 主记忆写入保持可用，但留下可观测诊断，避免把故障伪装成成功。
+            self._vector_last_error = f"{type(exc).__name__}: {exc}"
+    
+    def _write_node(self, node_id, path, fm, content, durable=False):
+        """Keep the derivative aligned with every committed node write."""
+        sealed = super()._write_node(node_id, path, fm, content, durable=durable)
+        self._auto_index_vector(node_id, content,
+                                fm.get("sensitivity") or DEFAULT_SENSITIVITY)
+        return sealed
+
+    def _delete_vector(self, node_id):
+        if not hasattr(self, "_vector_index"):
+            if not os.path.isdir(os.path.join(self.root, "qdrant")):
+                return True
+            from .vector_index import VectorIndex
+            self._vector_index = VectorIndex(self.root)
+        ok = self._vector_index.delete_node(node_id)
+        self._vector_last_error = None if ok else f"delete_failed:{node_id}"
+        return ok
+
     def _init_crypto(self, master_key=None):
         """解析 KEK（显式 → 环境变量 → 仓库外主密钥文件），签发本身份 DEK。
 
@@ -3407,21 +3541,20 @@ class MdCGSecure(MdCGOS):
 
     # ---------- 索引：把 role / sensitivity / 写入归属一并索引 ----------
 
-# 生效条件：对传入的 kw 生效——writer/session 缺键时分别落 self.principal.actor 与 self.session，self.principal.harness 为真值时 harness 缺键才落该值，已存在的键一律不覆盖。
+# 生效条件：kw tenant 与 Principal.tenant 不一致时抛 AccessDenied；否则强制记录当前 tenant，并按 setdefault 注入 writer/session/harness 归属。
     def _attribution(self, kw):
-        """写入归属注入（归因维度，不参与授权）。
-
-        writer/session/harness 缺省取当前身份；库层调用方可显式传值覆盖
-        （如会话台账写入），MCP 面不透传该入参——客户端不得伪造归属。
-        writer 语义=最后写入者（更新路径自然刷新），created_at 记首写。
-        """
+        """强制写入 tenant 归属，并注入 writer/session/harness 归因。"""
+        tenant = kw.pop("tenant", self.principal.tenant)
+        if tenant != self.principal.tenant:
+            raise AccessDenied("节点 tenant 必须与当前 Principal 一致")
+        kw["tenant"] = self.principal.tenant
         kw.setdefault("writer", self.principal.actor)
         kw.setdefault("session", self.session)
         if self.principal.harness:
             kw.setdefault("harness", self.principal.harness)
         return kw
 
-# 生效条件：在 super()._scan_nodes() 结果上逐节点重新 _read，仅当读出的 fm 为真值时把 role、sensitivity（假值回落 DEFAULT_SENSITIVITY）、writer、session、content_kind（角色化读取视图的候选资格维度，第四阶段 6.1）写回该条目。
+# 生效条件：在 super()._scan_nodes() 结果上逐节点重新 _read，仅当读出的 fm 为真值时把 role、sensitivity（假值回落 DEFAULT_SENSITIVITY）、tenant、writer、session、content_kind 写回该条目。
     def _scan_nodes(self):
         nodes = super()._scan_nodes()
         for nid, e in nodes.items():
@@ -3429,26 +3562,31 @@ class MdCGSecure(MdCGOS):
             if fm:
                 e["role"] = fm.get("role")
                 e["sensitivity"] = fm.get("sensitivity") or DEFAULT_SENSITIVITY
+                e["tenant"] = fm.get("tenant")
                 e["writer"] = fm.get("writer")
                 e["session"] = fm.get("session")
                 e["content_kind"] = fm.get("content_kind")
         return nodes
 
-# 生效条件：仅当 self.index["nodes"] 中已存在 nid 时，把该条目的 sensitivity 置为 sens 并标记进 self._dirty；nid 不存在则不做任何事、无返回。
+# 生效条件：仅当 self.index["nodes"] 中已存在 nid 时，把 sensitivity 与当前 Principal.tenant 写入该条目并标记进 self._dirty；nid 不存在则不做任何事、无返回。
     def _index_sensitivity(self, nid, sens):
         e = self.index["nodes"].get(nid)
         if e is not None:
             e["sensitivity"] = sens
+            e["tenant"] = self.principal.tenant
             self._dirty[nid] = e
 
     # ---------- 写：权限校验 ----------
 
-# 生效条件：sens 取 sensitivity or DEFAULT_SENSITIVITY，先 _rank(sens) 并 principal.require_layer_write(layer, sens)，再 _attribution(kw) 后转 super().add，最后按下发的 nid 调 _index_sensitivity 并返回 nid。
+# 生效条件：先校验 sensitivity 与写权限；已有 node_id 若不属于当前可读 tenant 则抛 AccessDenied；其后强制注入 Principal tenant、转 super().add 并同步敏感度/tenant 索引。
     def add(self, node_id: str, content: str, layer: str = "knowledge",
             sensitivity: str = None, **kw) -> str:
         sens = sensitivity or DEFAULT_SENSITIVITY
         _rank(sens)
         self.principal.require_layer_write(layer, sens)
+        existing = self.index["nodes"].get(node_id)
+        if existing is not None and not self._readable(existing):
+            raise AccessDenied("不可覆盖其他 tenant 或未绑定 tenant 的节点")
         self._attribution(kw)
         nid = super().add(node_id, content, layer=layer, sensitivity=sens, **kw)
         self._index_sensitivity(nid, sens)
@@ -3514,13 +3652,51 @@ class MdCGSecure(MdCGOS):
 
     # ---------- 读：密级过滤 ----------
 
-# 生效条件：e 的 sensitivity 为假值时先 _read 回填为 fm 的 sensitivity or DEFAULT_SENSITIVITY，再以 self.principal.allows(sens) 的布尔结果为准。
+# 生效条件：需通过 require_admin；节点不存在抛 KeyError、节点文件不可读抛 FileNotFoundError；仅未绑定节点写入当前 tenant，已属其他 tenant 时拒绝；成功写盘、flush 并审计后返回 node_id。
+    def bind_legacy_tenant(self, node_id: str) -> str:
+        """将一条明确指定的旧节点绑定到当前管理员的 tenant。"""
+        self.principal.require_admin("bind_legacy_tenant")
+        entry = self.index["nodes"].get(node_id)
+        if entry is None:
+            raise KeyError(f"节点不存在：{node_id}")
+        fm, content = self._read(entry)
+        if fm is None:
+            raise FileNotFoundError(f"无法读取节点：{node_id}")
+        owner = fm.get("tenant")
+        if owner == self.principal.tenant:
+            return node_id
+        if owner is not None:
+            raise AccessDenied(f"节点已绑定到其他 tenant：{node_id}")
+
+        fm["tenant"] = self.principal.tenant
+        path = self._resolve_node_path(entry["path"])
+        self._write_node(node_id, path, fm, content)
+        entry["tenant"] = self.principal.tenant
+        self._stage(node_id, entry)
+        self.flush()
+        self._audit("tenant_bind_legacy", node_id)
+        return node_id
+
+# 生效条件：缺归属的旧节点从 frontmatter 判定；仅真正缺 tenant 字段者按本地 default 库读取，不写回归属。显式 null/其他 tenant 和不可读文件仍拒绝，密级检查不变。
     def _readable(self, e) -> bool:
+        fm = None
+        if e.get("tenant") is None or not e.get("sensitivity"):
+            if e.get("path"):
+                fm, _content = self._read(e)
+                if fm is None:
+                    return False
+        owner = e.get("tenant")
+        if owner is None:
+            if fm is None:
+                return False
+            # Legacy single-user stores predate the tenant field. Keep their
+            # default-root semantics without binding or rewriting memory files.
+            # An explicitly present null is not a legacy absence.
+            owner = fm["tenant"] if "tenant" in fm else "default"
+        if owner != self.principal.tenant:
+            return False
         sens = e.get("sensitivity")
         if not sens:
-            # 索引可能被「无密级上下文」的实例重建而丢掉该字段：按盘上真相回填，
-            # fail-closed（宁可少读，不可越权）。
-            fm, _c = self._read(e)
             sens = (fm or {}).get("sensitivity") or DEFAULT_SENSITIVITY
             e["sensitivity"] = sens
         return self.principal.allows(sens)
@@ -3544,7 +3720,7 @@ class MdCGSecure(MdCGOS):
         keep = []
         for r in out:
             m = r.get("meta") or {}
-            if m.get("tenant", self.principal.tenant) != self.principal.tenant:
+            if m.get("tenant") != self.principal.tenant:
                 continue
             if not self.principal.allows(m.get("sensitivity") or DEFAULT_SENSITIVITY):
                 continue
@@ -3634,7 +3810,15 @@ class MdCGSecure(MdCGOS):
 # 生效条件：先 principal.require_admin("forget")，再转 super().forget(node_id, reason, override=override)。
     def forget(self, node_id: str, reason: str = "", override: bool = False):
         self.principal.require_admin("forget")
-        return super().forget(node_id, reason, override=override)
+        result = super().forget(node_id, reason, override=override)
+        if result.get("ok"):
+            try:
+                if not self._delete_vector(node_id):
+                    result["vector_warning"] = "vector_delete_failed"
+            except Exception as exc:
+                self._vector_last_error = f"{type(exc).__name__}: {exc}"
+                result["vector_warning"] = self._vector_last_error
+        return result
 
 # 生效条件：先 principal.require_admin("restore")，再转 super().restore(node_id, force=force)。
     def restore(self, node_id: str, force: bool = False):
@@ -3691,6 +3875,10 @@ class MdCGSecure(MdCGOS):
         h = super().health_os()
         # 持续性自维持（常驻 / 心跳 / 会话续接）：只读摘要，不做巡检
         h["os"]["sustain"] = sustain.summary(self)
+        h["vector"] = {
+            "auto_index": os.environ.get("MDCG_VECTOR_AUTO_INDEX", "0") == "1",
+            "last_error": getattr(self, "_vector_last_error", None),
+        }
         h["security"] = {
             "tenant": self.principal.tenant,
             "clearance": self.principal.clearance,

@@ -258,7 +258,7 @@ def main():
        "中文 @ 不误判为引用（id 须以 [A-Za-z0-9_] 起头）")
     eq(nodefile.dep_refs("依赖 @mem_a、@code_b 与 @mem_a（回指 @mem_a）"),
        ["mem_a", "code_b"], "多引用去重保序提取")
-    eq(nodefile.dep_refs("@code_3552109b6163"), ["code_3552109b6163"],
+    eq(nodefile.dep_refs("@code_<node>"), ["code_<node>"],
        "行首 @ 命中（左侧非标识符字符即可）")
     eq(nodefile.dep_refs("无"), [], "哨兵值提取为空列表")
     g1 = writepipe._gate_deps({"cg": cg, "nid": "mem_x1",

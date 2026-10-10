@@ -166,7 +166,7 @@ const counter = readJSON(COUNTER_PATH, { count: 0, byTool: {}, startedAt: new Da
 if (!counter.startedAt) counter.startedAt = new Date().toISOString()
 writeJSON(COUNTER_PATH, counter)
 
-// ── 幂等锁（author 2026-09-23 · 第二层）────────────────────────────
+// ── 幂等锁（2026-09-23 · 第二层）────────────────────────────
 // 病根：Pi 被手动关闭时不向 MCP 子进程发关闭信号；sidecar 是 setInterval
 // 常驻进程，stdio 管道断了也无感，继续跑。下次 Pi 再 spawn 一个 sidecar，
 // 就出现「两只狗在岗」。锁机制：
@@ -181,7 +181,7 @@ function probeAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false
   try { process.kill(pid, 0); return true } catch (error) { return error.code === 'EPERM' } // EPERM = 进程存在但无权发信号
 }
-// ── 孤儿判据 + 挂载接管（author 2026-09-26 拍板 B 方案）──────────────
+// ── 孤儿判据 + 挂载接管（2026-09-26 拍板 B 方案）──────────────
 // 病根（2026-09-24 排查）：锁只判「pid 活着」，不判「主人还在不在」——
 // 孤儿守门人把新入口全挡在门外。现在撞到活锁先判孤：孤儿安乐死后接管，
 // 有主照旧退让。判孤证据两条，命中任一即孤：
@@ -192,9 +192,9 @@ function probeAlive(pid) {
 // 安全条款：动手前必须核对该 pid 的命令行确实含 alpha-dog-sidecar（防
 // pid 复用误杀）；核对不了就不杀，退让并写明原因。绝不盲杀。
 const ORPHAN_STALE_MS = Number(process.env.ALPHA_DOG_ORPHAN_STALE_MS || 30 * 60 * 1000)
-// 2026-09-28 contributor：哑狗宽限期。ready 之后 bridge 一次都没吭声，超过这个时间即判半启动僵尸。
+// 2026-09-28 补：哑狗宽限期。ready 之后 bridge 一次都没吭声，超过这个时间即判半启动僵尸。
 const ORPHAN_GRACE_MS = Number(process.env.ALPHA_DOG_ORPHAN_GRACE_MS || 90 * 1000)
-// 2026-09-28 contributor：在岗心跳记号。锁主每 15s 写 sidecar.heartbeat.json；超过 45s 没刷新＝定时器死了。
+// 2026-09-28 补：在岗心跳记号。锁主每 15s 写 sidecar.heartbeat.json；超过 45s 没刷新＝定时器死了。
 const HEARTBEAT_PATH = path.join(STATE_DIR, 'sidecar.heartbeat.json')
 const HEARTBEAT_STALE_MS = Number(process.env.ALPHA_DOG_HEARTBEAT_STALE_MS || 45 * 1000)
 function readLogTail(bytes = 16384) {
@@ -225,7 +225,7 @@ function lockHolderIsOrphan(pid) {
   if (lastReady >= 0 && lines.slice(lastReady + 1).some((line) => line.includes('bridge exit code='))) {
     return { orphan: true, why: 'bridge exited after last ready — client-less zombie' }
   }
-  // ③ 哑狗实锤（2026-09-28 contributor · author 令）：
+  // ③ 哑狗实锤（2026-09-28 补 · 令）：
   //    病根：① 要「bridge exit」才认，可 bridge 根本没起来，没有 exit 可判；② 要三十分钟
   //    静默才认，可它刚上岗几十秒，四个文件全是新的。两把尺子都量不到 → 判「有主」→
   //    拒绝接管 → 死锁，只能人工抽。补第三把尺子：ready 之后 bridge 一次都没吭声。
@@ -242,7 +242,7 @@ function lockHolderIsOrphan(pid) {
       }
     }
   }
-  // ④ 心跳记号实锤（2026-09-28 contributor）：锁主 pid 活着，但它自己写的心跳记号
+  // ④ 心跳记号实锤（2026-09-28 补）：锁主 pid 活着，但它自己写的心跳记号
   //    超过 HEARTBEAT_STALE_MS 没刷新 → 它的定时器死了或卡死，判孤接管。
   try {
     const marker = JSON.parse(fs.readFileSync(HEARTBEAT_PATH, 'utf8'))
@@ -307,7 +307,7 @@ function releaseLock() {
 }
 acquireLock()
 
-// ── 2026-09-28 contributor：在岗心跳记号 + 起不来自己退位 ──────────────────
+// ── 2026-09-28 补：在岗心跳记号 + 起不来自己退位 ──────────────────
 // 一本万利三件套之二三：每 15s 写心跳给下一只来撞门的狗留「我还活着」的记号；
 // 上岗 120s 内没收到任何客户端字节 → 自己是起不来的哑狗，释放锁退位，把门让出来。
 let sawClientTraffic = false
@@ -379,7 +379,7 @@ process.stdin.on('data', (chunk) => {
     if (!consumed) bridge.stdin.write(raw + '\n')
   }
 })
-// ── 客户端断开即随行退出（author 2026-09-26）────────────────────────
+// ── 客户端断开即随行退出（2026-09-26）────────────────────────
 // 病根修复：此前 stdin EOF 只结束 bridge 的输入，sidecar 靠 setInterval
 // 常驻，变成占锁孤儿。现在客户端一断：先让 bridge 收尾，1.5 秒后本进程
 // 优雅退出并释放锁——下一个入口挂载时直接拿到空锁，连接管都不用。
@@ -436,7 +436,7 @@ async function emitExternalRoundTick(event) {
   return trigger('round_tick', sequence, { params: { arguments: event } })
 }
 
-// ── 自驱敲醒（author 2026-09-23）────────────────────────────────
+// ── 自驱敲醒（2026-09-23）────────────────────────────────
 // 不依赖智能体主动敲、不依赖宿主事件：sidecar 周期读对话源 jsonl，
 // 数 user 消息数 = 真实对话轮。到达档口倍数（15/21/30）立即触发 tick。
 // 工具调用仍是即时信号（emitTick），轮询保证「纯聊天、无工具调用」也醒。
@@ -526,7 +526,7 @@ function recordWake(record) {
   return enriched
 }
 
-// ── 启动自查（author 2026-10-08 授权 · contributor）──────────────────────
+// ── 启动自查（2026-10-08 授权 · 补）──────────────────────
 // 病根（10-01~10-07 七天现场）：狗生死绑定 pi 会话 + 上电只挂 Alpha_Dog_On
 // 人工调用 → 会话关狗下班，新会话没人调 On，狗每场只闪现几秒；计数器冻死
 // 9-23；自驱唤醒被去重表吃掉（processedEvents 记着旧轮 selfdrive:15/21/30/45/60/63，

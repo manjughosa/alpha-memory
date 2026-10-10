@@ -14,8 +14,8 @@
     args: ["-m", "md_cg.mcp_server"]
     env: { MDCG_ROOT: "...", PYTHONPATH: ".../alpha-memory" }
 
-工具面（默认 kernel 只暴露 2 个基元 cg/stg；MDCG_MCP_SURFACE=full 时
-另有 31 个细粒度工具，供兼容/调试）：
+工具面（kernel 默认暴露 cg/stg 基元与 mdcg_get（按 id 读取）、mdcg_recall（主动召回）；MDCG_MCP_SURFACE=full 时
+另有其余细粒度工具，供兼容/调试）：
   写：mdcg_remember（gated=true 走主动遗忘闸门）/ mdcg_rejected /
       mdcg_unresolved / mdcg_propose
   目标/近期：cg(op=goal) 目标槽 / cg(op=recent) 近期事件窗口
@@ -185,7 +185,7 @@ TOOLS = [
                        "「跳过超大、继续试更小的」在预算紧张时淘汰最有价值的详实条目。"
                        "会话开始或重要工作前调用。可选启用第 5 路模糊召回（分级隶属度）"
                        "与第 6 路条件语义路（条件结构驱动），并注入调用方 LLM 的查询"
-                       "扩展词（索引侧始终白箱）。",
+                       "扩展词（索引侧始终白箱）。可选启用本地向量召回路。",
         "inputSchema": _s( query=_p("string", "描述当前任务的查询", True),
                           budget_tokens=_p("integer", "token 预算（默认 1200）"),
                           max_item_tokens=_p("integer", "单条上限（默认 250）；超限条目截断纳入。"
@@ -196,6 +196,7 @@ TOOLS = [
                          semantic=_p("boolean", "启用第 6 路条件空间结构化匹配"
                                                "（白箱语义路：CCG 生效条件 + condition_space "
                                                "四槽，不适用条件命中即剔除；默认否）"),
+                          vector=_p("boolean", "启用本地 Qdrant + 本地 embedding 向量召回路（默认否）"),
                           expand=_p("array", "LLM 查询侧扩展词：[{term,weight}] 或 [\"词\"]；"
                                              "仅在查询时刻生效，索引侧仍白箱"),
                           session=_p("string", "会话归属过滤（frontmatter.session；"
@@ -560,9 +561,9 @@ TOOLS = [
 
 
 # --------------------------------------------------------------------------
-# 基元接口（kernel 暴露面）
+# 默认接口面（kernel）
 #
-# 架构决定（2026-09-09）：对外只暴露 2 个认知基元，其余细粒度工具下沉为
+# kernel 默认暴露 cg/stg 基元与 mdcg_get/mdcg_recall；其余细粒度工具下沉为
 # 本地函数（MDCG_MCP_SURFACE=full 时仍可见，供兼容与调试）。
 # 认知图只给「知识与建议能力名」，不执行——执行权归调用方。
 # --------------------------------------------------------------------------
@@ -1021,13 +1022,17 @@ KERNEL_TOOLS = [
     },
 ]
 
-ALL_TOOLS = KERNEL_TOOLS + TOOLS
+GET_TOOL = next(tool for tool in TOOLS if tool["name"] == "mdcg_get")
+RECALL_TOOL = next(tool for tool in TOOLS if tool["name"] == "mdcg_recall")
+KERNEL_TOOLS.extend([GET_TOOL, RECALL_TOOL])
+_KERNEL_TOOL_NAMES = {tool["name"] for tool in KERNEL_TOOLS}
+ALL_TOOLS = KERNEL_TOOLS + [tool for tool in TOOLS if tool["name"] not in _KERNEL_TOOL_NAMES]
 SURFACE = os.environ.get("MDCG_MCP_SURFACE", "kernel").strip().lower()
 
 
 # 生效条件：模块级 SURFACE 等于 "full" 时以 ALL_TOOLS、否则以 KERNEL_TOOLS 调 slim_tools 并返回其结果。
 def tools_for_surface():
-    """kernel：只暴露 2 个基元；full：2 个基元 + 31 个细粒度工具（兼容/调试）。
+    """kernel：cg/stg + mdcg_get/mdcg_recall；full：kernel + 其余细粒度工具（兼容/调试）。
 
     返回**投影后**的工具面（工具一行职责 + 参数短提示）：完整语义由
     ``cg(op=help, query=…)`` 按需取回。真源 KERNEL_TOOLS/TOOLS 保持完整定义，
@@ -1048,12 +1053,15 @@ def _j(obj) -> str:
     return json.dumps(obj, ensure_ascii=False, default=str)
 
 
-# 生效条件：path 以 ".zstd" 结尾时直接返回 SessionLogSource(path)；否则读首个非空行做 json.loads，该 dict 满足 o.get("type")=="session" 或同时含 "type"/"seq"/"data" 时返回 SessionLogSource(path)，能解析但不满足时返回 JsonlSource(path)，json.loads 抛 ValueError 或 open/读抛 OSError 或无非空行时落到返回 JsonlSource(path)。
+# 生效条件：path 以 ".zstd" 结尾时直接返回 SessionLogSource(path)；否则读首个非空行做 json.loads，该行解析成 dict 且满足 o.get("type")=="session" 或同时含 "type"/"seq"/"data" 时返回 SessionLogSource(path)；首个非空行解析出非 dict（裸字符串/数字）时不作格式信号、直接落到兜底；json.loads 抛 ValueError、open/读抛 OSError、无非空行、或不满足会话日志特征时，一律返回 jsonl_source_for(path)（头部键命中 sources.KNOWN_JSONL_FORMATS 时带表内字段映射，未命中即默认键）。
 def _pick_source(path):
-    """按内容嗅探源类型：会话日志格式 vs 通用 JSONL。"""
-    from .sources import SessionLogSource, JsonlSource
+    """按内容嗅探源类型：Pi 会话 / 会话日志格式 vs 通用 JSONL（宿主字段映射见 sources.KNOWN_JSONL_FORMATS）。"""
+    from .sources import SessionLogSource, jsonl_source_for, pi_session_source_for
     if path.endswith(".zstd"):
         return SessionLogSource(path)
+    pi = pi_session_source_for(path)
+    if pi is not None:
+        return pi
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             for line in f:
@@ -1061,13 +1069,15 @@ def _pick_source(path):
                 if not line:
                     continue
                 o = json.loads(line)
+                if not isinstance(o, dict):      # 非对象行（模板/裸字符串）不是格式信号
+                    break
                 if o.get("type") == "session" or ("type" in o and "seq" in o
                                                   and "data" in o):
                     return SessionLogSource(path)
-                return JsonlSource(path)
+                break
     except (ValueError, OSError):
         pass
-    return JsonlSource(path)
+    return jsonl_source_for(path)
 
 
 READ_MAX_LINES = 2000           # 单次 read 返回行数上限（Pi⑦② 截断）
@@ -2645,7 +2655,7 @@ def _ingest_call(cg, a):
         sensitivity=a.get("sensitivity"), patterns=a.get("patterns"),
         max_files=a.get("max_files"), max_items=a.get("max_items"),
         incremental=a.get("incremental"), dry_run=a.get("dry_run"),
-        max_events=a.get("max_events"))
+        max_events=a.get("max_events"), rebuild=a.get("rebuild"))
 
 
 # 生效条件：act=(a.get("action") or "stat").strip().lower()；principal 非 None 时一律先 require_admin(f"export_{act}")，随后以 include_content=True if a.get("include_content") is None else bool(a.get("include_content")) 等参数调 _ex.run 并返回。
@@ -2820,7 +2830,7 @@ def _insight_call(cg, a):
         types=a.get("types"), min_blindspot=a.get("min_blindspot"))
 
 
-# 生效条件：当 cg、a 传入时，按 a.get('action') or 'read'（空串/None 回退 'read'）分派：action=stat 返回 {'ok': True, 'action': 'stat', 'ledger': refindex.Ledger(cg.root).summary(), 'note': 'ref 索引水位（_refindex.json）：files/nodes 是已登记量；last_index.truncated=true 表示最近一次索引被截断。'}；action=check 返回 refindex.check_refs(cg, ledger=refindex.Ledger(cg.root), max_nodes=int(a.get('max_nodes') or refindex.MAX_CHECK)) 的结果并补 action='check' 与 note（max_nodes 假值回落 refindex.MAX_CHECK）；action 为 prune/prune_dangling 返回 refindex.prune_dangling(cg, only_roots=a.get('roots'), dry_run=bool(a.get('dry_run')), max_nodes=int(a.get('max_nodes') or refindex.MAX_CHECK)) 的结果并补 action='prune' 与 note（max_nodes 假值回落常量，dry_run 缺键为 False）；action 为 read/get 时 nid=(a.get('node_id') or '').strip()，若 nid 非空但 cg.get(nid) 为假返回 {'ok': False, 'error': '节点不存在：nid'}，ref 取 a.get('ref') 当且仅当它是 dict，否则若 node 非 None 用 refindex.ref_of(node)，若 ref 仍为假返回 {'ok': False, 'error': '该节点没有 code_ref/doc_ref（不是索引节点）'}，否则返回 refindex.read_ref(ref, root=a.get('root'), ref_kind=ref_kind) 的结果并设 out['node_id']=nid or None；其他 action 抛 ValueError；
+# 生效条件：当 cg、a 传入时，按 a.get('action') or 'read'（空串/None 回退 'read'）分派：action=stat 返回 {'ok': True, 'action': 'stat', 'ledger': refindex.Ledger(cg.root).summary(), 'note': 'ref 索引水位（_refindex.json）：files/nodes 是已登记量；last_index.truncated=true 表示最近一次索引被截断。'}；action=check 返回 refindex.check_refs(cg, ledger=refindex.Ledger(cg.root), max_nodes=int(a.get('max_nodes') or refindex.MAX_CHECK)) 的结果并补 action='check' 与 note（max_nodes 假值回落 refindex.MAX_CHECK）；action 为 prune/prune_dangling 返回 refindex.prune_dangling(cg, only_roots=a.get('roots'), dry_run=bool(a.get('dry_run')), max_nodes=int(a.get('max_nodes') or refindex.MAX_CHECK)) 的结果并补 action='prune' 与 note（max_nodes 假值回落常量，dry_run 缺键为 False）；action 为 read/get 时 nid=(a.get('node_id') or '').strip()，若 nid 为空且传入的 ref 带 root 则拒绝；若 ref 缺 root 返回 unresolved；若 cg.get(nid) 为假返回 {'ok': False, 'error': '节点不存在：nid'}，ref 仅可取自当前 principal 可见节点保存的 frontmatter 来源，若 ref 仍为假返回 {'ok': False, 'error': '该节点没有 code_ref/doc_ref（不是索引节点）'}，否则返回 refindex.read_ref(ref, ref_kind=ref_kind) 的结果并设 out['node_id']=nid or None；其他 action 抛 ValueError；
 def _ref_call(cg, a):
     """按 ref 回读被索引的源位置（认知图只存注释/接口，正文在这里取回）。
 
@@ -2830,11 +2840,9 @@ def _ref_call(cg, a):
     复算被引用行的哈希，因此它同时也是**漂移检测**：源文件改过之后，回读会
     明确回 stale=True，而不是继续返回一个已经错位的区间。
 
-    ref 来源二选一：传 `node_id`（取该节点的 frontmatter.code_ref 或 doc_ref），
-    或直接传 `ref` 对象。代码索引节点与文档索引节点共用本入口——两者的区间
-    语义一致（相对 path + lineno..end + hash + root），只是 ref 字段名不同。
-    `root` 可用参数覆盖（ref 里的 root 是索引时的机器本地绝对路径，跨机器搬迁
-    后需显式给 root）。
+    read/get 必须传 node_id：先由 cg.get 按当前 principal 校验节点可见性，
+    再使用该节点 frontmatter 中的 code_ref/doc_ref。可选 ref/root 只用于与
+    节点已存来源完全匹配，不作为独立来源或 root 替换入口。
 
     `action`（默认 read）：
       · read  —— 回读源区间（本函数主体）；
@@ -2872,19 +2880,28 @@ def _ref_call(cg, a):
     if action not in ("read", "get"):
         raise ValueError(f"ref 未知 action：{action}（支持 read|check|stat|prune）")
     nid = (a.get("node_id") or "").strip()
-    node = None
-    if nid:
-        node = cg.get(nid)
-        if not node:
-            return {"ok": False, "error": f"节点不存在：{nid}"}
-    ref = a.get("ref") if isinstance(a.get("ref"), dict) else None
-    ref_kind = "ref"
-    if ref is None and node is not None:
-        ref_kind, ref = refindex.ref_of(node)
+    supplied_ref = a.get("ref") if isinstance(a.get("ref"), dict) else None
+    if not nid:
+        if supplied_ref is not None:
+            if not (supplied_ref.get("root") or a.get("root")):
+                return refindex.read_ref(supplied_ref, ref_kind="ref")
+            return {"ok": False,
+                    "error": "ref 回读必须绑定到当前 principal 可见的 node_id"}
+        return {"ok": False,
+                "error": "该节点没有 code_ref/doc_ref（不是索引节点）"}
+    node = cg.get(nid)
+    if not node:
+        return {"ok": False, "error": f"节点不存在：{nid}"}
+    ref_kind, ref = refindex.ref_of(node)
     if not ref:
         return {"ok": False,
                 "error": "该节点没有 code_ref/doc_ref（不是索引节点）"}
-    out = refindex.read_ref(ref, root=a.get("root"), ref_kind=ref_kind)
+    if supplied_ref is not None and supplied_ref != ref:
+        return {"ok": False, "error": "ref 与授权节点中记录的来源不匹配"}
+    requested_root = a.get("root")
+    if requested_root and requested_root != ref.get("root"):
+        return {"ok": False, "error": "root 不能替换授权节点中记录的来源 root"}
+    out = refindex.read_ref(ref, ref_kind=ref_kind)
     out["node_id"] = nid or None
     return out
 
@@ -3028,13 +3045,16 @@ def _dispatch(cg, name, args):
     if name == "mdcg_recall":
         use_fuzzy = bool(a.get("fuzzy"))
         use_semantic = bool(a.get("semantic"))
+        use_vector = bool(a.get("vector"))
         use_goal = bool(a.get("goal_path") or a.get("goal"))
-        if use_fuzzy or use_semantic or use_goal:
+        if use_fuzzy or use_semantic or use_vector or use_goal:
             paths = ["lexical", "bucket", "entity", "graph"]
             if use_fuzzy:
                 paths.append("fuzzy")
             if use_semantic:
                 paths.append("semantic")
+            if use_vector:
+                paths.append("vector")
             if use_goal:
                 paths.append("goal")
             paths = tuple(paths)
@@ -3043,7 +3063,7 @@ def _dispatch(cg, name, args):
         # fuzzy 路缺省用 max 融合：实测（memory-bench-1000，870 查询）sum 会把
         # self@1 拉低 10.1%，因为求和奖励「多路共识」、低估「模糊路独有」的目标。
         # semantic 路同理：条件结构命中常是「独有召回」，故一并缺省 max。
-        fusion = a.get("fusion") or ("max" if (use_fuzzy or use_semantic or use_goal) else None)
+        fusion = a.get("fusion") or ("max" if (use_fuzzy or use_semantic or use_vector or use_goal) else None)
         # 默认单条上限从 mdcos 取（该模块只在 main() 里惰性导入，模块级没有名字，
         # 直接引用 mdcos.DEFAULT_MAX_ITEM_TOKENS 会 NameError —— 故此处按需导入）。
         from .mdcos import DEFAULT_MAX_ITEM_TOKENS as _DEFAULT_MAX_ITEM

@@ -38,7 +38,7 @@ function probe(msg) {
  * 达到上限即进入 failed 终态并停止调度；后续所有请求快速失败并给出
  * 明确的修复指引。握手成功后计数归零——运行期偶发崩溃重启不受影响。
  */
-const MAX_RETRIES = 8;
+const MAX_RETRIES = 6;
 export class AlphaBridge {
     options;
     proc = null;

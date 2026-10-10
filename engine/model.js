@@ -6,7 +6,7 @@ export const config = Object.freeze({
   models: [],
 });
 
-// ── 精确信任（方案 C）─────────────────────────────
+// ── 精确信任（2026-09-23 方案 C）─────────────────────────────
 // 本机网络出口有杀软 TLS 中间人（卡巴自签根替换 DeepSeek 证书链），
 // 导致 fetch 偶发 SELF_SIGNED_CERT_IN_CHAIN。
 // 解决：把中间人根证书交给 Node 的 NODE_EXTRA_CA_CERTS（标准 CA 扩展，
@@ -44,6 +44,10 @@ export async function openAICompletionsTransport(payload, modelConfig = {}) {
         { role: 'user', content: JSON.stringify({ slot: payload.slot, round: payload.round, actions: payload.actions, targets: payload.targets, context: payload.context }) },
       ],
       response_format: { type: 'json_object' },
+      // 低度思考（2026-09-28 定）：落盘/长期关系档口 15~30 轮才醒一次，
+      // 每次要消化整窗对话 + 批量文件，值得给低档推理。取值链：
+      // models[0].reasoningEffort → modelConfig.reasoningEffort → 默认 'low'。
+      reasoning_effort: String(model.reasoningEffort || modelConfig.reasoningEffort || 'low'),
       max_tokens: Number(model.maxTokens || 4000),
     }),
     signal: AbortSignal.timeout(Number(modelConfig.timeoutMs || 120000)),

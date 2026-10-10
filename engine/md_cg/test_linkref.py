@@ -104,7 +104,7 @@ def _run(tmp):
     policy = _policy(tmp)
     pipe = writepipe.install_default_gates(writepipe.WritePipeline())
     cg = _mk_cg(tmp)
-    A, B, TGT = "mem_1789125080573", "concept_d8eee20f2f", "mem_tgt0001"
+    A, B, TGT = "mem_<node>", "concept_<node>", "mem_tgt0001"
 
     # ---------- 1 纯函数：抽取语义 ----------
     txt = "见 %s 与 %s；再一次 %s；%s" % (A, B, A, A)

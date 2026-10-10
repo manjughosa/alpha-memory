@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Alpha桥.js — md_cg（Alpha记忆大脑）受控入口（算力下沉 / 外部层）
- * 存在理由：Alpha大脑是 python 包（md_cg），而 Aegis 一级门卫只放行 node 调 tools/算力下沉 内的受控 JS。
+ * Alpha桥.js — md_cg（Alpha记忆大脑）受控入口（CLI / 外部层）
+ * 存在理由：Alpha大脑是 python 包（md_cg），而 Aegis 一级门卫只放行 node 调 tools/CLI 内的受控 JS。
  * 本桥是唯一合法通道：node 拉起 python -m md_cg.mcp_server，做 JSON-RPC 握手与调用。
  * 作者：设计者 · 2026-09-16
  *
@@ -38,19 +38,18 @@ const LINK = process.env.MDCG_LINK_PATH || path.join(USER_HOME, ".mcp", "root", 
 // 背景：改造前启动的常驻宿主进程环境里揣着旧根值，会静默把引擎引到
 // 已冻结/已删除的旧根上 autoinit 空库，形成平行数据。
 const _envRoot = process.env.MDCG_ROOT;
-const _envTrustable = _envRoot
-  && fs.existsSync(path.join(_envRoot, "_index.json"))
-  && !/[\\/]backups[\\/]|[\\/]\.bak-/i.test(_envRoot);
-const MDCG_ROOT =
-  _envTrustable ? _envRoot
-  : fs.existsSync(_local("data/mdcg/_index.json")) ? _local("data/mdcg")
-  : _local("data/mdcg");
+// An explicit root is authoritative, including a new empty root. Never silently
+// redirect a caller's isolated root to the user's live memory database.
+if (_envRoot && /[\\/]backups[\\/]|[\\/]\.bak-/i.test(_envRoot)) {
+  throw new Error("MDCG_ROOT points to a backup directory");
+}
+const MDCG_ROOT = _envRoot ? path.resolve(_envRoot) : _local("data/mdcg");
 const PY_CANDIDATES = [
   process.env.MDCG_PYTHON,
   _local(process.platform === "win32" ? "runtime/python.exe" : "runtime/bin/python3"),
   process.platform === "win32" ? "python.exe" : "python3",
 ].filter(Boolean);
-const ENV_ALLOWLIST = ["PATH", "SystemRoot", "TEMP", "PYTHONPATH", "PYTHONUTF8", "MDCG_ROOT", "MDCG_POLICY_FILE", "MDCG_TOKEN"];
+const ENV_ALLOWLIST = ["PATH", "SystemRoot", "TEMP", "TMP", "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PYTHONPATH", "PYTHONUTF8", "PYTHONIOENCODING", "MDCG_ROOT", "MDCG_STATE_ROOT", "MDCG_SESSION", "MDCG_POLICY_FILE", "MDCG_TOKEN", "MDCG_TOKEN_FILE", "MDCG_TOKEN_REGISTRY_FILE", "MDCG_BEARER_TOKEN_FILE", "MDCG_VECTOR_AUTO_INDEX"];
 
 // Alpha-Dog 是 MCP 的驾驶舱控制面。默认只向 MCP 客户端暴露 On/Off；
 // cg/stg 仍由底层内核提供，是否显示由 alpha-dog.setting.json 的 interfaces 决定。
@@ -112,6 +111,21 @@ function handleAlphaDogTool(name) {
   return { status: "on", ...state };
 }
 
+// Python's MDCG_TOKEN_FILE is a JSON registry; the bridge historically also
+// accepted a plaintext bearer under that name. Do not pass bearer text as JSON.
+function tokenRegistryPath() {
+  if (process.env.MDCG_TOKEN_REGISTRY_FILE) return process.env.MDCG_TOKEN_REGISTRY_FILE;
+  const legacy = process.env.MDCG_TOKEN_FILE;
+  if (!legacy) return "";
+  try {
+    const raw = fs.readFileSync(legacy, "utf8").trim();
+    // JSON (including malformed JSON) belongs to the registry validator.
+    return /^[{[]/.test(raw) ? legacy : "";
+  } catch (_) {
+    return legacy; // preserve invalid explicit configuration; fail closed
+  }
+}
+
 function safeEnv(overrides = {}) {
   const env = {};
   for (const name of ENV_ALLOWLIST) {
@@ -121,6 +135,9 @@ function safeEnv(overrides = {}) {
   for (const name of ENV_ALLOWLIST) {
     if (Object.prototype.hasOwnProperty.call(overrides, name)) env[name] = overrides[name];
   }
+  const registry = tokenRegistryPath();
+  if (registry) env.MDCG_TOKEN_FILE = registry;
+  else delete env.MDCG_TOKEN_FILE;
   return env;
 }
 
@@ -719,7 +736,9 @@ function sanitizeToolCall(toolName, rawArgs) {
 function loadToken() {
   if (process.env.MDCG_TOKEN) return process.env.MDCG_TOKEN;
   const _tokenCandidates = [
-    process.env.MDCG_TOKEN_FILE,
+    process.env.MDCG_BEARER_TOKEN_FILE,
+    process.env.MDCG_TOKEN_FILE && process.env.MDCG_TOKEN_FILE !== tokenRegistryPath()
+      ? process.env.MDCG_TOKEN_FILE : null,
     _local("token/alpha-token.txt"),
     path.join(USER_HOME, ".mcp", "alpha-token.txt"),
   ].filter(Boolean);

@@ -85,7 +85,7 @@ __all__ = ["RELATION", "ID_SHAPE", "ID_RE", "ID_SHAPE_RE", "SOURCE_EXCLUDE_LAYER
 
 # 节点 id **通用形态**（不设前缀白名单，见模块 docstring 的普查依据）：
 #   字母前缀 + `_` + 字母数字段（段长 ≥3）。
-# 实例：mem_1789125080573 / concept_d8eee20f2f / doc_b56c18dbf164 /
+# 实例：mem_<node> / concept_<node> / doc_<node> /
 #       kp_GIL_1787752832598 / node_meta_427035320_1787018623216 / rev_xxx_r1
 # 边界用 **ASCII 字母数字下划线 lookaround**（不可用 `\b`）：Python `re` 的
 # `\b` 按 Unicode 词义判定、中文属词字符，故 `见 mem_xxx的说明` 这类
