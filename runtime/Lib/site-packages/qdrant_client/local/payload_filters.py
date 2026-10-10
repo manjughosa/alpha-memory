@@ -1,0 +1,495 @@
+import math
+import re
+from datetime import date, datetime, timezone
+from typing import Any
+from uuid import UUID
+
+import numpy as np
+
+from qdrant_client.http import models
+from qdrant_client.local import datetime_utils
+from qdrant_client.local.geo import boolean_point_in_polygon, geo_distance
+from qdrant_client.local.payload_value_extractor import value_by_key
+from qdrant_client.local.siphash import point_id_slice
+from qdrant_client.conversions import common_types as types
+
+
+def get_value_counts(values: list[Any]) -> list[int]:
+    counts = []
+
+    if all(value is None for value in values):
+        counts.append(0)
+    else:
+        for value in values:
+            if value is None:
+                counts.append(0)
+            elif isinstance(value, list):
+                counts.append(len(value))
+            else:
+                counts.append(1)
+    return counts
+
+
+def check_values_count(condition: models.ValuesCount, values: list[Any] | None) -> bool:
+    if values is None:
+        values = []
+
+    counts = get_value_counts(values)
+
+    # A single value's count must satisfy every bound at once, and the condition
+    # matches if any one value does. Checking each bound independently across all
+    # counts would let separate values satisfy separate bounds.
+    return any(
+        (condition.lt is None or count < condition.lt)
+        and (condition.lte is None or count <= condition.lte)
+        and (condition.gt is None or count > condition.gt)
+        and (condition.gte is None or count >= condition.gte)
+        for count in counts
+    )
+
+
+def value_is_empty(value: Any) -> bool:
+    """A value is empty when it is null or an empty array."""
+    if value is None:
+        return True
+    if isinstance(value, list):
+        return len(value) == 0
+    return False
+
+
+def value_is_null(value: Any) -> bool:
+    """A value is null when it is null itself, or an array containing a null element,
+    one level deep (qdrant#10101).
+    """
+    if value is None:
+        return True
+    if isinstance(value, list):
+        return any(element is None for element in value)
+    return False
+
+
+def check_is_empty(payload: dict[str, Any], key: str) -> bool:
+    """Whether a key is empty: it resolves to no value at all, or every value it resolves
+    to is empty.
+    """
+    values = value_by_key(payload, key, flat=False)
+    return values is None or len(values) == 0 or all(value_is_empty(value) for value in values)
+
+
+def check_is_null(payload: dict[str, Any], key: str) -> bool:
+    """Whether any value a key resolves to is null."""
+    values = value_by_key(payload, key, flat=False)
+    if values is None:
+        return False
+    return any(value_is_null(value) for value in values)
+
+
+def _is_geo_point(value: Any) -> bool:
+    """Accept finite JSON numbers that can be used by the geometry calculations."""
+    if not isinstance(value, dict):
+        return False
+    try:
+        return all(
+            (type(coordinate) is int or type(coordinate) is float) and math.isfinite(coordinate)
+            for coordinate in (value.get("lat"), value.get("lon"))
+        )
+    except OverflowError:
+        return False
+
+
+def check_geo_radius(condition: models.GeoRadius, values: Any) -> bool:
+    if _is_geo_point(values):
+        lat = values["lat"]
+        lon = values["lon"]
+
+        distance = geo_distance(
+            lon1=lon,
+            lat1=lat,
+            lon2=condition.center.lon,
+            lat2=condition.center.lat,
+        )
+
+        return distance < condition.radius
+
+    return False
+
+
+def check_geo_bounding_box(condition: models.GeoBoundingBox, values: Any) -> bool:
+    if _is_geo_point(values):
+        lat = values["lat"]
+        lon = values["lon"]
+
+        # handle anti-meridian crossing case
+        if condition.top_left.lon > condition.bottom_right.lon:
+            longitude_condition = lon > condition.top_left.lon or lon < condition.bottom_right.lon
+        else:
+            longitude_condition = condition.top_left.lon < lon < condition.bottom_right.lon
+
+        latitude_condition = condition.top_left.lat > lat > condition.bottom_right.lat
+
+        return longitude_condition and latitude_condition
+
+    return False
+
+
+def check_geo_polygon(condition: models.GeoPolygon, values: Any) -> bool:
+    if _is_geo_point(values):
+        lat = values["lat"]
+        lon = values["lon"]
+        exterior = [(point.lat, point.lon) for point in condition.exterior.points]
+        interiors = []
+        if condition.interiors is not None:
+            interiors = [
+                [(point.lat, point.lon) for point in interior.points]
+                for interior in condition.interiors
+            ]
+        return boolean_point_in_polygon(point=(lat, lon), exterior=exterior, interiors=interiors)
+
+    return False
+
+
+def check_range_interface(condition: models.RangeInterface, value: Any) -> bool:
+    if isinstance(condition, models.Range):
+        return check_range(condition, value)
+    if isinstance(condition, models.DatetimeRange):
+        return check_datetime_range(condition, value)
+    return False
+
+
+def check_range(condition: models.Range, value: Any) -> bool:
+    # bool is a subclass of int in Python, but booleans are not numeric values
+    # in Qdrant and must not be matched by a range condition.
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return (
+        (condition.lt is None or value < condition.lt)
+        and (condition.lte is None or value <= condition.lte)
+        and (condition.gt is None or value > condition.gt)
+        and (condition.gte is None or value >= condition.gte)
+    )
+
+
+def check_datetime_range(condition: models.DatetimeRange, value: Any) -> bool:
+    def make_condition_tz_aware(dt: datetime | date | None) -> datetime | None:
+        if isinstance(dt, date) and not isinstance(dt, datetime):
+            dt = datetime.combine(dt, datetime.min.time())
+
+        if dt is None or dt.tzinfo is not None:
+            return dt
+
+        # Assume UTC if no timezone is provided
+        return dt.replace(tzinfo=timezone.utc)
+
+    if not isinstance(value, str):
+        return False
+
+    dt = datetime_utils.parse(value)
+
+    if dt is None:
+        return False
+
+    lt = make_condition_tz_aware(condition.lt)
+    lte = make_condition_tz_aware(condition.lte)
+    gt = make_condition_tz_aware(condition.gt)
+    gte = make_condition_tz_aware(condition.gte)
+
+    return (
+        (lt is None or dt < lt)
+        and (lte is None or dt <= lte)
+        and (gt is None or dt > gt)
+        and (gte is None or dt >= gte)
+    )
+
+
+def values_match(value: Any, other: Any) -> bool:
+    # Qdrant keeps bool, integer and float as distinct payload value types for exact
+    # match, but Python cross-matches them (bool is a subclass of int, and 1 == 1.0).
+    # Match condition operands are only ever bool / int / str (never float), so a float
+    # payload value can never be matched by an exact-match condition on the server.
+    if isinstance(value, bool) != isinstance(other, bool):
+        return False
+    if isinstance(value, float) != isinstance(other, float):
+        return False
+    return value == other
+
+
+def unindexed_text_tokens(text: str) -> list[str]:
+    # Mirrors the server's default word tokenizer, used for text and phrase filters on
+    # fields without a text index: split on non-alphanumeric characters, lowercase.
+    return [token.lower() for token in re.findall(r"[^\W_]+", text)]
+
+
+def check_match(condition: models.Match, value: Any) -> bool:
+    if isinstance(condition, models.MatchValue):
+        return values_match(value, condition.value)
+    if isinstance(condition, models.MatchText):
+        # On a field without a text index the server tokenizes both sides with the default
+        # word tokenizer and requires every query token to be a whole document token,
+        # order-independent (qdrant#10341). An empty query never matches. A text index may
+        # use a different tokenizer, which local mode cannot reproduce since it builds no
+        # indexes.
+        if not isinstance(value, str):
+            return False
+        query_tokens = unindexed_text_tokens(condition.text)
+        document_tokens = set(unindexed_text_tokens(value))
+        return bool(query_tokens) and all(token in document_tokens for token in query_tokens)
+    if isinstance(condition, models.MatchTextAny):
+        # Like `MatchText`, but a single query token is enough (qdrant#10526).
+        if not isinstance(value, str):
+            return False
+        document_tokens = set(unindexed_text_tokens(value))
+        return any(token in document_tokens for token in unindexed_text_tokens(condition.text_any))
+    if isinstance(condition, models.MatchPhrase):
+        # Like `MatchText`, but the query tokens must appear consecutively in document
+        # token order (qdrant#10341).
+        if not isinstance(value, str):
+            return False
+        phrase_tokens = unindexed_text_tokens(condition.phrase)
+        value_tokens = unindexed_text_tokens(value)
+        return bool(phrase_tokens) and any(
+            value_tokens[i : i + len(phrase_tokens)] == phrase_tokens
+            for i in range(len(value_tokens) - len(phrase_tokens) + 1)
+        )
+    if isinstance(condition, models.MatchPrefix):
+        # byte-wise and case-sensitive, like exact keyword matching. Non-string values never
+        # match, not even against an empty prefix.
+        return isinstance(value, str) and value.startswith(condition.prefix)
+    if isinstance(condition, models.MatchAny):
+        return any(values_match(value, v) for v in condition.any)
+    if isinstance(condition, models.MatchExcept):
+        # A null payload value is absence, not a value that happens to differ from
+        # everything in the list. The server drops nulls before matching, so a field
+        # whose only value is null does not satisfy an "except" condition — without
+        # this guard the negation turns absence into a match.
+        return value is not None and not any(values_match(value, v) for v in condition.except_)
+    raise ValueError(f"Unknown match condition: {condition}")
+
+
+def nested_filter_values(payload: dict[str, Any], key: str) -> list[Any]:
+    """Array elements a nested filter is applied to, one at a time.
+
+    A nested key should point to an array of objects, and may be written with or without the
+    bracket notation: `data` and `data[]` are equivalent. A value which is not an array - a plain
+    object, a scalar - has no elements to apply the filter to, so it never matches.
+    """
+    if len(key) > 2 and key.endswith("[]"):
+        key = key[: -len("[]")]
+
+    values = value_by_key(payload, key, flat=False)
+    if values is None:
+        return []
+
+    elements: list[Any] = []
+    for value in values:
+        if isinstance(value, list):
+            elements.extend(value)
+    return elements
+
+
+def check_nested_filter(nested_filter: models.Filter, values: list[Any]) -> bool:
+    return any(check_filter(nested_filter, v, point_id=-1, has_vector={}) for v in values)
+
+
+def check_condition(
+    condition: models.Condition,
+    payload: dict[str, Any],
+    point_id: models.ExtendedPointId,
+    has_vector: dict[str, bool],
+) -> bool:
+    if isinstance(condition, models.IsNullCondition):
+        return check_is_null(payload, condition.is_null.key)
+    elif isinstance(condition, models.IsEmptyCondition):
+        return check_is_empty(payload, condition.is_empty.key)
+    elif isinstance(condition, models.HasIdCondition):
+        ids = [str(id_) if isinstance(id_, UUID) else id_ for id_ in condition.has_id]
+        if point_id in ids:
+            return True
+    elif isinstance(condition, models.SliceCondition):
+        total, index = condition.slice.total, condition.slice.index
+        if isinstance(point_id, int) and point_id < 0:
+            # sentinel id used while evaluating nested filters, it belongs to no slice
+            return False
+        return point_id_slice(point_id, total) == index
+    elif isinstance(condition, models.HasVectorCondition):
+        if condition.has_vector in has_vector and has_vector[condition.has_vector]:
+            return True
+    elif isinstance(condition, models.FieldCondition):
+        if condition.values_count is not None:
+            return check_values_count(
+                condition.values_count, value_by_key(payload, condition.key, flat=False)
+            )
+        if condition.is_empty is not None:
+            return check_is_empty(payload, condition.key) == condition.is_empty
+        if condition.is_null is not None:
+            return check_is_null(payload, condition.key) == condition.is_null
+        values = value_by_key(payload, condition.key)
+        if condition.match is not None:
+            if values is None:
+                return False
+            return any(check_match(condition.match, v) for v in values)
+        if condition.range is not None:
+            if values is None:
+                return False
+            return any(check_range_interface(condition.range, v) for v in values)
+        if condition.geo_bounding_box is not None:
+            if values is None:
+                return False
+            return any(check_geo_bounding_box(condition.geo_bounding_box, v) for v in values)
+        if condition.geo_radius is not None:
+            if values is None:
+                return False
+            return any(check_geo_radius(condition.geo_radius, v) for v in values)
+        if condition.geo_polygon is not None:
+            if values is None:
+                return False
+            return any(check_geo_polygon(condition.geo_polygon, v) for v in values)
+    elif isinstance(condition, models.NestedCondition):
+        return check_nested_filter(
+            condition.nested.filter, nested_filter_values(payload, condition.nested.key)
+        )
+    elif isinstance(condition, models.Filter):
+        return check_filter(condition, payload, point_id, has_vector)
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+    return False
+
+
+def check_must(
+    conditions: list[models.Condition],
+    payload: dict,
+    point_id: models.ExtendedPointId,
+    has_vector: dict[str, bool],
+) -> bool:
+    return all(
+        check_condition(condition, payload, point_id, has_vector) for condition in conditions
+    )
+
+
+def check_must_not(
+    conditions: list[models.Condition],
+    payload: dict,
+    point_id: models.ExtendedPointId,
+    has_vector: dict[str, bool],
+) -> bool:
+    return all(
+        not check_condition(condition, payload, point_id, has_vector) for condition in conditions
+    )
+
+
+def check_should(
+    conditions: list[models.Condition],
+    payload: dict,
+    point_id: models.ExtendedPointId,
+    has_vector: dict[str, bool],
+) -> bool:
+    return any(
+        check_condition(condition, payload, point_id, has_vector) for condition in conditions
+    )
+
+
+def check_min_should(
+    conditions: list[models.Condition],
+    payload: dict,
+    point_id: models.ExtendedPointId,
+    vectors: dict[str, Any],
+    min_count: int,
+) -> bool:
+    return (
+        sum(check_condition(condition, payload, point_id, vectors) for condition in conditions)
+        >= min_count
+    )
+
+
+def check_filter(
+    payload_filter: models.Filter,
+    payload: dict,
+    point_id: models.ExtendedPointId,
+    has_vector: dict[str, bool],
+) -> bool:
+    def ensure_condition_list(
+        condition: models.Condition | list[models.Condition],
+    ) -> list[models.Condition]:
+        if isinstance(condition, list):
+            return condition
+        return [condition]
+
+    if payload_filter.must is not None:
+        if not check_must(
+            ensure_condition_list(payload_filter.must), payload, point_id, has_vector
+        ):
+            return False
+    if payload_filter.must_not is not None:
+        if not check_must_not(
+            ensure_condition_list(payload_filter.must_not), payload, point_id, has_vector
+        ):
+            return False
+    if payload_filter.should is not None:
+        should = ensure_condition_list(payload_filter.should)
+        # An empty `should` states no alternatives to satisfy, which is not the same
+        # as an unsatisfiable one: the server treats it as no constraint and matches
+        # everything. `any([])` is False, so without this guard it matches nothing —
+        # the exact inverse.
+        if should and not check_should(should, payload, point_id, has_vector):
+            return False
+    if payload_filter.min_should is not None:
+        if not check_min_should(
+            payload_filter.min_should.conditions,
+            payload,
+            point_id,
+            has_vector,
+            payload_filter.min_should.min_count,
+        ):
+            return False
+    return True
+
+
+def validate_filter(payload_filter: models.Filter | None) -> None:
+    """Reject filters the server would refuse, before touching any point."""
+    if payload_filter is None:
+        return
+
+    clauses = [payload_filter.must, payload_filter.should, payload_filter.must_not]
+
+    if payload_filter.min_should is not None:
+        min_count = payload_filter.min_should.min_count
+        if min_count < 1:
+            raise ValueError(f"min_count value {min_count} is invalid. Must be 1 or larger.")
+        clauses.append(payload_filter.min_should.conditions)
+
+    for clause in clauses:
+        if clause is None:
+            continue
+        # A clause is either a single condition or a list of them.
+        conditions = clause if isinstance(clause, list) else [clause]
+        for condition in conditions:
+            if isinstance(condition, models.Filter):
+                validate_filter(condition)
+            elif isinstance(condition, models.NestedCondition):
+                validate_filter(condition.nested.filter)
+            elif isinstance(condition, models.SliceCondition):
+                total, index = condition.slice.total, condition.slice.index
+                if total < 1:
+                    raise ValueError(f"Slice total must be >= 1, got {total}")
+                if not 0 <= index < total:
+                    raise ValueError(f"Slice index must be in [0;{total - 1}], got {index}")
+
+
+def calculate_payload_mask(
+    payloads: list[dict],
+    payload_filter: models.Filter | None,
+    ids_inv: list[models.ExtendedPointId],
+    deleted_per_vector: dict[str, np.ndarray],
+) -> types.NumpyArray:
+    if payload_filter is None:
+        return np.ones(len(payloads), dtype=bool)
+
+    mask: types.NumpyArray = np.zeros(len(payloads), dtype=bool)
+    for i, payload in enumerate(payloads):
+        has_vector = {}
+        for vector_name, deleted in deleted_per_vector.items():
+            if not deleted[i]:
+                has_vector[vector_name] = True
+
+        if check_filter(payload_filter, payload, ids_inv[i], has_vector):
+            mask[i] = True
+    return mask
